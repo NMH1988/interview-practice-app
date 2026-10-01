@@ -192,6 +192,10 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] The `qrspi` skill's Implement phase repeats both rules.
 - [ ] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no docstring.
 
+**Tests**
+- [ ] Unit: `tests/test_conventions.py` passes on the current tree.
+- [ ] Manual: remove the docstring from one function (also try a nested helper and a test) and check the test fails, naming its `file:line`.
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
 - T7.2 Export practice session to Markdown — AC: download button yields the full transcript.
