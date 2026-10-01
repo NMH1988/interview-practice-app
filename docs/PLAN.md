@@ -180,6 +180,12 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Checklist covers correctness, security (secrets, guard, injection, output safety), mocked tests and project conventions.
 - [ ] Runs ruff + pytest, checks the ticket's acceptance criteria, and reports in a fixed severity-ranked format.
 
+### T6.7 Progress log read before every ticket (S)
+**Acceptance criteria**
+- [ ] `docs/PROGRESS.md` has one entry per PR (what, why, decisions/gotchas, follow-ups), backfilled with all work so far.
+- [ ] `CLAUDE.md` and the `qrspi` skill require reading it (plus open PRs) before a new ticket.
+- [ ] Every PR adds its own entry (Dependabot exempt).
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
 - T7.2 Export practice session to Markdown — AC: download button yields the full transcript.
