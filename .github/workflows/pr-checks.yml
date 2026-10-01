@@ -10,6 +10,11 @@ permissions:
   contents: read
   pull-requests: read
 
+# One run per PR: a push and a description edit at the same time would otherwise start two.
+concurrency:
+  group: pr-checks-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   linked-issue:
     # Dependabot PRs have no ticket.
@@ -38,13 +43,23 @@ jobs:
           fi
           # Ask GitHub which issues this PR closes. It links them a few seconds after the
           # description is saved, so retry briefly before failing.
+          failed=0
           for attempt in 1 2 3 4 5 6; do
-            count=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json closingIssuesReferences -q '.closingIssuesReferences | length')
+            # A failed API call is retried like "not linked yet" instead of ending the script.
+            count=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json closingIssuesReferences -q '.closingIssuesReferences | length') || {
+              echo "::warning::gh pr view failed (attempt $attempt of 6)."
+              failed=$((failed + 1))
+              count=0
+            }
             if [ "$count" -gt 0 ]; then
               echo "Closes $count issue(s) on merge."
               exit 0
             fi
             if [ "$attempt" -lt 6 ]; then sleep 5; fi
           done
+          if [ "$failed" -eq 6 ]; then
+            echo "::error::Could not read the PR's linked issues from GitHub. Re-run this job."
+            exit 1
+          fi
           echo "::error::This PR closes no issue on merge. Add 'Closes #<issue>' (an existing issue) to the description."
           exit 1
