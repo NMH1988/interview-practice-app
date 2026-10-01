@@ -2,8 +2,8 @@ from src import config
 
 
 def test_allowed_models():
-    """Allowed models are exactly the agreed list."""
-    assert config.ALLOWED_MODELS == ("openai/gpt-5-mini",)
+    """Allowed models are exactly the three chat models from the brief."""
+    assert config.ALLOWED_MODELS == ("openai/gpt-5-mini", "openai/gpt-5-nano", "openai/gpt-5")
 
 
 def test_default_model_is_allowed():
