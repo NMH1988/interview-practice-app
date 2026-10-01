@@ -153,6 +153,38 @@ def test_empty_reply_raises_llm_error(text):
 
 
 @pytest.mark.parametrize(
+    ("response", "message"),
+    [
+        (
+            httpx2.Response(200, text="<html>down</html>", headers={"content-type": "text/html"}),
+            "unreadable answer",
+        ),
+        (
+            httpx2.Response(
+                200, content=b"{not json", headers={"content-type": "application/json"}
+            ),
+            "unreadable answer",
+        ),
+        (httpx2.Response(200, json={"choices": [{"index": 0}]}), "empty answer"),
+        (httpx2.Response(200, json={"choices": "oops"}), "empty answer"),
+        (
+            httpx2.Response(200, json={"choices": [{"index": 0, "message": {"content": [1]}}]}),
+            "empty answer",
+        ),
+    ],
+    ids=["html", "bad-json", "no-message", "choices-not-list", "content-not-text"],
+)
+def test_malformed_200_raises_llm_error(response, message):
+    """A 200 reply that is not a usable chat completion raises a readable LLMError."""
+    fake = FakeOpenRouter(response)
+    with pytest.raises(llm.LLMError, match=message) as excinfo:
+        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert type(excinfo.value) is llm.LLMError
+    assert FAKE_KEY not in str(excinfo.value)
+    assert len(fake.requests) == 1
+
+
+@pytest.mark.parametrize(
     ("status", "error_class"),
     [
         (429, llm.LLMRateLimitError),

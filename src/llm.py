@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 import openai
 from openai import OpenAI
+from openai.types.chat import ChatCompletion
 
 from src.config import (
     ALLOWED_MODELS,
@@ -24,6 +25,7 @@ REQUEST_TIMEOUT = 30.0
 MAX_RETRIES = 2
 BACKOFF_SECONDS = 1.0
 _RETRYABLE = (openai.RateLimitError, openai.InternalServerError)
+_UNREADABLE = "The AI service sent an unreadable answer. Please try again."
 
 # Indirection so tests can patch out the backoff wait.
 _sleep = time.sleep
@@ -59,7 +61,7 @@ def _translate(exc: openai.APIError) -> LLMError:
         return LLMTimeoutError("The AI service took too long to respond. Please try again.")
     if isinstance(exc, openai.AuthenticationError):
         return LLMAuthError(
-            "The OpenRouter API key was rejected. Check OPENROUTER_API_KEY and reload the page."
+            f"The OpenRouter API key was rejected. Check {API_KEY_NAME} and reload the page."
         )
     if isinstance(exc, openai.RateLimitError):
         return LLMRateLimitError(
@@ -70,6 +72,19 @@ def _translate(exc: openai.APIError) -> LLMError:
             "The AI service is having problems right now. Please try again later."
         )
     return LLMError("The request to the AI service failed. Please try again.")
+
+
+def _reply_text(response: object) -> str | None:
+    """Return the first choice's text (None if it has none); raise LLMError for a non-chat reply."""
+    # The SDK does not validate 200 responses: a non-JSON body comes back as a plain str,
+    # and a JSON body may lack choices or message, so read every field defensively.
+    if not isinstance(response, ChatCompletion):
+        raise LLMError(_UNREADABLE)
+    choices = response.choices
+    if not isinstance(choices, list) or not choices:
+        return None
+    content = getattr(getattr(choices[0], "message", None), "content", None)
+    return content if isinstance(content, str) else None
 
 
 def make_client(api_key: str | None = None, http_client: httpx2.Client | None = None) -> OpenAI:
@@ -122,7 +137,10 @@ def complete(
             _sleep(BACKOFF_SECONDS * 2**attempt)
         except openai.APIError as exc:
             raise _translate(exc) from exc
-    text = response.choices[0].message.content if response.choices else None
+        except ValueError as exc:
+            # A 200 JSON response that does not parse raises json.JSONDecodeError, not APIError.
+            raise LLMError(_UNREADABLE) from exc
+    text = _reply_text(response)
     if not text or not text.strip():
         raise LLMError("The AI service returned an empty answer. Please try again.")
     return text
