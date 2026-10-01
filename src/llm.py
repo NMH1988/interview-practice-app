@@ -1,0 +1,106 @@
+"""OpenRouter client wrapper: one `complete()` call with model checks, errors and retries."""
+
+import time
+
+import openai
+from openai import OpenAI
+
+from src.config import ALLOWED_MODELS, get_api_key
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+REQUEST_TIMEOUT = 30.0
+# 429 and 5xx are retried this many times, waiting BACKOFF_SECONDS, then twice as long, etc.
+MAX_RETRIES = 2
+BACKOFF_SECONDS = 1.0
+_RETRYABLE = (openai.RateLimitError, openai.InternalServerError)
+
+# Indirection so tests can patch out the backoff wait.
+_sleep = time.sleep
+
+
+class LLMError(RuntimeError):
+    """Base error for a failed LLM call; its message is safe to show to the user."""
+
+
+class InvalidModelError(LLMError, ValueError):
+    """Raised when a model outside `ALLOWED_MODELS` is requested."""
+
+
+class LLMTimeoutError(LLMError):
+    """Raised when OpenRouter does not answer within `REQUEST_TIMEOUT` seconds."""
+
+
+class LLMAuthError(LLMError):
+    """Raised when OpenRouter rejects the API key (HTTP 401)."""
+
+
+class LLMRateLimitError(LLMError):
+    """Raised when OpenRouter keeps answering HTTP 429 (too many requests)."""
+
+
+class LLMServerError(LLMError):
+    """Raised when OpenRouter keeps answering with an HTTP 5xx error."""
+
+
+def _translate(exc: openai.APIError) -> LLMError:
+    """Map an SDK error to our own exception with a fixed, user-readable message."""
+    if isinstance(exc, openai.APITimeoutError):
+        return LLMTimeoutError("The AI service took too long to respond. Please try again.")
+    if isinstance(exc, openai.AuthenticationError):
+        return LLMAuthError(
+            "The OpenRouter API key was rejected. Check OPENROUTER_API_KEY and reload the page."
+        )
+    if isinstance(exc, openai.RateLimitError):
+        return LLMRateLimitError(
+            "The AI service is receiving too many requests. Please wait a moment and try again."
+        )
+    if isinstance(exc, openai.InternalServerError):
+        return LLMServerError(
+            "The AI service is having problems right now. Please try again later."
+        )
+    return LLMError("The request to the AI service failed. Please try again.")
+
+
+def make_client(api_key: str | None = None, http_client=None) -> OpenAI:
+    """Return an OpenAI SDK client pointed at OpenRouter, with the SDK's own retries off."""
+    return OpenAI(
+        api_key=api_key or get_api_key(),
+        base_url=OPENROUTER_BASE_URL,
+        timeout=REQUEST_TIMEOUT,
+        # complete() runs its own retry loop, so the SDK must not retry as well.
+        max_retries=0,
+        http_client=http_client,
+    )
+
+
+def complete(
+    messages: list[dict],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    *,
+    client: OpenAI | None = None,
+) -> str:
+    """Send a chat request to OpenRouter and return the assistant's reply text."""
+    if model not in ALLOWED_MODELS:
+        raise InvalidModelError(f"Model {model!r} is not allowed. Choose one of the listed models.")
+    client = client or make_client()
+    for attempt in range(MAX_RETRIES + 1):
+        try:
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+            )
+            break
+        except _RETRYABLE as exc:
+            if attempt == MAX_RETRIES:
+                raise _translate(exc) from exc
+            _sleep(BACKOFF_SECONDS * 2**attempt)
+        except openai.APIError as exc:
+            raise _translate(exc) from exc
+    text = response.choices[0].message.content if response.choices else None
+    if not text:
+        raise LLMError("The AI service returned an empty answer. Please try again.")
+    return text
