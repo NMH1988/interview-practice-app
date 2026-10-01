@@ -9,6 +9,12 @@ def test_at_least_five_strategies_registered():
     assert all(callable(strategy) for strategy in STRATEGIES.values())
 
 
+def test_strategies_give_different_prompts():
+    """No two registry keys point at the same prompt, so a copy-paste slip is caught."""
+    prompts = {strategy("Data Analyst", "Technical") for strategy in STRATEGIES.values()}
+    assert len(prompts) == len(STRATEGIES)
+
+
 def test_registry_is_read_only():
     """Adding or replacing a strategy at runtime raises TypeError."""
     with pytest.raises(TypeError):
