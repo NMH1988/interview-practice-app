@@ -16,6 +16,12 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-01 · T3.1 Prompt registry · #<PR> (closes #8)
+- **What:** `src/prompts.py` with `INTERVIEW_TYPES` (Behavioural, Technical, Questions to ask the interviewer, Job-description analysis), five strategy functions `(role, interview_type) -> str` (`zero_shot`, `few_shot`, `chain_of_thought`, `persona`, `structured_output`) and the `STRATEGIES` dict that maps a stable key to each one. `tests/test_prompts.py` checks that at least 5 strategies are registered and that each returns a non-empty prompt naming the role and type, for every interview type (parametrised).
+- **Why:** a single dict lets the UI's strategy select (T5.1), the evaluation (T3.3) and the default in `config.py` all refer to strategies by key.
+- **Decisions & gotchas:** the user agreed to these defaults. The prompts are short working drafts named after T3.2's five techniques; T3.2 writes the full versions and adds technique labels, the stay-on-topic and ignore-embedded-instructions rules, and realistic few-shot examples. No input validation here: any role or type string is accepted (the guard or UI checks input, T4.x/T5.3). `INTERVIEW_TYPES` lives in `prompts.py` because nothing else uses it yet; T5.3 may move it to `config.py`. The dict keys are the stable IDs; do not rename them once T3.3 stores the default.
+- **Follow-ups:** T3.2 (full prompts, labels, safety rules), T3.3 (default strategy in `config.py`), T3.4 (user-prompt builder).
+
 ## 2026-10-01 · T6.9 Code conventions in CLAUDE.md · #47 (closes #46)
 - **What:** `CLAUDE.md` gets a "Code conventions" section (one-line docstring on every function/method/class, tests included; a "what I did and why" walkthrough after each task). The `qrspi` skill's Implement phase repeats both. `tests/test_conventions.py` fails if any function or class in `app.py`, `src/` or `tests/` lacks a one-line docstring.
 - **Why:** the user asked for both rules during T1.2. The section was first added in #37, then removed there in review because it was out of scope; this ticket restores it on its own.
