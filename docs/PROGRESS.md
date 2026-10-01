@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-01 · T2.1 OpenRouter client wrapper · #<PR> (closes #4)
+## 2026-10-01 · T2.1 OpenRouter client wrapper · #48 (closes #4)
 - **What:** `src/llm.py`. `complete(messages, model, temperature, max_tokens, *, client=None)` calls OpenRouter's OpenAI-compatible endpoint through the `openai` SDK and returns the reply text. A model outside `ALLOWED_MODELS` raises `InvalidModelError` before a client is built or the key is read. Timeout, 401, 429 and 5xx raise `LLMTimeoutError`, `LLMAuthError`, `LLMRateLimitError` and `LLMServerError`; anything else (400, connection failure, empty reply) raises the base `LLMError`. All carry fixed user-readable messages, never the SDK text. 429/5xx are retried up to `MAX_RETRIES = 2` times with 1 s then 2 s backoff. `tests/test_llm.py` covers it at 100% with a mocked HTTP transport.
 - **Why:** one small interface for the UI (T5.2) and streaming (T2.2) to build on; fixed messages keep response bodies and keys out of what the user sees.
 - **Decisions & gotchas:** `openai` 3.x sends requests through **`httpx2`** (not `httpx`); tests mock it with `httpx2.MockTransport` via `make_client(key, http_client=...)`. The SDK retries 2× by default, so `make_client` sets `max_retries=0`; otherwise retries would multiply. Timeouts (30 s, `REQUEST_TIMEOUT`) are not retried, as the ticket only asks for 429/5xx. Backoff sleeps through `llm._sleep` so tests can patch it. No temperature range check and no `max_tokens` cap here.
