@@ -3,6 +3,8 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
+from src.config import API_KEY_NAME, MissingAPIKeyError, SecretsFileError, get_api_key
+
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
 # Theme colours come from .streamlit/config.toml so the cards always match the app.
@@ -26,9 +28,30 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+st.title("Interview Practice")
+
+try:
+    get_api_key()
+except SecretsFileError:
+    st.error(
+        "**`.streamlit/secrets.toml` could not be parsed.** Check that the key is in quotes, "
+        f'for example `{API_KEY_NAME} = "sk-or-v1-..."`, then reload this page.',
+        icon="🔑",
+    )
+    st.stop()
+except MissingAPIKeyError:
+    st.error(
+        f"**OpenRouter API key missing.** Add `{API_KEY_NAME}` to `.streamlit/secrets.toml` "
+        "(copy `.streamlit/secrets.toml.example`) or set it as an environment variable, "
+        "then reload this page. See the README for setup steps.",
+        icon="🔑",
+    )
+    st.stop()
+
 
 @st.cache_data
 def load_sessions() -> pd.DataFrame:
+    """Return 60 days of made-up practice sessions for the dashboard."""
     # Placeholder data: replace with your real practice-session records.
     days = pd.date_range(end=date.today(), periods=60, freq="D")
     return pd.DataFrame(
@@ -57,8 +80,6 @@ if len(picked) == 2:
     filtered = df[(df["date"].dt.date >= start) & (df["date"].dt.date <= end)]
 else:
     filtered = df.iloc[0:0]
-
-st.title("Interview Practice")
 
 c1, c2, c3 = st.columns(3)
 c1.metric("Sessions", len(filtered))
