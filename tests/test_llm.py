@@ -231,11 +231,18 @@ def test_sdk_retries_are_disabled():
     assert llm.make_client(FAKE_KEY).max_retries == 0
 
 
-NON_ASCII_KEYS = ["sk-test-“not-real”", "sk-test-not-real​"]
+# Keys that cannot go in an HTTP header, written as escapes so the bad characters stay visible.
+BAD_HEADER_KEYS = {
+    "smart-quotes": "sk-test-\u201cnot-real\u201d",
+    "zero-width-space": "sk-test-not-real\u200b",
+    "newline": "sk-test-not\nreal",
+    "carriage-return": "sk-test-not\rreal",
+    "nul": "sk-test-not\x00real",
+}
 
 
-@pytest.mark.parametrize("key", NON_ASCII_KEYS, ids=["smart-quotes", "zero-width-space"])
-def test_non_ascii_key_raises_llm_auth_error(key):
+@pytest.mark.parametrize("key", list(BAD_HEADER_KEYS.values()), ids=list(BAD_HEADER_KEYS))
+def test_bad_header_key_raises_llm_auth_error(key):
     """A key with characters that cannot go in an HTTP header is rejected with LLMAuthError."""
     with pytest.raises(llm.LLMAuthError, match="invalid characters") as excinfo:
         llm.make_client(key)
@@ -243,9 +250,9 @@ def test_non_ascii_key_raises_llm_auth_error(key):
     assert key not in str(excinfo.value)
 
 
-@pytest.mark.parametrize("key", NON_ASCII_KEYS, ids=["smart-quotes", "zero-width-space"])
-def test_non_ascii_key_from_secrets_fails_before_any_request(key, no_env_key, monkeypatch):
-    """Through complete(), a non-ASCII key raises LLMAuthError before an SDK client is built."""
+@pytest.mark.parametrize("key", list(BAD_HEADER_KEYS.values()), ids=list(BAD_HEADER_KEYS))
+def test_bad_header_key_from_secrets_fails_before_any_request(key, no_env_key, monkeypatch):
+    """Through complete(), a key unfit for a header raises LLMAuthError before any client exists."""
     monkeypatch.setattr(config.st, "secrets", {config.API_KEY_NAME: key})
     monkeypatch.setattr(llm, "OpenAI", lambda **kwargs: pytest.fail("client was built"))
     with pytest.raises(llm.LLMAuthError, match="invalid characters") as excinfo:

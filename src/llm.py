@@ -100,9 +100,10 @@ def make_client(api_key: str | None = None, http_client: httpx2.Client | None = 
             raise LLMAuthError(
                 f"No OpenRouter API key is set. Add {API_KEY_NAME} and reload the page."
             ) from exc
-    if not api_key.isascii():
-        # HTTP headers are ASCII; smart quotes or a zero-width space pasted with the key would
-        # otherwise fail inside the SDK as a UnicodeEncodeError before any request is sent.
+    if not (api_key.isascii() and api_key.isprintable()):
+        # HTTP header values must be printable ASCII. Smart quotes or a zero-width space pasted
+        # with the key would fail inside the SDK as a UnicodeEncodeError; a newline, CR or NUL
+        # would fail in h11 as a connection error whose message quotes the raw key.
         raise LLMAuthError(
             f"The OpenRouter API key contains invalid characters. Check {API_KEY_NAME} "
             "and reload the page."
