@@ -39,6 +39,7 @@ Produce a detailed implementation plan from the slices.
 Execute the plan step by step.
 - Work one slice at a time; after each slice run `ruff check .`, `ruff format --check .` and `python -m pytest -q` and fix failures before continuing.
 - Mock all LLM/network calls in tests; never put API keys in code or the repo.
+- Give every new function, method and class (tests and fixtures included) a one-line docstring saying what it does.
 - Stay inside the plan. If new information invalidates it, stop, go back to the relevant phase, and update the plan.
 - Add an entry at the top of `docs/PROGRESS.md` (format at the top of that file) in the same PR: what changed, why, decisions/gotchas, follow-ups.
-- Finish by reporting which acceptance criteria are met, what was verified, and anything not done. Commit/push only when the user asks.
+- Finish by reporting which acceptance criteria are met, what was verified, and anything not done, followed by a plain-language "what I did and why" walkthrough (each changed file, what changed, why that choice). Commit/push only when the user asks.

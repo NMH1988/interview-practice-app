@@ -8,6 +8,11 @@ For **every coding task** in this repository (features, bug fixes, refactors, is
 
 **Before starting any ticket**, read `docs/PROGRESS.md` (what earlier PRs did, decisions, follow-ups) and run `gh pr list --state open`. **Every PR adds its own entry** at the top of `docs/PROGRESS.md` (Dependabot exempt).
 
+## Code conventions
+
+- Every function, method and class (tests and fixtures included) gets a one-line docstring saying what it does in plain words. `tests/test_conventions.py` enforces this.
+- After each task, finish with a plain-language "what I did and why" walkthrough: each changed file, what changed, and why that choice was made.
+
 ## Commands
 
 - Install: `pip install -r requirements-dev.txt`
