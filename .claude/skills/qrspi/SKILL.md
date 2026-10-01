@@ -10,14 +10,14 @@ Run the five phases **in order** for every coding task. Do not write or edit cod
 Trivial edits (typo, comment, formatting, a one-line config change) may collapse Q-R-S-P into a single sentence, but must still state the plan before editing.
 
 ## 1. Question
-Break the task into clarifying questions.
+First read `docs/PROGRESS.md` and run `gh pr list --state open`, so earlier decisions, open work and follow-ups shape the questions. Then break the task into clarifying questions.
 - List every unknown that affects the solution: scope, inputs/outputs, edge cases, acceptance criteria, constraints, affected files.
 - If the task comes from a GitHub issue, read it (`gh issue view <n>`) and turn each acceptance criterion into at least one question.
 - Mark each question as **answerable from the code/docs** or **needs the user**.
 - Ask the user the "needs the user" questions and wait for answers before moving on, unless a sensible default exists; if so, state the default explicitly.
 
 ## 2. Research
-Answer each question **using only facts from the codebase or provided documents** (files, `docs/PLAN.md`, issues, README, the user's messages).
+Answer each question **using only facts from the codebase or provided documents** (files, `docs/PLAN.md`, `docs/PROGRESS.md`, issues, README, the user's messages).
 - Read the relevant files; run read-only commands (grep, tests, `git log`) as needed.
 - For each answer, cite the source (`path:line`, issue number, or document).
 - Never answer from assumption or memory. If the repo does not contain the answer, write "Not found in codebase" and either ask the user or record it as an explicit assumption.
@@ -40,4 +40,5 @@ Execute the plan step by step.
 - Work one slice at a time; after each slice run `ruff check .`, `ruff format --check .` and `python -m pytest -q` and fix failures before continuing.
 - Mock all LLM/network calls in tests; never put API keys in code or the repo.
 - Stay inside the plan. If new information invalidates it, stop, go back to the relevant phase, and update the plan.
+- Add an entry at the top of `docs/PROGRESS.md` (format at the top of that file) in the same PR: what changed, why, decisions/gotchas, follow-ups.
 - Finish by reporting which acceptance criteria are met, what was verified, and anything not done. Commit/push only when the user asks.
