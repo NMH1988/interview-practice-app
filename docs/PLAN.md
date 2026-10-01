@@ -26,6 +26,21 @@ docs/PLAN.md  docs/PROMPT_EVALUATION.md
 
 **Product decision (default, change if you prefer):** *Mock interview coach* — the user picks a role + interview type (behavioural, technical, questions-to-ask, job-description analysis), the app asks a question, the user answers, and the app gives feedback.
 
+## Testing strategy
+Every ticket lists its own **Tests**, written in the same PR as the code (not saved up for T6.2).
+
+| Layer | Tool | What it proves | When it runs |
+|---|---|---|---|
+| Unit | pytest | One function in `src/` works, including edge cases and errors | CI, every PR |
+| UI flow | `streamlit.testing.v1.AppTest` + fake LLM | `app.py` really wires widgets → guard → prompt → LLM → chat | CI, every PR |
+| Deploy smoke | CD job (`/_stcore/health`) + one manual chat turn | The live app is up and really talks to OpenRouter | After merge to `main` |
+
+- **No test calls OpenRouter.** Unit tests mock the HTTP layer; UI flow tests use a `fake_llm` fixture in `tests/conftest.py`, added by the first ticket that needs it.
+- UI flow tests patch module attributes (e.g. `src.llm.complete`) with `monkeypatch`. This works because `app.py` looks the name up again on every run (see `tests/test_app_smoke.py`). So call the LLM only from `app.py`, or via `llm.complete(...)`; never through a name another `src` module bound at import time (`from src.llm import complete`), which the patch would not reach.
+- Time-based code (retry backoff, rate limits) takes a clock/sleep that tests replace, so tests never really wait.
+- What `AppTest` cannot check (layout width, streaming animation, double-click races) is listed as a **Manual** check.
+- **No browser E2E suite (Playwright/Selenium) for now.** UI flow tests already run the real `app.py` from input to reply with only the LLM faked, and the deploy smoke test covers the live app. A browser suite would be slow and flaky and would mostly re-test Streamlit itself. Revisit if we add custom components (`st.components`) or more pages.
+
 ---
 
 ## Epic 1 — Foundation & Project Setup
@@ -39,12 +54,22 @@ Goal: a clean, runnable repo skeleton that other epics build on.
 - [ ] Allowed models are exactly the three from the brief; default is `gpt-5-mini`.
 - [ ] `pyproject.toml` and `requirements.txt` list the same runtime dependencies.
 
+**Tests**
+- [ ] Unit: allowed models are exactly the three from the brief; default is `openai/gpt-5-mini` (`tests/test_config.py`).
+- [ ] Unit: `pyproject.toml` and `requirements.txt` list the same runtime dependencies (`tests/test_dependencies.py`).
+- [ ] UI flow: the app loads with no exception (`tests/test_app_smoke.py`).
+
 ### T1.2 Secrets management (S)
 - Load `OPENROUTER_API_KEY` from `st.secrets` or env var; `.streamlit/secrets.toml.example`.
 **Acceptance criteria**
 - [ ] Key is never committed (`secrets.toml`, `.env` are gitignored — already done).
 - [ ] Missing key shows a friendly in-app error, not a stack trace.
 - [ ] README documents local setup in ≤ 5 steps.
+
+**Tests**
+- [ ] Unit: the key is read from `st.secrets`, then the env var; a missing key and an unparseable `secrets.toml` each raise their own error (`tests/test_config.py`).
+- [ ] Unit: `secrets.toml` and `.env` are gitignored; the example file holds only a placeholder (`tests/test_secrets_hygiene.py`).
+- [ ] UI flow: a missing key and a broken secrets file each show one `st.error` and no exception (`tests/test_app_smoke.py`).
 
 ## Epic 2 — OpenRouter Integration
 Goal: reliable LLM calls behind one small interface.
@@ -56,15 +81,31 @@ Goal: reliable LLM calls behind one small interface.
 - [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff.
 - [x] Rejects models outside the allowed list.
 
+**Tests**
+- [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given.
+- [x] Unit: timeout, 401, 429 and 5xx each raise their own exception with a readable message.
+- [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast.
+- [x] Unit: a model outside the allowed list raises before any HTTP call is made.
+
 ### T2.2 Streaming responses (S)
 **Acceptance criteria**
 - [ ] Answer renders incrementally via `st.write_stream`.
 - [ ] Stream errors mid-response show a message and keep the chat history intact.
 
+**Tests**
+- [ ] Unit: the stream generator yields the chunks of a mocked stream in order; an error mid-stream raises the mapped exception.
+- [ ] UI flow: with a fake streaming LLM, the full reply is the last assistant message (`AppTest` sees the final result, not the incremental render).
+- [ ] UI flow: a stream that fails part-way shows an error, and the earlier chat history is still there.
+
 ### T2.3 Cost & usage guardrails (S)
 **Acceptance criteria**
 - [ ] `max_tokens` capped per request (configurable).
 - [ ] Token usage from the response is shown in an expander (or logged).
+
+**Tests**
+- [ ] Unit: a requested `max_tokens` above the cap is clamped to the value in `config.py`.
+- [ ] Unit: token usage is read from the response; a response without usage does not crash.
+- [ ] UI flow: after a reply, the usage expander shows the token counts.
 
 ## Epic 3 — Prompt Engineering (≥ 5 strategies)
 Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evidence.
@@ -74,6 +115,9 @@ Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evi
 - [ ] `prompts.py` exposes a dict of named strategies; each is a function `(role, interview_type) -> system prompt`.
 - [ ] Unit test asserts ≥ 5 strategies are registered and all return non-empty strings.
 
+**Tests**
+- [ ] Unit: ≥ 5 strategies are registered; each returns a non-empty string for every interview type (parametrised).
+
 ### T3.2 Implement five strategies (M)
 Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (reason before scoring) · Role/persona (strict senior interviewer) · Structured-output (rubric + fixed Markdown/JSON sections). Optional 6th: self-critique.
 **Acceptance criteria**
@@ -81,16 +125,29 @@ Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (rea
 - [ ] Every prompt instructs the model to stay on interview-prep topics and ignore instructions embedded in user answers.
 - [ ] Few-shot examples are realistic and contain no real personal data.
 
+**Tests**
+- [ ] Unit (parametrised over all strategies): every prompt contains the stay-on-topic rule and the ignore-embedded-instructions rule.
+- [ ] Unit: every strategy has a technique label; the few-shot prompt contains its examples; no prompt contains an email address or phone number.
+- [ ] UI flow: the strategy select lists every registered strategy by its label.
+
 ### T3.3 Prompt evaluation (M)
 - Run the same 3–5 fixed test inputs through all strategies at the default temperature; score on a rubric (relevance, actionability, structure, tone, 1–5).
 **Acceptance criteria**
 - [ ] `docs/PROMPT_EVALUATION.md` contains the test inputs, a results table, and a justified winner.
 - [ ] The winning strategy is the app default.
 
+**Tests**
+- [ ] Unit: the default strategy in `config.py` exists in the registry.
+- [ ] Manual: the evaluation itself uses the real API, so it is run by hand and recorded in `docs/PROMPT_EVALUATION.md`, not in CI.
+
 ### T3.4 User-prompt builder (S)
 **Acceptance criteria**
 - [ ] Builds the user message from role, interview type, seniority, and the user's text.
 - [ ] User text is delimited (e.g. `<user_input>…</user_input>`) so the guard and prompts can reference it.
+
+**Tests**
+- [ ] Unit: the message contains role, interview type, seniority and the user's text inside `<user_input>…</user_input>`.
+- [ ] Unit: user text that contains `</user_input>` cannot close the block early (it is escaped or removed).
 
 ## Epic 4 — Security Guard (≥ 1 required)
 Goal: prevent misuse before any tokens are spent.
@@ -100,21 +157,40 @@ Goal: prevent misuse before any tokens are spent.
 - [ ] Empty/whitespace input and input over N characters (default 2000) are rejected with a clear message and **no API call is made**.
 - [ ] Control characters are stripped.
 
+**Tests**
+- [ ] Unit (parametrised): empty, whitespace-only and over-limit input are rejected; input of exactly the limit is accepted.
+- [ ] Unit: control characters are stripped; normal newlines are kept.
+- [ ] UI flow: submitting whitespace-only or too-long input shows the message, and the fake LLM is called 0 times.
+
 ### T4.2 Prompt-injection / off-topic guard (M)
 **Acceptance criteria**
 - [ ] Known patterns ("ignore previous instructions", "reveal your system prompt", role-override attempts) are blocked — parametrised tests cover ≥ 10 attack strings and ≥ 5 benign strings (no false positives on normal answers).
 - [ ] Blocked requests show a neutral refusal and are logged without logging the API key.
 - [ ] Stretch: cheap LLM classifier pass (`gpt-5-nano`) for off-topic detection, behind a feature flag.
 
+**Tests**
+- [ ] Unit (parametrised): ≥ 10 attack strings are blocked, including upper-case and extra-space variants; ≥ 5 normal interview answers are allowed.
+- [ ] Unit (`caplog`): a blocked request is logged, and the log never contains the API key.
+- [ ] UI flow: an attack string shows the neutral refusal, and the fake LLM is called 0 times.
+- [ ] Stretch: with the flag off, the classifier is never called; with it on, a mocked classifier result is respected.
+
 ### T4.3 Rate limiting (S)
 **Acceptance criteria**
 - [ ] Per-session limit (default 10 requests/min, 50/session) enforced via `st.session_state`.
 - [ ] Exceeding the limit shows remaining wait time; limit values are in `config.py`.
 
+**Tests**
+- [ ] Unit (fake clock, no real waiting): 10 requests in one minute pass and the 11th is blocked with the right wait time; the window resets after 60 s; the 50-per-session cap holds.
+- [ ] UI flow: over the limit, the warning shows the wait time, and the fake LLM is not called.
+
 ### T4.4 Output safety (S)
 **Acceptance criteria**
 - [ ] Response is rendered as Markdown without `unsafe_allow_html`.
 - [ ] If the response contains the system prompt text verbatim, it is replaced by a refusal (unit tested).
+
+**Tests**
+- [ ] Unit: a response that contains the system prompt verbatim is replaced by the refusal; a normal response is unchanged.
+- [ ] Unit (source scan): model and user text are rendered without `unsafe_allow_html`; the only allowed `unsafe_allow_html=True` is the static theme CSS block in `app.py`.
 
 ## Epic 5 — Streamlit UI
 Goal: a polished single-page app matching the diagram.
@@ -126,25 +202,47 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 - [ ] Temperature slider 0.0–1.5 (default 0.7) is passed to the API call.
 - [ ] Theme colours still come from `.streamlit/config.toml`.
 
+**Tests**
+- [ ] UI flow: the sidebar shows model (exactly the allowed models, default `gpt-5-mini`), strategy, temperature (0.0–1.5, default 0.7), interview type and role.
+- [ ] UI flow: a changed model and temperature reach the fake LLM call.
+- [ ] Manual: check desktop and mobile widths in a browser (`AppTest` cannot measure layout).
+
 ### T5.2 Chat flow (M)
 **Acceptance criteria**
 - [ ] `st.chat_input` → guard → prompt → LLM → streamed reply; history kept in `st.session_state`.
 - [ ] "New session" button clears history.
 - [ ] A spinner/disabled input prevents double submission.
 
+**Tests**
+- [ ] UI flow (main happy path): chat input → guard → prompt → fake LLM → reply shown; after two turns, both are in the history in order.
+- [ ] UI flow: the fake LLM receives the selected strategy's system prompt and the delimited user message.
+- [ ] UI flow: "New session" clears the history.
+- [ ] Manual: double submission is blocked while a reply is generating (`AppTest` runs one script run at a time, so it cannot test this race).
+
 ### T5.3 Interview modes (M)
 **Acceptance criteria**
 - [ ] Modes: Behavioural Q&A, Technical questions, Questions to ask the interviewer, Job-description analysis (paste JD → prep strategy).
 - [ ] Each mode changes the system/user prompt and the placeholder text.
+
+**Tests**
+- [ ] Unit (parametrised over modes): each mode gives a different system/user prompt; job-description mode includes the pasted JD.
+- [ ] UI flow: switching mode changes the chat input placeholder.
 
 ### T5.4 Error & empty states (S)
 **Acceptance criteria**
 - [ ] Guard blocks, rate limits, and API errors each show a distinct `st.error`/`st.warning` message.
 - [ ] Empty state shows example prompts the user can click.
 
+**Tests**
+- [ ] UI flow: a guard block, a rate limit, and each LLM error (the fake LLM raises it) show their own distinct `st.error`/`st.warning` text and no exception; the shown text never contains the fake API key or the raw response body (only `str(exc)`).
+- [ ] UI flow: with no history, example prompts are shown; clicking one sends it (the fake LLM receives that text).
+
 ### T5.5 Remove placeholder dashboard (S)
 **Acceptance criteria**
 - [ ] Dummy `load_sessions` data and chart removed (or replaced by a real session-score tracker if Epic 7 is done).
+
+**Tests**
+- [ ] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (today it asserts 3 metrics).
 
 ## Epic 6 — Quality, CI/CD & Deployment
 Goal: every PR is linted, tested, scanned; `main` auto-deploys.
@@ -158,8 +256,12 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 
 ### T6.2 Test suite (M)
 **Acceptance criteria**
-- [ ] Unit tests for `guard`, `prompts`, `llm` (mocked); UI smoke test via `streamlit.testing.v1.AppTest` (exists).
-- [ ] Coverage ≥ 80% on `src/`.
+- [ ] Every ticket's **Tests** list is done; gaps (e.g. in `guard`, `prompts`, `llm`) are filled.
+- [ ] Coverage ≥ 80% on `src/`, enforced in CI.
+
+**Tests**
+- [ ] Shared fakes (`fake_llm`, fake clock) live in `tests/conftest.py`; tests for any gaps left by earlier tickets are added.
+- [ ] CI runs `pytest --cov=src --cov-fail-under=80`, so the build fails below 80% coverage.
 
 ### T6.3 CD: Streamlit Community Cloud (S)
 `.github/workflows/cd.yml` smoke-tests the live URL after CI passes on `main`.
@@ -168,10 +270,17 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Repo variable `APP_URL` set; CD job passes `/_stcore/health` check after a merge.
 - [ ] Deploy URL in README.
 
+**Tests**
+- [ ] Deploy smoke test: the CD job checks `/_stcore/health` on the live URL after each merge to `main`.
+- [ ] Manual (the only real end-to-end check): after the first deploy, and after changes to `llm.py`, do one real chat turn on the live URL.
+
 ### T6.4 Dependency hygiene (S)
 **Acceptance criteria**
 - [ ] Dependabot enabled for pip and GitHub Actions *(config added)*.
 - [ ] `pyproject.toml` / `requirements.txt` versions pinned and consistent.
+
+**Tests**
+- [ ] Unit: extend `tests/test_dependencies.py` to check that every runtime dependency is pinned with `==`.
 
 ### T6.5 Code-reviewer subagent (S)
 - `.claude/agents/code-reviewer.md`: read-only reviewer for branches/PRs, tailored to this repo's stack and rules.
@@ -180,17 +289,37 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Checklist covers correctness, security (secrets, guard, injection, output safety), mocked tests and project conventions.
 - [ ] Runs ruff + pytest, checks the ticket's acceptance criteria, and reports in a fixed severity-ranked format.
 
+### T6.6 Every PR closes its ticket (S)
+**Acceptance criteria**
+- [ ] PR template starts with `Closes #`.
+- [ ] `.github/workflows/pr-checks.yml` fails PRs without `Closes/Fixes/Resolves #<issue>` (Dependabot exempt) and re-runs on description edits.
+- [ ] `CLAUDE.md` documents the rule, including retargeting stacked PRs to `main`.
+
+**Tests**
+- [ ] Manual: a PR whose description has no `Closes/Fixes/Resolves #N` fails the `linked-issue` job; adding the keyword and editing the description makes it pass.
+- [ ] Manual: a Dependabot PR skips the check.
+
 ### T6.7 Progress log read before every ticket (S)
 **Acceptance criteria**
 - [ ] `docs/PROGRESS.md` has one entry per PR (what, why, decisions/gotchas, follow-ups), backfilled with all work so far.
 - [ ] `CLAUDE.md` and the `qrspi` skill require reading it (plus open PRs) before a new ticket.
 - [ ] Every PR adds its own entry (Dependabot exempt).
 
+### T6.8 Test plan in every ticket (S)
+**Acceptance criteria**
+- [ ] `docs/PLAN.md` has a "Testing strategy" section: unit tests, UI flow tests (`AppTest` with a fake LLM), the deploy smoke test, and why there is no browser E2E suite.
+- [ ] Every ticket that changes code has a **Tests** list in `docs/PLAN.md` and in its GitHub issue.
+- [ ] T6.2 becomes "fill gaps + enforce coverage"; the Definition of Done includes the ticket's **Tests** list.
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
+  - Tests: unit — scores are parsed from structured output, and malformed or missing scores are skipped without crashing; UI flow — after scored replies, the chart has one point per scored answer.
 - T7.2 Export practice session to Markdown — AC: download button yields the full transcript.
+  - Tests: unit — the transcript builder turns the history into Markdown with every message in order; UI flow — with history, the download button is shown.
 - T7.3 RAG over a question bank using `qwen/qwen3-embedding-8b` — AC: retrieved questions cited in the prompt; ≥ 20 seed questions.
+  - Tests: unit (mocked embeddings) — retrieval returns the top-k most similar questions, the seed file has ≥ 20 questions, and retrieved questions appear cited in the built prompt.
 - T7.4 Prompt A/B comparison view — AC: same input run through two strategies side by side.
+  - Tests: UI flow — one input is sent to the fake LLM twice with two different system prompts, and both replies are shown side by side.
 
 ---
 
@@ -206,4 +335,4 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 | 6 | T6.2, T6.3, T6.4, README | 0:45 |
 
 ## Definition of Done (all tickets)
-Code on a feature branch → PR → CI green → acceptance criteria checked → merged to `main`.
+Code on a feature branch → PR → CI green → acceptance criteria and **Tests** list checked → merged to `main`.
