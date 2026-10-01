@@ -36,7 +36,7 @@ Every ticket lists its own **Tests**, written in the same PR as the code (not sa
 | Deploy smoke | CD job (`/_stcore/health`) + one manual chat turn | The live app is up and really talks to OpenRouter | After merge to `main` |
 
 - **No test calls OpenRouter.** Unit tests mock the HTTP layer; UI flow tests use a `fake_llm` fixture in `tests/conftest.py`, added by the first ticket that needs it.
-- UI flow tests patch module attributes (e.g. `src.llm.complete`) with `monkeypatch`. This works because `AppTest` re-runs `app.py` and re-imports them on every run (see `tests/test_app_smoke.py`).
+- UI flow tests patch module attributes (e.g. `src.llm.complete`) with `monkeypatch`. This works because `app.py` looks the name up again on every run (see `tests/test_app_smoke.py`). So call the LLM only from `app.py`, or via `llm.complete(...)`; never through a name another `src` module bound at import time (`from src.llm import complete`), which the patch would not reach.
 - Time-based code (retry backoff, rate limits) takes a clock/sleep that tests replace, so tests never really wait.
 - What `AppTest` cannot check (layout width, streaming animation, double-click races) is listed as a **Manual** check.
 - **No browser E2E suite (Playwright/Selenium) for now.** UI flow tests already run the real `app.py` from input to reply with only the LLM faked, and the deploy smoke test covers the live app. A browser suite would be slow and flaky and would mostly re-test Streamlit itself. Revisit if we add custom components (`st.components`) or more pages.
@@ -190,7 +190,7 @@ Goal: prevent misuse before any tokens are spent.
 
 **Tests**
 - [ ] Unit: a response that contains the system prompt verbatim is replaced by the refusal; a normal response is unchanged.
-- [ ] Unit: no `unsafe_allow_html=True` anywhere in `app.py` or `src/` (source scan).
+- [ ] Unit (source scan): model and user text are rendered without `unsafe_allow_html`; the only allowed `unsafe_allow_html=True` is the static theme CSS block in `app.py`.
 
 ## Epic 5 — Streamlit UI
 Goal: a polished single-page app matching the diagram.
