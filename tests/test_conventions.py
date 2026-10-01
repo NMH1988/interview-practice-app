@@ -8,19 +8,21 @@ SOURCES = [ROOT / "app.py", *(ROOT / "src").rglob("*.py"), *(ROOT / "tests").rgl
 
 
 def missing_docstrings(paths: list[Path], root: Path) -> list[str]:
-    """Return "file:line name" for every function, method or class in paths without a docstring."""
+    """Return "file:line name" for each function, method or class without a one-line docstring."""
     missing = []
     for path in paths:
         tree = ast.parse(path.read_bytes(), filename=str(path))
         for node in ast.walk(tree):
-            is_def = isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
-            if is_def and not ast.get_docstring(node):
+            if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
+                continue
+            doc = ast.get_docstring(node)
+            if not doc or "\n" in doc:
                 missing.append(f"{path.relative_to(root)}:{node.lineno} {node.name}")
     return missing
 
 
 def test_missing_docstrings_reports_each_undocumented_definition(tmp_path):
-    """Every undocumented def or class is reported, incl. methods, nested and empty docstrings."""
+    """Every def or class without a one-line docstring is reported, incl. methods and nested."""
     lines = [
         "def documented():",  # 1
         '    """Has one."""',
@@ -39,6 +41,10 @@ def test_missing_docstrings_reports_each_undocumented_definition(tmp_path):
         '    """Has one."""',
         "    def method(self):",
         '        """Has one."""',
+        "def multi_line():",  # 18
+        '    """Summary.',
+        "",
+        '    More detail."""',
     ]
     path = tmp_path / "sample.py"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -50,6 +56,7 @@ def test_missing_docstrings_reports_each_undocumented_definition(tmp_path):
             "sample.py:7 nested",
             "sample.py:10 bare_async",
             "sample.py:12 empty_docstring",
+            "sample.py:18 multi_line",
         ]
     )
 
@@ -70,6 +77,9 @@ def test_missing_docstrings_names_file_on_syntax_error(tmp_path):
 
 
 def test_every_function_and_class_has_a_docstring():
-    """Every function, method and class in app.py, src/ and tests/ has a docstring (CLAUDE.md)."""
+    """Every function, method and class in app.py, src/ and tests/ has a one-line docstring."""
+    # rglob on a missing folder yields nothing, so a renamed folder would silently go unchecked.
+    for folder in ("src", "tests"):
+        assert (ROOT / folder).is_dir(), f"{folder}/ not found; update SOURCES in this test"
     missing = missing_docstrings(SOURCES, ROOT)
     assert not missing, "Add a one-line docstring to: " + ", ".join(missing)
