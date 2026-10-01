@@ -1,6 +1,7 @@
 """OpenRouter client wrapper: one `complete()` call with model checks, errors and retries."""
 
 import time
+from typing import TYPE_CHECKING
 
 import openai
 from openai import OpenAI
@@ -12,6 +13,10 @@ from src.config import (
     SecretsFileError,
     get_api_key,
 )
+
+if TYPE_CHECKING:
+    # The SDK's own HTTP library; only needed for the type hint, so never imported at runtime.
+    import httpx2
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 REQUEST_TIMEOUT = 30.0
@@ -67,14 +72,14 @@ def _translate(exc: openai.APIError) -> LLMError:
     return LLMError("The request to the AI service failed. Please try again.")
 
 
-def make_client(api_key: str | None = None, http_client=None) -> OpenAI:
+def make_client(api_key: str | None = None, http_client: httpx2.Client | None = None) -> OpenAI:
     """Return an OpenAI SDK client pointed at OpenRouter, with the SDK's own retries off."""
     if not api_key:
         try:
             api_key = get_api_key()
         except SecretsFileError as exc:
             raise LLMAuthError(
-                ".streamlit/secrets.toml could not be parsed. Check that the key is in quotes."
+                ".streamlit/secrets.toml could not be parsed. Check the file's TOML syntax."
             ) from exc
         except MissingAPIKeyError as exc:
             raise LLMAuthError(
