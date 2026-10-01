@@ -154,13 +154,13 @@ Goal: prevent misuse before any tokens are spent.
 
 ### T4.1 Input validation guard (S)
 **Acceptance criteria**
-- [ ] Empty/whitespace input and input over N characters (default 2000) are rejected with a clear message and **no API call is made**.
-- [ ] Control characters are stripped.
+- [x] Empty/whitespace input and input over N characters (default 2000) are rejected with a clear message and **no API call is made**.
+- [x] Control characters are stripped.
 
 **Tests**
-- [ ] Unit (parametrised): empty, whitespace-only and over-limit input are rejected; input of exactly the limit is accepted.
-- [ ] Unit: control characters are stripped; normal newlines are kept.
-- [ ] UI flow: submitting whitespace-only or too-long input shows the message, and the fake LLM is called 0 times.
+- [x] Unit (parametrised): empty, whitespace-only and over-limit input are rejected; input of exactly the limit is accepted.
+- [x] Unit: control characters are stripped; normal newlines are kept.
+- [x] UI flow: submitting whitespace-only or too-long input shows the message, and the fake LLM is called 0 times.
 
 ### T4.2 Prompt-injection / off-topic guard (M)
 **Acceptance criteria**

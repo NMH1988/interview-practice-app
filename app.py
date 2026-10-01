@@ -3,7 +3,17 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from src.config import API_KEY_NAME, MissingAPIKeyError, SecretsFileError, get_api_key
+from src import llm
+from src.config import (
+    API_KEY_NAME,
+    DEFAULT_MAX_TOKENS,
+    DEFAULT_MODEL,
+    DEFAULT_TEMPERATURE,
+    MissingAPIKeyError,
+    SecretsFileError,
+    get_api_key,
+)
+from src.guard import GuardError, validate_input
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -87,3 +97,26 @@ c2.metric("Questions answered", int(filtered["questions"].sum()))
 c3.metric("Average score", f"{filtered['score'].mean():.0f}" if len(filtered) else "-")
 
 st.line_chart(filtered.set_index("date")["score"])
+
+# Minimal chat turn so the input guard runs before any API call; T5.2 replaces it with the
+# full flow (prompts, history, streaming).
+message = st.chat_input("Type your answer or question")
+if message is not None:
+    try:
+        clean = validate_input(message)
+    except GuardError as exc:
+        st.warning(str(exc), icon="✋")
+    else:
+        st.chat_message("user").markdown(clean)
+        try:
+            reply = llm.complete(
+                [{"role": "user", "content": clean}],
+                DEFAULT_MODEL,
+                DEFAULT_TEMPERATURE,
+                DEFAULT_MAX_TOKENS,
+            )
+        except llm.LLMError as exc:
+            # Only the fixed message: the chained SDK error holds the raw response body.
+            st.error(str(exc))
+        else:
+            st.chat_message("assistant").markdown(reply)
