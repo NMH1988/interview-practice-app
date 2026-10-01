@@ -180,6 +180,16 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Checklist covers correctness, security (secrets, guard, injection, output safety), mocked tests and project conventions.
 - [ ] Runs ruff + pytest, checks the ticket's acceptance criteria, and reports in a fixed severity-ranked format.
 
+### T6.6 Every PR closes its ticket (S)
+**Acceptance criteria**
+- [ ] PR template starts with `Closes #`.
+- [ ] `.github/workflows/pr-checks.yml` fails PRs without `Closes/Fixes/Resolves #<issue>` (Dependabot exempt) and re-runs on description edits.
+- [ ] `CLAUDE.md` documents the rule, including retargeting stacked PRs to `main`.
+
+**Tests**
+- [ ] Manual: a PR whose description has no `Closes/Fixes/Resolves #N` fails the `linked-issue` job; adding the keyword and editing the description makes it pass.
+- [ ] Manual: a Dependabot PR skips the check.
+
 ### T6.7 Progress log read before every ticket (S)
 **Acceptance criteria**
 - [ ] `docs/PROGRESS.md` has one entry per PR (what, why, decisions/gotchas, follow-ups), backfilled with all work so far.
