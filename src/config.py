@@ -12,6 +12,12 @@ MIN_TEMPERATURE = 0.0
 MAX_TEMPERATURE = 1.5
 DEFAULT_TEMPERATURE = 0.7
 
+# gpt-5 models spend reasoning tokens from this budget too, so keep it generous; T2.3 caps it.
+DEFAULT_MAX_TOKENS = 4000
+
+# Longest user message (after cleaning) the guard lets through to the LLM.
+MAX_INPUT_CHARS = 2000
+
 API_KEY_NAME = "OPENROUTER_API_KEY"
 
 
