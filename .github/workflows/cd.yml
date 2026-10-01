@@ -1,0 +1,19 @@
+name: CD
+
+# Streamlit Community Cloud redeploys automatically on every push to main.
+# This workflow waits for CI to pass on main, then smoke-tests the live URL.
+on:
+  workflow_run:
+    workflows: [CI]
+    branches: [main]
+    types: [completed]
+
+jobs:
+  smoke-test:
+    if: github.event.workflow_run.conclusion == 'success' && vars.APP_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for deploy, then check app health
+        run: |
+          sleep 90
+          curl --fail --retry 5 --retry-delay 15 "${{ vars.APP_URL }}/_stcore/health"

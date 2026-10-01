@@ -8,3 +8,8 @@ wheels/
 
 # Virtual environments
 .venv
+.env
+.streamlit/secrets.toml
+.coverage
+.pytest_cache/
+.ruff_cache/
