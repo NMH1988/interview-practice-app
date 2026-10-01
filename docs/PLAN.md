@@ -234,7 +234,7 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 - [ ] Empty state shows example prompts the user can click.
 
 **Tests**
-- [ ] UI flow: a guard block, a rate limit, and each LLM error (the fake LLM raises it) show their own distinct `st.error`/`st.warning` text and no exception.
+- [ ] UI flow: a guard block, a rate limit, and each LLM error (the fake LLM raises it) show their own distinct `st.error`/`st.warning` text and no exception; the shown text never contains the fake API key or the raw response body (only `str(exc)`).
 - [ ] UI flow: with no history, example prompts are shown; clicking one sends it (the fake LLM receives that text).
 
 ### T5.5 Remove placeholder dashboard (S)
