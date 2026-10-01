@@ -173,6 +173,12 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Dependabot enabled for pip and GitHub Actions *(config added)*.
 - [ ] `pyproject.toml` / `requirements.txt` versions pinned and consistent.
 
+### T6.6 Every PR closes its ticket (S)
+**Acceptance criteria**
+- [ ] PR template starts with `Closes #`.
+- [ ] `.github/workflows/pr-checks.yml` fails PRs without `Closes/Fixes/Resolves #<issue>` (Dependabot exempt) and re-runs on description edits.
+- [ ] `CLAUDE.md` documents the rule, including retargeting stacked PRs to `main`.
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
 - T7.2 Export practice session to Markdown — AC: download button yields the full transcript.

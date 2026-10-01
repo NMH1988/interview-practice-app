@@ -1,0 +1,27 @@
+name: PR checks
+
+# Every PR must close its ticket on merge. "edited" re-runs the check when the description is fixed.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  linked-issue:
+    # Dependabot PRs have no ticket.
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Description closes a ticket
+        env:
+          # Passed via env, not inlined, so the PR text can never run as shell code.
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if printf '%s' "$BODY" | grep -qiE '\b(close[sd]?|fix(e[sd])?|resolve[sd]?) #[0-9]+'; then
+            echo "Linked ticket found."
+          else
+            echo "::error::Add 'Closes #<issue>' to the PR description so the ticket closes on merge."
+            exit 1
+          fi

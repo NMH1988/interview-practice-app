@@ -14,3 +14,8 @@ For **every coding task** in this repository (features, bug fixes, refactors, is
 - Test: `python -m pytest -q` (LLM calls must be mocked)
 
 CI (`.github/workflows/ci.yml`) runs lint, tests and `pip-audit` on every push and PR.
+
+## Pull requests
+
+- One ticket per PR. The description's first line is `Closes #<issue>` (not `Refs`), so GitHub closes the ticket on merge. `.github/workflows/pr-checks.yml` fails PRs without it (Dependabot is exempt).
+- Closing keywords only fire when the PR merges into `main`. Retarget a stacked PR to `main` after its base PR merges, before merging it.
