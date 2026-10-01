@@ -1,10 +1,13 @@
 [project]
 name = "interview-practice-app"
 version = "0.1.0"
-description = "Add your description here"
+description = "Streamlit interview practice coach powered by OpenRouter LLMs"
 readme = "README.md"
 requires-python = ">=3.14"
-dependencies = []
+dependencies = [
+    "openai==3.22.1",
+    "streamlit==1.64.0",
+]
 
 [tool.ruff]
 line-length = 100
@@ -14,3 +17,4 @@ select = ["E", "F", "I", "B", "UP"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
