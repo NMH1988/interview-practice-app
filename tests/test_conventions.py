@@ -16,7 +16,8 @@ def missing_docstrings(paths: list[Path], root: Path) -> list[str]:
             if not isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef):
                 continue
             doc = ast.get_docstring(node)
-            if not doc or "\n" in doc:
+            # get_docstring strips blank first/last lines, so also check the literal spans one line.
+            if not doc or "\n" in doc or node.body[0].lineno != node.body[0].end_lineno:
                 missing.append(f"{path.relative_to(root)}:{node.lineno} {node.name}")
     return missing
 
@@ -45,6 +46,10 @@ def test_missing_docstrings_reports_each_undocumented_definition(tmp_path):
         '    """Summary.',
         "",
         '    More detail."""',
+        "def spread_out():",  # 22
+        '    """',
+        "    Summary.",
+        '    """',
     ]
     path = tmp_path / "sample.py"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
@@ -57,6 +62,7 @@ def test_missing_docstrings_reports_each_undocumented_definition(tmp_path):
             "sample.py:10 bare_async",
             "sample.py:12 empty_docstring",
             "sample.py:18 multi_line",
+            "sample.py:22 spread_out",
         ]
     )
 
