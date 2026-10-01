@@ -3,7 +3,7 @@ import json
 import httpx2
 import pytest
 
-from src import llm
+from src import config, llm
 from src.config import DEFAULT_MODEL
 
 FAKE_KEY = "sk-test-not-a-real-key"
@@ -144,19 +144,27 @@ def test_other_failures_raise_generic_llm_error(failure):
     assert FAKE_KEY not in str(excinfo.value)
 
 
-@pytest.mark.parametrize("text", [None, ""])
+@pytest.mark.parametrize("text", [None, "", "  \n\t"], ids=["none", "empty", "whitespace"])
 def test_empty_reply_raises_llm_error(text):
-    """A reply with no text raises LLMError instead of returning nothing."""
+    """A reply with no text, or only whitespace, raises LLMError instead of returning it."""
     fake = FakeOpenRouter(_reply(text))
     with pytest.raises(llm.LLMError, match="empty answer"):
         llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
 
 
-@pytest.mark.parametrize("status", [429, 500, 502, 503])
-def test_retryable_errors_are_retried_twice_then_raise(status, sleeps):
+@pytest.mark.parametrize(
+    ("status", "error_class"),
+    [
+        (429, llm.LLMRateLimitError),
+        (500, llm.LLMServerError),
+        (502, llm.LLMServerError),
+        (503, llm.LLMServerError),
+    ],
+)
+def test_retryable_errors_are_retried_twice_then_raise(status, error_class, sleeps):
     """429 and 5xx are retried at most 2 times with growing backoff, then raise."""
     fake = FakeOpenRouter(*[_error(status) for _ in range(4)])
-    with pytest.raises((llm.LLMRateLimitError, llm.LLMServerError)):
+    with pytest.raises(error_class):
         llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
     assert len(fake.requests) == 1 + llm.MAX_RETRIES == 3
     assert sleeps == [llm.BACKOFF_SECONDS, 2 * llm.BACKOFF_SECONDS]
@@ -189,6 +197,27 @@ def test_non_retryable_errors_are_not_retried(make_failure, sleeps):
 def test_sdk_retries_are_disabled():
     """The SDK's built-in retries are off, so only complete() decides how often to retry."""
     assert llm.make_client(FAKE_KEY).max_retries == 0
+
+
+def test_missing_api_key_raises_llm_auth_error(no_env_key, monkeypatch):
+    """With no key in st.secrets or the environment, complete() raises a readable LLMAuthError."""
+    monkeypatch.setattr(config.st, "secrets", {})
+    with pytest.raises(llm.LLMAuthError) as excinfo:
+        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256)
+    assert config.API_KEY_NAME in str(excinfo.value)
+    assert isinstance(excinfo.value.__cause__, config.MissingAPIKeyError)
+
+
+def test_unparseable_secrets_raises_llm_auth_error(monkeypatch):
+    """A secrets.toml that cannot be parsed raises LLMAuthError pointing at that file."""
+
+    def broken_secrets():
+        """Fail the way get_api_key() does for an unparseable secrets.toml."""
+        raise config.SecretsFileError(".streamlit/secrets.toml could not be parsed.")
+
+    monkeypatch.setattr(llm, "get_api_key", broken_secrets)
+    with pytest.raises(llm.LLMAuthError, match="secrets.toml"):
+        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256)
 
 
 def test_disallowed_model_does_not_need_api_key(no_env_key, monkeypatch):

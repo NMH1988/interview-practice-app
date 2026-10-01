@@ -5,7 +5,13 @@ import time
 import openai
 from openai import OpenAI
 
-from src.config import ALLOWED_MODELS, get_api_key
+from src.config import (
+    ALLOWED_MODELS,
+    API_KEY_NAME,
+    MissingAPIKeyError,
+    SecretsFileError,
+    get_api_key,
+)
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 REQUEST_TIMEOUT = 30.0
@@ -31,7 +37,7 @@ class LLMTimeoutError(LLMError):
 
 
 class LLMAuthError(LLMError):
-    """Raised when OpenRouter rejects the API key (HTTP 401)."""
+    """Raised when the API key is missing, unreadable or rejected by OpenRouter (HTTP 401)."""
 
 
 class LLMRateLimitError(LLMError):
@@ -63,8 +69,19 @@ def _translate(exc: openai.APIError) -> LLMError:
 
 def make_client(api_key: str | None = None, http_client=None) -> OpenAI:
     """Return an OpenAI SDK client pointed at OpenRouter, with the SDK's own retries off."""
+    if not api_key:
+        try:
+            api_key = get_api_key()
+        except SecretsFileError as exc:
+            raise LLMAuthError(
+                ".streamlit/secrets.toml could not be parsed. Check that the key is in quotes."
+            ) from exc
+        except MissingAPIKeyError as exc:
+            raise LLMAuthError(
+                f"No OpenRouter API key is set. Add {API_KEY_NAME} and reload the page."
+            ) from exc
     return OpenAI(
-        api_key=api_key or get_api_key(),
+        api_key=api_key,
         base_url=OPENROUTER_BASE_URL,
         timeout=REQUEST_TIMEOUT,
         # complete() runs its own retry loop, so the SDK must not retry as well.
@@ -101,6 +118,6 @@ def complete(
         except openai.APIError as exc:
             raise _translate(exc) from exc
     text = response.choices[0].message.content if response.choices else None
-    if not text:
+    if not text or not text.strip():
         raise LLMError("The AI service returned an empty answer. Please try again.")
     return text
