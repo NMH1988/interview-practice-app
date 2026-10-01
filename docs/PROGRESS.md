@@ -16,6 +16,12 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-01 · T6.9 Code conventions in CLAUDE.md · #47 (closes #46)
+- **What:** `CLAUDE.md` gets a "Code conventions" section (one-line docstring on every function/method/class, tests included; a "what I did and why" walkthrough after each task). The `qrspi` skill's Implement phase repeats both. `tests/test_conventions.py` fails if any function or class in `app.py`, `src/` or `tests/` lacks a docstring.
+- **Why:** the user asked for both rules during T1.2. The section was first added in #37, then removed there in review because it was out of scope; this ticket restores it on its own.
+- **Decisions & gotchas:** the docstring rule is enforced by a test (via `ast`), so it no longer depends on anyone remembering it; nested helper functions count too. The walkthrough rule cannot be tested, so it lives in `CLAUDE.md` and the skill only.
+- **Follow-ups:** `docs/PLAN.md` and the top of this file may conflict with #41 / #45; keep all sections and entries.
+
 ## 2026-10-01 · T6.7 Progress log read before every ticket · #43 (closes #42)
 - **What:** this file; `CLAUDE.md` and the `qrspi` skill now require reading it (plus open PRs) before a ticket and adding an entry in every PR.
 - **Why:** the user did not want work from earlier sessions forgotten. A file in the repo is visible to the team and to every Claude session, unlike local memory.

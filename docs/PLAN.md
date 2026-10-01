@@ -186,6 +186,12 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] `CLAUDE.md` and the `qrspi` skill require reading it (plus open PRs) before a new ticket.
 - [ ] Every PR adds its own entry (Dependabot exempt).
 
+### T6.9 Code conventions in CLAUDE.md (S)
+**Acceptance criteria**
+- [ ] `CLAUDE.md` has a "Code conventions" section: one-line docstring on every function, method and class (tests and fixtures included), and a plain-language "what I did and why" walkthrough after each task.
+- [ ] The `qrspi` skill's Implement phase repeats both rules.
+- [ ] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no docstring.
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
 - T7.2 Export practice session to Markdown — AC: download button yields the full transcript.
