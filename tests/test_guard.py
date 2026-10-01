@@ -6,6 +6,9 @@ from src.guard import GuardError, InvalidInputError, clean_input, validate_input
 # Invisible characters are built with chr() so they cannot be lost or mangled in the source.
 NUL, BEL, ESC, DEL, NEL = chr(0x00), chr(0x07), chr(0x1B), chr(0x7F), chr(0x85)
 ZWSP, BOM = chr(0x200B), chr(0xFEFF)
+HANGUL_FILLER, BRAILLE_BLANK = chr(0x3164), chr(0x2800)
+COMBINING_GRAPHEME_JOINER, VARIATION_SELECTOR_16 = chr(0x034F), chr(0xFE0F)
+COMBINING_ACUTE = chr(0x0301)
 
 
 def test_default_limit_is_2000():
@@ -15,13 +18,41 @@ def test_default_limit_is_2000():
 
 @pytest.mark.parametrize(
     "text",
-    ["", "   ", "\n\t \n", f"{NUL}{BEL} {ESC}", f"{ZWSP} {ZWSP}", BOM, None],
-    ids=["empty", "spaces", "whitespace-mix", "only-controls", "zero-width", "bom", "none"],
+    [
+        "",
+        "   ",
+        "\n\t \n",
+        f"{NUL}{BEL} {ESC}",
+        f"{ZWSP} {ZWSP}",
+        BOM,
+        f"{HANGUL_FILLER}{HANGUL_FILLER}",
+        f"{BRAILLE_BLANK} {BRAILLE_BLANK}",
+        f"{COMBINING_GRAPHEME_JOINER}{VARIATION_SELECTOR_16}",
+        None,
+    ],
+    ids=[
+        "empty",
+        "spaces",
+        "whitespace-mix",
+        "only-controls",
+        "zero-width",
+        "bom",
+        "hangul-filler",
+        "braille-blank",
+        "only-marks",
+        "none",
+    ],
 )
-def test_empty_or_whitespace_input_is_rejected(text):
-    """Nothing left after cleaning and trimming is rejected with a clear message."""
+def test_empty_or_blank_looking_input_is_rejected(text):
+    """Nothing visible left after cleaning and trimming is rejected with a clear message."""
     with pytest.raises(InvalidInputError, match="type a message"):
         validate_input(text)
+
+
+def test_combining_marks_inside_words_are_kept():
+    """Marks only count as blank on their own; on a letter they are normal text."""
+    text = f"Cafe{COMBINING_ACUTE} and more"
+    assert validate_input(text) == text
 
 
 @pytest.mark.parametrize("length", [MAX_INPUT_CHARS + 1, MAX_INPUT_CHARS * 5])

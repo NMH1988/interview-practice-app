@@ -13,7 +13,7 @@ from src.config import (
     SecretsFileError,
     get_api_key,
 )
-from src.guard import InvalidInputError, validate_input
+from src.guard import GuardError, validate_input
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -104,7 +104,7 @@ message = st.chat_input("Type your answer or question")
 if message is not None:
     try:
         clean = validate_input(message)
-    except InvalidInputError as exc:
+    except GuardError as exc:
         st.warning(str(exc), icon="✋")
     else:
         st.chat_message("user").markdown(clean)

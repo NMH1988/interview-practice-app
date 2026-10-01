@@ -37,6 +37,7 @@ class FakeLLM:
 def fake_llm(monkeypatch):
     """Replace `llm.complete` with a FakeLLM so no test ever reaches OpenRouter."""
     fake = FakeLLM()
-    # app.py calls llm.complete(...) on every run, so patching the module attribute is enough.
+    # app.py looks up `llm.complete` on the module when it calls it, so patching the attribute
+    # is enough.
     monkeypatch.setattr(llm, "complete", fake)
     return fake
