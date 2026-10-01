@@ -13,6 +13,8 @@ def test_registry_is_read_only():
     """Adding or replacing a strategy at runtime raises TypeError."""
     with pytest.raises(TypeError):
         STRATEGIES["zero_shot"] = lambda role, interview_type: "replaced"  # type: ignore[index]
+    with pytest.raises(TypeError):
+        STRATEGIES["new"] = lambda role, interview_type: "added"  # type: ignore[index]
 
 
 @pytest.mark.parametrize("interview_type", INTERVIEW_TYPES)
