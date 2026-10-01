@@ -173,6 +173,13 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Dependabot enabled for pip and GitHub Actions *(config added)*.
 - [ ] `pyproject.toml` / `requirements.txt` versions pinned and consistent.
 
+### T6.5 Code-reviewer subagent (S)
+- `.claude/agents/code-reviewer.md`: read-only reviewer for branches/PRs, tailored to this repo's stack and rules.
+**Acceptance criteria**
+- [ ] Read-only; reviews the current branch vs `main` by default, or named files / PR / ticket.
+- [ ] Checklist covers correctness, security (secrets, guard, injection, output safety), mocked tests and project conventions.
+- [ ] Runs ruff + pytest, checks the ticket's acceptance criteria, and reports in a fixed severity-ranked format.
+
 ### T6.6 Every PR closes its ticket (S)
 **Acceptance criteria**
 - [ ] PR template starts with `Closes #`.
