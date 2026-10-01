@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-01 · T3.1 Prompt registry · #<PR> (closes #8)
+## 2026-10-01 · T3.1 Prompt registry · #49 (closes #8)
 - **What:** `src/prompts.py` with `INTERVIEW_TYPES` (Behavioural, Technical, Questions to ask the interviewer, Job-description analysis), five strategy functions `(role, interview_type) -> str` (`zero_shot`, `few_shot`, `chain_of_thought`, `persona`, `structured_output`) and the `STRATEGIES` dict that maps a stable key to each one. `tests/test_prompts.py` checks that at least 5 strategies are registered and that each returns a non-empty prompt naming the role and type, for every interview type (parametrised).
 - **Why:** a single dict lets the UI's strategy select (T5.1), the evaluation (T3.3) and the default in `config.py` all refer to strategies by key.
 - **Decisions & gotchas:** the user agreed to these defaults. The prompts are short working drafts named after T3.2's five techniques; T3.2 writes the full versions and adds technique labels, the stay-on-topic and ignore-embedded-instructions rules, and realistic few-shot examples. No input validation here: any role or type string is accepted (the guard or UI checks input, T4.x/T5.3). `INTERVIEW_TYPES` lives in `prompts.py` because nothing else uses it yet; T5.3 may move it to `config.py`. The dict keys are the stable IDs; do not rename them once T3.3 stores the default.
