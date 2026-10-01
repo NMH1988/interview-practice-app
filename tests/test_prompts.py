@@ -9,6 +9,12 @@ def test_at_least_five_strategies_registered():
     assert all(callable(strategy) for strategy in STRATEGIES.values())
 
 
+def test_registry_is_read_only():
+    """Adding or replacing a strategy at runtime raises TypeError."""
+    with pytest.raises(TypeError):
+        STRATEGIES["zero_shot"] = lambda role, interview_type: "replaced"  # type: ignore[index]
+
+
 @pytest.mark.parametrize("interview_type", INTERVIEW_TYPES)
 @pytest.mark.parametrize("name", sorted(STRATEGIES))
 def test_strategy_returns_non_empty_prompt(name, interview_type):

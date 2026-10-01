@@ -1,6 +1,7 @@
 """System prompt strategies: a registry of named functions `(role, interview_type) -> prompt`."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from types import MappingProxyType
 
 # The interview modes from docs/PLAN.md; T5.3 shows them in the UI.
 INTERVIEW_TYPES: tuple[str, ...] = (
@@ -16,8 +17,8 @@ Strategy = Callable[[str, str], str]
 def _coach_intro(role: str, interview_type: str) -> str:
     """Return the opening sentence every strategy shares."""
     return (
-        f"You are an interview coach helping a candidate prepare for a {interview_type} "
-        f"interview for the role of {role}."
+        f"You are an interview coach helping a candidate prepare for an interview for the "
+        f'role of {role}. Session type: "{interview_type}".'
     )
 
 
@@ -53,8 +54,8 @@ def chain_of_thought(role: str, interview_type: str) -> str:
 def persona(role: str, interview_type: str) -> str:
     """Build a prompt where the model plays a strict senior interviewer."""
     return (
-        f"You are a strict senior interviewer hiring for the role of {role}, running a "
-        f"{interview_type} interview. Ask one demanding question at a time, probe weak "
+        f"You are a strict senior interviewer hiring for the role of {role}. "
+        f'Session type: "{interview_type}". Ask one demanding question at a time, probe weak '
         "answers with a follow-up, and give blunt but fair feedback."
     )
 
@@ -69,10 +70,13 @@ def structured_output(role: str, interview_type: str) -> str:
 
 
 # Stable key -> strategy function. The keys are what config and the UI refer to.
-STRATEGIES: dict[str, Strategy] = {
-    "zero_shot": zero_shot,
-    "few_shot": few_shot,
-    "chain_of_thought": chain_of_thought,
-    "persona": persona,
-    "structured_output": structured_output,
-}
+# Read-only, so no importer can add or replace a strategy at runtime.
+STRATEGIES: Mapping[str, Strategy] = MappingProxyType(
+    {
+        "zero_shot": zero_shot,
+        "few_shot": few_shot,
+        "chain_of_thought": chain_of_thought,
+        "persona": persona,
+        "structured_output": structured_output,
+    }
+)
