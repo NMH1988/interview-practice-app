@@ -194,7 +194,7 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 
 **Tests**
 - [ ] Unit: `tests/test_conventions.py` passes on the current tree.
-- [ ] Manual: remove the docstring from one function (also try a nested helper and a test) and check the test fails, naming its `file:line`.
+- [ ] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function and an empty docstring in a temporary file, and nothing for documented ones.
 
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
