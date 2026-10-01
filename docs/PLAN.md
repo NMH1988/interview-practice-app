@@ -77,15 +77,15 @@ Goal: reliable LLM calls behind one small interface.
 ### T2.1 OpenRouter client wrapper (M)
 - `llm.complete(messages, model, temperature, max_tokens)` using OpenRouter's OpenAI-compatible endpoint.
 **Acceptance criteria**
-- [ ] Returns the assistant text for a valid request (verified with a mocked HTTP layer in tests).
-- [ ] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff.
-- [ ] Rejects models outside the allowed list.
+- [x] Returns the assistant text for a valid request (verified with a mocked HTTP layer in tests).
+- [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff.
+- [x] Rejects models outside the allowed list.
 
 **Tests**
-- [ ] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given.
-- [ ] Unit: timeout, 401, 429 and 5xx each raise their own exception with a readable message.
-- [ ] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast.
-- [ ] Unit: a model outside the allowed list raises before any HTTP call is made.
+- [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given.
+- [x] Unit: timeout, 401, 429 and 5xx each raise their own exception with a readable message.
+- [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast.
+- [x] Unit: a model outside the allowed list raises before any HTTP call is made.
 
 ### T2.2 Streaming responses (S)
 **Acceptance criteria**
