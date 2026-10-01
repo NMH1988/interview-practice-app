@@ -10,7 +10,7 @@ Run the five phases **in order** for every coding task. Do not write or edit cod
 Trivial edits (typo, comment, formatting, a one-line config change) may collapse Q-R-S-P into a single sentence, but must still state the plan before editing.
 
 ## 1. Question
-First read `docs/PROGRESS.md` and run `gh pr list --state open`, so earlier decisions, open work and follow-ups shape the questions. Then break the task into clarifying questions.
+First read `docs/PROGRESS.md` and run `gh pr list --state open`, so earlier decisions, open work and follow-ups shape the questions. If `gh` is not installed or not logged in, say so and go on with only the log. Then break the task into clarifying questions.
 - List every unknown that affects the solution: scope, inputs/outputs, edge cases, acceptance criteria, constraints, affected files.
 - If the task comes from a GitHub issue, read it (`gh issue view <n>`) and turn each acceptance criterion into at least one question.
 - Mark each question as **answerable from the code/docs** or **needs the user**.

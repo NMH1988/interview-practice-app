@@ -1,0 +1,2 @@
+# Parallel PRs all add entries at the top of the log; keep both sides on local merges.
+docs/PROGRESS.md merge=union

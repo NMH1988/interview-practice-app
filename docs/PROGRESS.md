@@ -2,7 +2,7 @@
 
 What each PR did and why, newest first. **Read this before starting a ticket**, together with the open PRs (`gh pr list --state open`), so earlier decisions and loose ends are not lost.
 
-**Adding an entry:** every PR adds one entry at the top of the log below, in the same PR, so the log reaches `main` together with the work. Keep it short and record what the code does not say.
+**Adding an entry:** every PR (Dependabot exempt) adds one entry at the top of the log below, in the same PR, so the log reaches `main` together with the work. Keep it short and record what the code does not say. Parallel PRs all add at the top, so they conflict here: keep both entries. `.gitattributes` sets `merge=union` for this file, which handles local merges; GitHub's web conflict editor ignores it.
 
 ```
 ## YYYY-MM-DD · T<x.y> <title> · #<PR> (closes #<issue>)
@@ -19,12 +19,13 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 ## 2026-10-01 · T6.7 Progress log read before every ticket · #43 (closes #42)
 - **What:** this file; `CLAUDE.md` and the `qrspi` skill now require reading it (plus open PRs) before a ticket and adding an entry in every PR.
 - **Why:** the user did not want work from earlier sessions forgotten. A file in the repo is visible to the team and to every Claude session, unlike local memory.
-- **Decisions & gotchas:** a single file was chosen over one file per PR so there is one place to read. Parallel PRs may conflict at the top of the log; resolve by keeping both entries.
+- **Decisions & gotchas:** a single file was chosen over one file per PR so there is one place to read. Parallel PRs may conflict at the top of the log; resolve by keeping both entries (`.gitattributes` `merge=union` does this for local merges). Dependabot PRs are exempt, as in #41. If `gh` is not logged in, the `qrspi` skill goes on with only the log. Review fixes: merged `main` (#39) and kept T6.5 before T6.7 in `docs/PLAN.md`.
+- **Follow-ups:** once #41 merges, add a "- [ ] `docs/PROGRESS.md` entry added" line to its PR template.
 
 ## 2026-10-01 · Repo setting: auto-delete head branches (no PR)
 - **What:** turned on "Automatically delete head branches" on GitHub.
 - **Why:** when a base PR merges, GitHub deletes its branch and retargets stacked PRs to `main`, so their `Closes #N` fires on merge.
-- **Decisions & gotchas:** squash-merging a base PR leaves its commits duplicated in the stacked PR. Prefer a merge commit for #36, or merge `main` into the stacked branch afterwards.
+- **Decisions & gotchas:** squash-merging a base PR leaves its commits duplicated in the stacked PR. When a PR has others stacked on it, merge it with a merge commit, or merge `main` into each stacked branch afterwards.
 
 ## 2026-10-01 · T6.6 Every PR closes its ticket · #41 (closes #40) *(open when logged)*
 - **What:** `.github/pull_request_template.md` starts with `Closes #`. `.github/workflows/pr-checks.yml` (`linked-issue` job) fails PRs without a `Closes/Fixes/Resolves #N` keyword; Dependabot is exempt and the check re-runs when the description is edited. `CLAUDE.md` has a "Pull requests" section.
@@ -32,7 +33,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 - **Decisions & gotchas:** closing keywords only fire on merge into `main`. #36's description was fixed by hand to `Closes #1`.
 - **Follow-ups:** make `linked-issue` a required status check in `main`'s branch protection (manual). `docs/PLAN.md` may conflict with #39 and #43 (all add a ticket after T6.4); keep all sections.
 
-## 2026-10-01 · T6.5 Code-reviewer subagent · #39 (closes #38) *(open when logged)*
+## 2026-10-01 · T6.5 Code-reviewer subagent · #39 (closes #38), merged as `d6d9d19`
 - **What:** `.claude/agents/code-reviewer.md`, a read-only reviewer. By default it reviews the current branch vs `main`. Its checklist covers correctness, security (secrets, guard, injection, output safety), mocked tests and conventions; it runs ruff + pytest, checks the ticket's acceptance criteria, and reports in a fixed format.
 - **Why:** one agent rather than separate frontend/backend agents, because Streamlit UI and logic are the same Python codebase and most bugs sit where they meet.
 - **Decisions & gotchas:** first committed on the T1.2 branch, then moved to its own ticket/branch at the user's request (one ticket per PR). Claude Code loads agents at session start, so start a new session to use it.
