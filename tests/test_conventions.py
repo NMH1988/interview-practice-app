@@ -1,6 +1,8 @@
 import ast
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parent.parent
 SOURCES = [ROOT / "app.py", *(ROOT / "src").rglob("*.py"), *(ROOT / "tests").rglob("*.py")]
 
@@ -9,7 +11,7 @@ def missing_docstrings(paths: list[Path], root: Path) -> list[str]:
     """Return "file:line name" for every function, method or class in paths without a docstring."""
     missing = []
     for path in paths:
-        tree = ast.parse(path.read_text(encoding="utf-8"))
+        tree = ast.parse(path.read_bytes(), filename=str(path))
         for node in ast.walk(tree):
             is_def = isinstance(node, ast.FunctionDef | ast.AsyncFunctionDef | ast.ClassDef)
             if is_def and not ast.get_docstring(node):
@@ -50,6 +52,21 @@ def test_missing_docstrings_reports_each_undocumented_definition(tmp_path):
             "sample.py:12 empty_docstring",
         ]
     )
+
+
+def test_missing_docstrings_handles_utf8_bom(tmp_path):
+    """A file saved with a UTF-8 BOM (e.g. by Notepad) is parsed and still checked."""
+    path = tmp_path / "bom.py"
+    path.write_text("def bare():\n    pass\n", encoding="utf-8-sig")
+    assert missing_docstrings([path], tmp_path) == ["bom.py:1 bare"]
+
+
+def test_missing_docstrings_names_file_on_syntax_error(tmp_path):
+    """A file that does not parse raises a SyntaxError naming that file."""
+    path = tmp_path / "broken.py"
+    path.write_text("def broken(:\n", encoding="utf-8")
+    with pytest.raises(SyntaxError, match="broken.py"):
+        missing_docstrings([path], tmp_path)
 
 
 def test_every_function_and_class_has_a_docstring():
