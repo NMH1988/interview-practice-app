@@ -49,6 +49,17 @@ def test_empty_or_blank_looking_input_is_rejected(text):
         validate_input(text)
 
 
+@pytest.mark.parametrize(
+    "code_point",
+    [0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800],
+    ids=["U+115F", "U+1160", "U+3164", "U+FFA0", "U+2800"],
+)
+def test_each_blank_looking_filler_is_rejected(code_point):
+    """Each filler that renders as empty space is rejected; listed here so guard typos fail."""
+    with pytest.raises(InvalidInputError, match="type a message"):
+        validate_input(chr(code_point) * 3)
+
+
 def test_combining_marks_inside_words_are_kept():
     """Marks only count as blank on their own; on a letter they are normal text."""
     text = f"Cafe{COMBINING_ACUTE} and more"
