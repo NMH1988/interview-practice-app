@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import pandas as pd
 import streamlit as st
 
-from src.config import API_KEY_NAME, MissingAPIKeyError, get_api_key
+from src.config import API_KEY_NAME, MissingAPIKeyError, SecretsFileError, get_api_key
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -32,6 +32,13 @@ st.title("Interview Practice")
 
 try:
     get_api_key()
+except SecretsFileError:
+    st.error(
+        "**`.streamlit/secrets.toml` could not be parsed.** Check that the key is in quotes, "
+        f'for example `{API_KEY_NAME} = "sk-or-v1-..."`, then reload this page.',
+        icon="🔑",
+    )
+    st.stop()
 except MissingAPIKeyError:
     st.error(
         f"**OpenRouter API key missing.** Add `{API_KEY_NAME}` to `.streamlit/secrets.toml` "

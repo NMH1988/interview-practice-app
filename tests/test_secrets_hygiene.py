@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -11,6 +12,8 @@ def test_secret_files_are_gitignored():
 
 
 def test_secrets_example_has_placeholder_key_only():
-    """The committed template holds a fake placeholder, not a real key."""
+    """The committed template holds the fake placeholder and no other key-like value."""
     example = (ROOT / ".streamlit" / "secrets.toml.example").read_text(encoding="utf-8")
     assert 'OPENROUTER_API_KEY = "sk-or-v1-your-key-here"' in example
+    keys = re.findall(r"sk-or-v1-[A-Za-z0-9-]+", example)
+    assert keys == ["sk-or-v1-your-key-here"]
