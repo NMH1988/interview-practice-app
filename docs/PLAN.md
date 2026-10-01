@@ -190,11 +190,13 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 **Acceptance criteria**
 - [ ] `CLAUDE.md` has a "Code conventions" section: one-line docstring on every function, method and class (tests and fixtures included), and a plain-language "what I did and why" walkthrough after each task.
 - [ ] The `qrspi` skill's Implement phase repeats both rules.
-- [ ] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no docstring.
+- [ ] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no one-line docstring.
 
 **Tests**
 - [ ] Unit: `tests/test_conventions.py` passes on the current tree.
-- [ ] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function and an empty docstring in a temporary file, and nothing for documented ones.
+- [ ] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function, an empty docstring and a multi-line docstring in a temporary file, and nothing for documented ones.
+- [ ] Unit: a UTF-8 BOM file is still checked, and a file that does not parse raises a SyntaxError naming it.
+- [ ] Unit: the repo-wide check fails if `src/` or `tests/` is missing, so a renamed folder cannot go unchecked.
 
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
