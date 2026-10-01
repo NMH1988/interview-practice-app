@@ -100,6 +100,13 @@ def make_client(api_key: str | None = None, http_client: httpx2.Client | None = 
             raise LLMAuthError(
                 f"No OpenRouter API key is set. Add {API_KEY_NAME} and reload the page."
             ) from exc
+    if not api_key.isascii():
+        # HTTP headers are ASCII; smart quotes or a zero-width space pasted with the key would
+        # otherwise fail inside the SDK as a UnicodeEncodeError before any request is sent.
+        raise LLMAuthError(
+            f"The OpenRouter API key contains invalid characters. Check {API_KEY_NAME} "
+            "and reload the page."
+        )
     return OpenAI(
         api_key=api_key,
         base_url=OPENROUTER_BASE_URL,
@@ -138,7 +145,9 @@ def complete(
         except openai.APIError as exc:
             raise _translate(exc) from exc
         except ValueError as exc:
-            # A 200 JSON response that does not parse raises json.JSONDecodeError, not APIError.
+            # Mostly a 200 body that does not parse (json.JSONDecodeError is not an APIError).
+            # Request-side ValueErrors, e.g. a NaN temperature, also land here; a non-ASCII
+            # key never does, because make_client() rejects it first.
             raise LLMError(_UNREADABLE) from exc
     text = _reply_text(response)
     if not text or not text.strip():
