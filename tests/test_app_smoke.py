@@ -10,10 +10,12 @@ APP = Path(__file__).resolve().parent.parent / "app.py"
 
 @pytest.fixture(autouse=True)
 def no_env_key(monkeypatch):
+    """Remove the API key env var so each test controls where the key comes from."""
     monkeypatch.delenv(API_KEY_NAME, raising=False)
 
 
 def test_app_renders_without_exception():
+    """With a key set, the app loads fully: title, no error, three metrics."""
     at = AppTest.from_file(str(APP))
     at.secrets[API_KEY_NAME] = "sk-test-not-a-real-key"
     at.run(timeout=30)
@@ -24,6 +26,7 @@ def test_app_renders_without_exception():
 
 
 def test_missing_api_key_shows_friendly_error():
+    """Without a key, the app shows a setup message instead of crashing."""
     at = AppTest.from_file(str(APP))
     # A non-empty secrets dict replaces any local secrets.toml, so the key is truly absent.
     at.secrets["UNRELATED"] = "x"

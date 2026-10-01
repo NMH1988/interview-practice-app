@@ -5,6 +5,7 @@ ROOT = Path(__file__).resolve().parent.parent
 
 
 def test_pyproject_and_requirements_list_same_runtime_dependencies():
+    """pyproject.toml and requirements.txt pin the same runtime packages."""
     pyproject = tomllib.loads((ROOT / "pyproject.toml").read_text(encoding="utf-8"))
     requirements = [
         line.strip()

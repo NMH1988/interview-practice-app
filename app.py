@@ -44,6 +44,7 @@ except MissingAPIKeyError:
 
 @st.cache_data
 def load_sessions() -> pd.DataFrame:
+    """Return 60 days of made-up practice sessions for the dashboard."""
     # Placeholder data: replace with your real practice-session records.
     days = pd.date_range(end=date.today(), periods=60, freq="D")
     return pd.DataFrame(
