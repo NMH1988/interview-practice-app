@@ -1,7 +1,9 @@
 import logging
+import time
 
 import pytest
 
+from src import rate_limit
 from src.guard import GuardError
 from src.rate_limit import RateLimitError, check_rate_limit
 
@@ -65,6 +67,21 @@ def test_limits_can_be_changed():
         check_rate_limit([0.0, 1.0], now=2.0, per_minute=2, window=10)
     with pytest.raises(RateLimitError, match="all 2 messages"):
         check_rate_limit([0.0, 1.0], now=500.0, per_session=2)
+
+
+def test_wait_counts_every_request_over_the_limit():
+    """With more requests in the window than the limit, the wait lasts until enough have left."""
+    # Limit 2, window 10 s, requests at t=0, 1, 2: a slot opens only when t=1 leaves, at t=11.
+    with pytest.raises(RateLimitError, match="wait 8 seconds"):
+        check_rate_limit([0.0, 1.0, 2.0], now=3.0, per_minute=2, window=10)
+    with pytest.raises(RateLimitError, match="wait 1 second "):
+        check_rate_limit([0.0, 1.0, 2.0], now=10.0, per_minute=2, window=10)
+    check_rate_limit([0.0, 1.0, 2.0], now=11.0, per_minute=2, window=10)
+
+
+def test_clock_is_monotonic():
+    """The app's clock is `time.monotonic`, so changing the system time cannot skip the limit."""
+    assert rate_limit.clock is time.monotonic
 
 
 def test_rate_limit_error_is_a_guard_error():

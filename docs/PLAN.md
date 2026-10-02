@@ -17,7 +17,8 @@ Proposed module layout:
 app.py                  # Streamlit UI only (thin)
 src/
   config.py             # model names, defaults, secrets loading
-  guard.py              # input validation / injection / rate limit
+  guard.py              # input validation / injection / output safety
+  rate_limit.py         # per-session request limits
   prompts.py            # 5+ system prompt strategies + user prompt builder
   llm.py                # OpenRouter client wrapper (retries, errors, streaming)
 tests/                  # all LLM calls mocked

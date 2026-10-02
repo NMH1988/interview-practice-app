@@ -34,8 +34,10 @@ def check_rate_limit(
     # Rolling window: a request stops counting exactly `window` seconds after it was sent.
     recent = sorted(t for t in times if now - t < window)
     if len(recent) >= per_minute:
-        # The oldest request in the window leaves it first; then one more may be sent.
-        wait = max(1, math.ceil(recent[0] + window - now))
+        # One more may be sent once the window holds one less than the limit, i.e. once the
+        # first len(recent) - per_minute + 1 requests have left it. Usually that is just the
+        # oldest, but more if the window is over the limit (e.g. the limit was lowered).
+        wait = max(1, math.ceil(recent[len(recent) - per_minute] + window - now))
         unit = "second" if wait == 1 else "seconds"
         logger.warning("Rate limited: per_minute (wait %d s)", wait)
         raise RateLimitError(
