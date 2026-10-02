@@ -145,7 +145,7 @@ def test_zero_width_characters_inside_text_are_kept():
     ids=["empty", "spaces", "zero-width", "only-controls", "none"],
 )
 def test_blank_role_is_rejected(role):
-    """A role with nothing visible in it is rejected with a message pointing to the sidebar."""
+    """A role with nothing visible in it is rejected with the 'enter the role' message."""
     with pytest.raises(InvalidInputError, match="enter the role"):
         validate_role(role)
 
