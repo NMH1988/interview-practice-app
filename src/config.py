@@ -12,8 +12,11 @@ MIN_TEMPERATURE = 0.0
 MAX_TEMPERATURE = 1.5
 DEFAULT_TEMPERATURE = 0.7
 
-# gpt-5 models spend reasoning tokens from this budget too, so keep it generous; T2.3 caps it.
+# gpt-5 models spend reasoning tokens from this budget too, so keep it generous: a low budget
+# can be used up by thinking alone and return no text.
 DEFAULT_MAX_TOKENS = 4000
+# Every request is clamped to this, whatever a caller asks for, to bound the cost of one reply.
+MAX_TOKENS_CAP = 4000
 
 # Longest user message (after cleaning) the guard lets through to the LLM.
 MAX_INPUT_CHARS = 2000

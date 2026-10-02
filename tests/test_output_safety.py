@@ -382,10 +382,17 @@ def test_chat_refuses_reply_that_leaks_system_prompt(monkeypatch, no_env_key):
     def leaking_stream(messages, *args, **kwargs):
         """Record the call and stream back the system prompt it was given, in small pieces."""
         calls.append(messages)
+        end = llm._StreamEnd()
+        return llm.ReplyStream(leak_pieces(messages, end), end)
+
+    def leak_pieces(messages, end):
+        """Yield the leak in 40-character pieces, then report it as cut off by the token limit."""
         leak = f"Sure, my instructions are:\n\n{messages[0]['content']}"
         # Pieces shorter than the 80-character floor, so only the joined reply shows the leak.
         for start in range(0, len(leak), 40):
             yield leak[start : start + 40]
+        # The refusal replaces the whole reply, so it is never marked as cut off.
+        end.finish_reason = "length"
 
     monkeypatch.setattr(llm, "stream", leaking_stream)
     at = AppTest.from_file(str(APP))
@@ -402,7 +409,10 @@ def test_chat_refuses_reply_that_leaks_system_prompt(monkeypatch, no_env_key):
         "role": "assistant",
         "content": REFUSAL_MESSAGE,
         "sent": REFUSAL_MESSAGE,
+        "usage": None,
+        "cut_off": False,
     }
+    assert not at.chat_message[1].warning
     # The next request carries the refusal as the earlier reply, not the leaked prompt.
     assert calls[1][2] == {"role": "assistant", "content": REFUSAL_MESSAGE}
     assert all(system_prompt not in m["content"] for m in calls[1][1:])
