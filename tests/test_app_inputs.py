@@ -90,16 +90,20 @@ def test_interview_type_role_and_seniority_inputs(fake_llm):
     assert fake_llm.calls == []
 
 
-def test_blank_role_shows_warning_and_skips_llm(fake_llm):
-    """A blank role blocks the message with a warning and no LLM call."""
+def test_blank_role_warns_in_sidebar_and_locks_chat_input(fake_llm):
+    """A blank role shows a sidebar warning at once and locks the chat input until it is fixed."""
     at = start()
+    assert not at.chat_input[0].disabled
     at.sidebar.text_input(key="role").set_value("   ").run(timeout=30)
-    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
     assert not at.exception
-    assert len(at.warning) == 1
-    assert "enter the role" in at.warning[0].value
+    assert len(at.sidebar.warning) == 1
+    assert "enter the role" in at.sidebar.warning[0].value
+    # AppTest refuses to type into a disabled widget, just as a browser would.
+    assert at.chat_input[0].disabled
+    at.sidebar.text_input(key="role").set_value("Data Analyst").run(timeout=30)
+    assert not at.sidebar.warning
+    assert not at.chat_input[0].disabled
     assert fake_llm.calls == []
-    assert len(at.chat_message) == 0
 
 
 def test_too_long_role_is_cut_to_the_limit(fake_llm):

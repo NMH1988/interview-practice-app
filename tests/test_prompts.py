@@ -13,6 +13,7 @@ from src.prompts import (
     STRATEGY_LABELS,
     USER_INPUT_CLOSE,
     USER_INPUT_OPEN,
+    build_messages,
     build_user_prompt,
     few_shot,
 )
@@ -298,4 +299,30 @@ def test_context_fields_stay_on_one_line():
         'Session type: "Tech nical"',
         "Seniority: Senior",
         "",
+    ]
+
+
+def test_build_messages_with_no_history():
+    """Without earlier turns, the messages are just the system prompt and the new message."""
+    assert build_messages("SYS", [], "NEW") == [
+        {"role": "system", "content": "SYS"},
+        {"role": "user", "content": "NEW"},
+    ]
+
+
+def test_build_messages_sends_earlier_turns_in_order_as_sent():
+    """Earlier turns come between system and new message, in order, using their sent text."""
+    history = [
+        {"role": "user", "content": "shown 1", "sent": "wrapped 1"},
+        {"role": "assistant", "content": "reply 1", "sent": "reply 1"},
+        {"role": "user", "content": "shown 2", "sent": "wrapped 2"},
+        {"role": "assistant", "content": "reply 2", "sent": "reply 2"},
+    ]
+    assert build_messages("SYS", history, "NEW") == [
+        {"role": "system", "content": "SYS"},
+        {"role": "user", "content": "wrapped 1"},
+        {"role": "assistant", "content": "reply 1"},
+        {"role": "user", "content": "wrapped 2"},
+        {"role": "assistant", "content": "reply 2"},
+        {"role": "user", "content": "NEW"},
     ]
