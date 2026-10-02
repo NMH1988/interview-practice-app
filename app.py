@@ -128,8 +128,9 @@ def reply_pieces(
     # access is a stop point too (it checks for a rerun before it acts), so the notice comes first:
     # a run stopped between the two writes resends the message under a stale notice rather than
     # dropping it silently.
-    notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
-    st.session_state.notice = notice
+    # Its own name, not "notice": the module-level notice below holds the previous run's one.
+    saved_notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
+    st.session_state.notice = saved_notice
     st.session_state.pending = None
     received = []
     try:
@@ -144,7 +145,7 @@ def reply_pieces(
         # stays out of the history, so it alternates user/assistant. Changed in place (a plain
         # dict write, not a stop point), so a rerun already waiting cannot stop the run before
         # the real error replaces "interrupted".
-        notice["text"] = str(exc)
+        saved_notice["text"] = str(exc)
         raise
     # Saved before st.write_stream draws the final text, where a requested rerun could stop it.
     # The whole reply is checked before it is stored, so a leaked prompt never stays in the chat
