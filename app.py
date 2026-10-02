@@ -124,9 +124,12 @@ def reply_pieces(
 ) -> Iterator[str]:
     """Stream the reply's pieces, saving the turn's outcome before Streamlit gets control back."""
     # The request goes out on this first next(), so from here a stopped run must not resend the
-    # message; until the reply is in or has failed, it counts as interrupted.
-    st.session_state.pending = None
+    # message; until the reply is in or has failed, it counts as interrupted. Every st.session_state
+    # access is a stop point too (it checks for a rerun before it acts), so the notice comes first:
+    # a run stopped between the two writes resends the message under a stale notice rather than
+    # dropping it silently.
     st.session_state.notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
+    st.session_state.pending = None
     received = []
     try:
         # closing(): when this generator is closed mid-stream, close the inner one (and its
@@ -144,8 +147,12 @@ def reply_pieces(
     # The whole reply is checked before it is stored, so a leaked prompt never stays in the chat
     # or reaches the next request; the streamed text is replaced by the rerun that follows.
     reply = check_output("".join(received), system_prompt)
+    # Read before anything changes: a stop at this read leaves the "interrupted" notice in place.
+    history = st.session_state.history
+    # The last stop point: it checks before it clears, and the extend after it is a plain list
+    # call, so the notice is never cleared without the reply being saved.
     st.session_state.notice = None
-    st.session_state.history.extend(
+    history.extend(
         [
             {"role": "user", "content": clean, "sent": user_prompt},
             {"role": "assistant", "content": reply, "sent": reply},

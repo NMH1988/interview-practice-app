@@ -3,6 +3,9 @@ from pathlib import Path
 
 import pytest
 import streamlit as st
+from streamlit.runtime.scriptrunner_utils.script_requests import RerunData
+from streamlit.runtime.scriptrunner_utils.script_run_context import get_script_run_ctx
+from streamlit.runtime.state.safe_session_state import SafeSessionState
 from streamlit.testing.v1 import AppTest
 
 from src import llm, prompts
@@ -272,13 +275,17 @@ def test_stream_paused_when_the_run_stops_is_closed_and_not_resent(monkeypatch, 
     # app.py looks st.write_stream up on every run, so the patch reaches it.
     monkeypatch.setattr(st, "write_stream", rerun_while_drawing)
     # The paused generator sits in a reference cycle (module globals -> pieces -> its frame), so
-    # the cyclic GC could close it too. With GC off, only app.py's explicit close() can.
+    # the cyclic GC could close it too. With GC off, only app.py's explicit close() can. This
+    # relies on AppTest's runner skipping the gc.collect() the real runner does after each run
+    # (Streamlit 1.64); if an upgrade adds it, this test stops catching a missing close().
+    gc_was_on = gc.isenabled()
     gc.disable()
     try:
         say(at, "Answer that is cut off.")
         seen = list(events)
     finally:
-        gc.enable()
+        if gc_was_on:
+            gc.enable()
     assert seen == ["rerun", "closed"]
     assert len(fake_llm.calls) == 2
     assert len(at.error) == 1
@@ -286,6 +293,51 @@ def test_stream_paused_when_the_run_stops_is_closed_and_not_resent(monkeypatch, 
     assert at.code[0].value == "Answer that is cut off."
     assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
     assert at.session_state.pending is None
+
+
+def rerun_after_setting(monkeypatch, key, value):
+    """Queue a rerun right after session state `key` is first set to `value`; return a flag."""
+    original = SafeSessionState.__setitem__
+    fired = []
+
+    def set_then_request_rerun(self, name, new_value):
+        """Set the value, then (once) queue a rerun the way a sidebar click does mid-run."""
+        original(self, name, new_value)
+        if name == key and new_value == value and not fired:
+            fired.append(True)
+            ctx = get_script_run_ctx()
+            # The run stops at its next stop point, i.e. the next st call or state access.
+            ctx.script_requests.request_rerun(
+                RerunData(query_string=ctx.query_string, page_script_hash=ctx.page_script_hash)
+            )
+
+    monkeypatch.setattr(SafeSessionState, "__setitem__", set_then_request_rerun)
+    return fired
+
+
+def test_rerun_just_after_the_message_leaves_pending_is_reported(monkeypatch, fake_llm):
+    """A rerun landing just after the turn takes the message off pending still reports it."""
+    at = start()
+    fired = rerun_after_setting(monkeypatch, "pending", None)
+    say(at, "First answer.")
+    assert fired
+    # Not dropped silently: the "interrupted" notice was saved before pending was cleared.
+    assert len(at.error) == 1
+    assert "interrupted" in at.error[0].value
+    assert at.code[0].value == "First answer."
+    assert at.session_state.history == []
+    assert len(fake_llm.calls) == 1
+
+
+def test_rerun_just_after_the_notice_is_cleared_keeps_the_reply(monkeypatch, fake_llm):
+    """A rerun landing just after the finished turn clears its notice still finds the reply."""
+    at = start()
+    fired = rerun_after_setting(monkeypatch, "notice", None)
+    say(at, "First answer.")
+    assert fired
+    assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
+    assert not at.error
+    assert len(fake_llm.calls) == 1
 
 
 def test_rerun_after_the_last_piece_keeps_the_reply(monkeypatch, fake_llm):
