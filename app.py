@@ -31,6 +31,7 @@ from src.guard import (
     validate_role,
 )
 from src.prompts import (
+    EXAMPLE_PROMPTS,
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
     STRATEGIES,
@@ -128,6 +129,11 @@ NOTICE_STYLES = {
 def queue_message() -> None:
     """Keep the submitted chat message as pending, so this run can lock the input first."""
     st.session_state.pending = st.session_state.chat_box
+
+
+def use_example(text: str) -> None:
+    """Queue a clicked example prompt, so it is sent exactly like a typed message."""
+    st.session_state.pending = text
 
 
 def new_session() -> None:
@@ -272,13 +278,30 @@ if notice is not None:
     # Cleared only once drawn, so a run stopped mid-draw shows it on the next run instead.
     st.session_state.notice = None
 
+can_send = role_ok
+
+# Empty chat: offer a few starters for the chosen mode. A click queues the text as pending, so it
+# goes through the guard, the rate limit and the LLM like a typed message.
+if not st.session_state.history and st.session_state.pending is None:
+    st.caption("Not sure where to start? Try one of these:")
+    mode = INTERVIEW_TYPES.index(interview_type)
+    for i, example in enumerate(EXAMPLE_PROMPTS.get(interview_type, ())):
+        st.button(
+            example,
+            key=f"example_{mode}_{i}",
+            on_click=use_example,
+            args=(example,),
+            icon="💬",
+            disabled=not can_send,
+        )
+
 # Drawn before the LLM call and locked while a reply is pending, so a second message cannot
 # be sent (and cut this run short) while the first one is waiting.
 st.chat_input(
     "Type your answer or question",
     key="chat_box",
     on_submit=queue_message,
-    disabled=not role_ok or st.session_state.pending is not None,
+    disabled=not can_send or st.session_state.pending is not None,
 )
 
 # Chat turn: guard -> prompts -> streamed LLM reply. Every path clears "pending" and ends in

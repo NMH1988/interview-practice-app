@@ -15,6 +15,33 @@ INTERVIEW_TYPES: tuple[str, ...] = (
 # Candidate levels for the user prompt; T5.1 shows them in the UI.
 SENIORITY_LEVELS: tuple[str, ...] = ("Junior", "Mid-level", "Senior", "Lead")
 
+# Starter messages the empty chat offers for each interview mode; clicking one sends it like a
+# typed message. Not part of any prompt, so they are not secret.
+EXAMPLE_PROMPTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
+    {
+        "Behavioural": (
+            "Ask me a behavioural question to get started.",
+            "Ask me about a time I disagreed with a teammate.",
+            "Ask me about a project that did not go as planned.",
+        ),
+        "Technical": (
+            "Ask me a technical question for this role.",
+            "Ask me to explain a core concept from this role in simple words.",
+            "Give me a short problem to solve, then review my approach.",
+        ),
+        "Questions to ask the interviewer": (
+            "What are good questions to ask at the end of an interview?",
+            "Which questions help me learn about the team's culture?",
+            "What should I avoid asking in a first interview?",
+        ),
+        "Job-description analysis": (
+            "How should I use a job description to prepare for an interview?",
+            "Which parts of a job description matter most when I prepare?",
+            "I'll paste a job description next. What will you look for in it?",
+        ),
+    }
+)
+
 # Tags around the user's own text, so the guard and system prompts can refer to it.
 USER_INPUT_OPEN = "<user_input>"
 USER_INPUT_CLOSE = "</user_input>"

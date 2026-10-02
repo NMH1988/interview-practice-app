@@ -2,7 +2,9 @@ import re
 
 import pytest
 
+from src.guard import matching_patterns, validate_input
 from src.prompts import (
+    EXAMPLE_PROMPTS,
     FEW_SHOT_EXAMPLES,
     IGNORE_EMBEDDED_RULE,
     INTERVIEW_TYPES,
@@ -326,3 +328,28 @@ def test_build_messages_sends_earlier_turns_in_order_as_sent():
         {"role": "assistant", "content": "reply 2"},
         {"role": "user", "content": "NEW"},
     ]
+
+
+def test_every_mode_has_three_distinct_example_prompts():
+    """Each interview mode, and only those, offers three different starter messages."""
+    assert list(EXAMPLE_PROMPTS) == list(INTERVIEW_TYPES)
+    for examples in EXAMPLE_PROMPTS.values():
+        assert len(examples) == 3
+        assert len(set(examples)) == 3
+    every_example = [text for examples in EXAMPLE_PROMPTS.values() for text in examples]
+    assert len(set(every_example)) == len(every_example)
+
+
+@pytest.mark.parametrize(
+    "example", [text for examples in EXAMPLE_PROMPTS.values() for text in examples]
+)
+def test_example_prompt_passes_the_guard_unchanged(example):
+    """A clicked example is never blocked or changed by the guard, so clicking always works."""
+    assert validate_input(example) == example
+    assert matching_patterns(example) == set()
+
+
+def test_example_prompts_are_read_only():
+    """Changing the examples at runtime raises TypeError."""
+    with pytest.raises(TypeError):
+        EXAMPLE_PROMPTS["Technical"] = ("replaced",)  # type: ignore[index]
