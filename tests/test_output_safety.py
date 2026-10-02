@@ -14,6 +14,7 @@ APP = ROOT / "app.py"
 FAKE_KEY = "sk-test-not-a-real-key"
 ZWSP = chr(0x200B)
 COMBINING_JOINER = chr(0x034F)
+NB_HYPHEN = chr(0x2011)
 # Streamlit calls whose second positional argument is `unsafe_allow_html`.
 FLAG_SECOND_ARG = {"markdown", "caption"}
 
@@ -35,9 +36,13 @@ NORMAL_REPLIES = [
 ]
 
 
+EXAMPLE_PARAGRAPHS = [p for example in FEW_SHOT_EXAMPLES for p in example.split("\n\n")]
+
+
 def is_example_text(paragraph: str) -> bool:
-    """Return True if the paragraph comes from one of the few-shot examples."""
-    return any(paragraph in example for example in FEW_SHOT_EXAMPLES)
+    """Return True if the paragraph is one of the few-shot examples' paragraphs."""
+    # Compared normalised, as check_output does, so the two cannot drift apart.
+    return _normalise(paragraph) in {_normalise(p) for p in EXAMPLE_PARAGRAPHS}
 
 
 def long_paragraphs(prompt: str) -> list[str]:
@@ -70,10 +75,7 @@ def test_reply_with_any_long_paragraph_is_refused(key):
         assert check_output(f"My rules say: {paragraph}", PROMPTS[key]) == REFUSAL_MESSAGE
 
 
-@pytest.mark.parametrize(
-    "paragraph",
-    [p for example in FEW_SHOT_EXAMPLES for p in example.split("\n\n") if len(p) >= MIN_LEAK_CHARS],
-)
+@pytest.mark.parametrize("paragraph", [p for p in EXAMPLE_PARAGRAPHS if len(p) >= MIN_LEAK_CHARS])
 def test_reply_copying_a_few_shot_example_paragraph_is_unchanged(paragraph):
     """Examples are meant to be imitated, so a reply repeating one paragraph is not refused."""
     reply = f"## Evaluation\nA clear answer.\n\n{paragraph}"
@@ -81,15 +83,18 @@ def test_reply_copying_a_few_shot_example_paragraph_is_unchanged(paragraph):
 
 
 @pytest.mark.parametrize(
-    "disguise",
+    ("disguise", "needs"),
     [
-        str.upper,
-        lambda text: text.replace(" ", "\n  "),
-        lambda text: text.replace(" ", f" {ZWSP}"),
-        lambda text: ZWSP.join(text),
-        lambda text: COMBINING_JOINER.join(text),
-        to_fullwidth,
-        lambda text: text.replace("'", chr(0x2019)),
+        (str.upper, ""),
+        (lambda text: text.replace(" ", "\n  "), " "),
+        (lambda text: text.replace(" ", f" {ZWSP}"), " "),
+        (lambda text: ZWSP.join(text), ""),
+        (lambda text: COMBINING_JOINER.join(text), ""),
+        (to_fullwidth, ""),
+        (lambda text: text.replace("'", chr(0x2019)), "'"),
+        (lambda text: text.replace("-", NB_HYPHEN), "-"),
+        (lambda text: text.replace("<user_input>", "`<user_input>`"), "<user_input>"),
+        (lambda text: f"**{text}**", ""),
     ],
     ids=[
         "upper-case",
@@ -99,12 +104,15 @@ def test_reply_copying_a_few_shot_example_paragraph_is_unchanged(paragraph):
         "combining-joiner-between-letters",
         "full-width",
         "curly-apostrophes",
+        "non-breaking-hyphen",
+        "tags-in-backticks",
+        "bold",
     ],
 )
-def test_disguised_leak_is_still_refused(disguise):
-    """Changing case, spacing or look-alike characters does not hide a leak."""
+def test_disguised_leak_is_still_refused(disguise, needs):
+    """Changing case, spacing, look-alike characters or Markdown marks does not hide a leak."""
     prompt = PROMPTS["zero_shot"]
-    paragraph = next(p for p in long_paragraphs(prompt) if "'" in p)
+    paragraph = next(p for p in long_paragraphs(prompt) if needs in p)
     assert disguise(paragraph) != paragraph
     assert check_output(disguise(prompt), prompt) == REFUSAL_MESSAGE
     assert check_output(disguise(paragraph), prompt) == REFUSAL_MESSAGE
@@ -141,6 +149,13 @@ def test_blank_system_prompt_never_refuses(prompt):
     assert check_output("Any reply at all.", prompt) == "Any reply at all."
 
 
+def test_short_system_prompt_never_refuses():
+    """A prompt shorter than the leak limit may appear in a normal reply, so it never counts."""
+    prompt = "You are a coach."
+    assert len(prompt) < MIN_LEAK_CHARS
+    assert check_output("You are a coach. Let's begin.", prompt) == "You are a coach. Let's begin."
+
+
 def html_render_nodes(path: Path) -> list[ast.AST]:
     """Return the nodes in `path` that can render raw HTML (see the sample in the test below)."""
     nodes = []
@@ -161,7 +176,11 @@ def html_render_nodes(path: Path) -> list[ast.AST]:
             )
             for kw in node.keywords
         )
-        if unsafe or name == "html" or (name in FLAG_SECOND_ARG and len(node.args) > 1):
+        # A second positional argument, or `*args` that may hold one, is the flag.
+        positional_flag = name in FLAG_SECOND_ARG and (
+            len(node.args) > 1 or any(isinstance(arg, ast.Starred) for arg in node.args)
+        )
+        if unsafe or name == "html" or positional_flag:
             nodes.append(node)
     return nodes
 
@@ -187,11 +206,15 @@ def theme_names(path: Path) -> set[str]:
         return is_get_option(value)
 
     tree = ast.parse(path.read_bytes(), filename=str(path))
-    stores = [
-        node.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store)
-    ]
+    # Every way a name gets a value: assignment, function parameter, import alias.
+    stores = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
+            stores.append(node.id)
+        elif isinstance(node, ast.arg):
+            stores.append(node.arg)
+        elif isinstance(node, ast.alias):
+            stores.append(node.asname or node.name.split(".")[0])
     themed = {
         target.id
         for node in tree.body
@@ -224,14 +247,14 @@ def is_static_style_block(node: ast.AST, allowed_names: set[str]) -> bool:
 
 
 def app_sources() -> list[Path]:
-    """Return every app Python file: `app.py` and the rest, without tests or hidden folders."""
-    skipped = {"tests", "venv", "env"}
+    """Return every app Python file: `app.py` and the rest, without tests, venvs or builds."""
+    skipped = {"tests", "venv", "env", "build", "dist"}
     sources = []
     for entry in ROOT.iterdir():
         if entry.name.startswith(".") or entry.name in skipped:
             continue
-        if entry.is_dir():
-            sources.extend(entry.rglob("*.py"))
+        if entry.is_dir() and not (entry / "pyvenv.cfg").exists():
+            sources.extend(p for p in entry.rglob("*.py") if "site-packages" not in p.parts)
         elif entry.suffix == ".py":
             sources.append(entry)
     return sources
@@ -253,6 +276,8 @@ def test_html_render_nodes_finds_every_raw_html_route(tmp_path):
         "from streamlit import html as raw",  # 11
         "from streamlit import components",  # 12
         "st.write(reply, other)",
+        "st.markdown(*parts)",  # 14
+        "st.write(*parts)",
     ]
     source = tmp_path / "sample.py"
     source.write_text("\n".join(lines), encoding="utf-8")
@@ -266,6 +291,7 @@ def test_html_render_nodes_finds_every_raw_html_route(tmp_path):
         10,
         11,
         12,
+        14,
     ]
 
 
@@ -277,6 +303,11 @@ def test_static_style_block_check_rejects_user_or_model_text(tmp_path):
         "accent = st.get_option('theme.primaryColor') or st.session_state.accent\n"
         "card = st.get_option('theme.secondaryBackgroundColor')\n"
         "card = reply\n"
+        "border = st.get_option('theme.primaryColor')\n"
+        "def render(border):\n"
+        "    pass\n"
+        "shade = st.get_option('theme.primaryColor')\n"
+        "from answers import reply as shade\n"
         "st.markdown(f'<style>a {{ color: {primary}; }}</style>', unsafe_allow_html=True)\n"
         "st.markdown(f'<style>a {{ color: {reply}; }}</style>', unsafe_allow_html=True)\n"
         "st.markdown(f'<style>a {{ color: {accent}; }}</style>', unsafe_allow_html=True)\n"

@@ -16,9 +16,15 @@ _KEPT_CONTROLS = frozenset("\n\t")
 _INVISIBLE_CATEGORIES = frozenset({"Cf", "Mn"})
 # Letters and symbols that render as empty space: Hangul fillers and the blank Braille pattern.
 _BLANK_LOOKING = frozenset(map(chr, (0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800)))
-# Curly quotes a model may write where the prompt has straight ones.
-_STRAIGHT_QUOTES = str.maketrans(
-    {chr(0x2018): "'", chr(0x2019): "'", chr(0x201C): '"', chr(0x201D): '"'}
+# What a model may write differently from the prompt without changing the words: curly quotes,
+# Unicode hyphens and dashes (NFKC keeps them), and Markdown code/emphasis marks (dropped).
+_LOOKALIKES = str.maketrans(
+    {
+        **dict.fromkeys(map(chr, (0x2018, 0x2019)), "'"),
+        **dict.fromkeys(map(chr, (0x201C, 0x201D)), '"'),
+        **dict.fromkeys(map(chr, (*range(0x2010, 0x2016), 0x2212)), "-"),
+        **dict.fromkeys("`*_"),
+    }
 )
 
 
@@ -71,7 +77,7 @@ def validate_role(role: str | None, max_chars: int = MAX_ROLE_CHARS) -> str:
 def _normalise(text: str) -> str:
     """Return `text` in a form where case, spacing and look-alike characters do not matter."""
     # NFKC first, so a full-width "&lt;" is unescaped too.
-    text = html.unescape(unicodedata.normalize("NFKC", text)).translate(_STRAIGHT_QUOTES)
+    text = html.unescape(unicodedata.normalize("NFKC", text)).translate(_LOOKALIKES)
     text = "".join(ch for ch in text if unicodedata.category(ch) not in _INVISIBLE_CATEGORIES)
     return " ".join(text.split()).casefold()
 
@@ -84,11 +90,9 @@ _PUBLIC_PARAGRAPHS = frozenset(
 
 def check_output(reply: str, system_prompt: str) -> str:
     """Return `reply`, or `REFUSAL_MESSAGE` if it repeats the system prompt or a long part of it."""
-    prompt = _normalise(system_prompt)
-    if not prompt:
-        return reply
     seen = _normalise(reply)
-    # The whole prompt, plus each long paragraph, since a leak usually copies only parts.
+    # The whole prompt, plus each paragraph, since a leak usually copies only parts. Short text
+    # (a blank or tiny prompt, headings) may appear in a normal reply, so it never counts.
     paragraphs = {_normalise(p) for p in system_prompt.split("\n\n")} - _PUBLIC_PARAGRAPHS
-    leaked = [prompt, *(p for p in paragraphs if len(p) >= MIN_LEAK_CHARS)]
+    leaked = [p for p in (_normalise(system_prompt), *paragraphs) if len(p) >= MIN_LEAK_CHARS]
     return REFUSAL_MESSAGE if any(part in seen for part in leaked) else reply
