@@ -249,6 +249,8 @@ def test_stream_interrupted_by_a_rerun_is_reported_and_not_resent(monkeypatch, f
     assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
     assert at.session_state.pending is None
     assert not at.chat_input[0].disabled
+    # The cut-off request went out, so it counts toward the rate limit, once.
+    assert len(at.session_state.request_times) == 2
 
 
 def test_stream_paused_when_the_run_stops_is_closed_and_not_resent(monkeypatch, fake_llm):
@@ -332,6 +334,7 @@ def test_rerun_just_after_the_message_leaves_pending_is_reported(monkeypatch, fa
     assert at.code[0].value == "First answer."
     assert at.session_state.history == []
     assert len(fake_llm.calls) == 1
+    assert len(at.session_state.request_times) == 1
 
 
 def test_rerun_just_after_the_interrupted_notice_is_set_resends_once(monkeypatch, fake_llm):
@@ -349,6 +352,8 @@ def test_rerun_just_after_the_interrupted_notice_is_set_resends_once(monkeypatch
     assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
     assert not at.error
     assert len(fake_llm.calls) == 1
+    # Counted by the run that sent it, not by the stopped one: one request, one turn.
+    assert len(at.session_state.request_times) == 1
 
 
 def test_stream_error_with_a_rerun_waiting_shows_the_real_error(monkeypatch, fake_llm):

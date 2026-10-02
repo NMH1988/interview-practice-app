@@ -21,6 +21,12 @@ MAX_INPUT_CHARS = 2000
 # Shorter text (headings, the 1-5 scale, a tiny test prompt) may appear in a normal reply.
 MIN_LEAK_CHARS = 80
 
+# Requests to the LLM allowed per browser session: at most this many in any rolling window, and
+# this many in all. "New session" does not reset them; reloading the page starts a new session.
+RATE_LIMIT_PER_MINUTE = 10
+RATE_LIMIT_WINDOW_SECONDS = 60
+RATE_LIMIT_PER_SESSION = 50
+
 # The role goes into the system prompt, so it is free text but kept short (see T3.1 follow-ups).
 DEFAULT_ROLE = "Software Engineer"
 MAX_ROLE_CHARS = 60
