@@ -128,7 +128,8 @@ def reply_pieces(
     # access is a stop point too (it checks for a rerun before it acts), so the notice comes first:
     # a run stopped between the two writes resends the message under a stale notice rather than
     # dropping it silently.
-    st.session_state.notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
+    notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
+    st.session_state.notice = notice
     st.session_state.pending = None
     received = []
     try:
@@ -140,8 +141,10 @@ def reply_pieces(
                 yield piece
     except llm.LLMError as exc:
         # Only the fixed message: the chained SDK error holds the raw response body. The turn
-        # stays out of the history, so it alternates user/assistant.
-        st.session_state.notice = {"kind": "error", "text": str(exc), "unsent": clean}
+        # stays out of the history, so it alternates user/assistant. Changed in place (a plain
+        # dict write, not a stop point), so a rerun already waiting cannot stop the run before
+        # the real error replaces "interrupted".
+        notice["text"] = str(exc)
         raise
     # Saved before st.write_stream draws the final text, where a requested rerun could stop it.
     # The whole reply is checked before it is stored, so a leaked prompt never stays in the chat

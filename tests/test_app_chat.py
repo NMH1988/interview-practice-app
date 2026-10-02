@@ -295,21 +295,26 @@ def test_stream_paused_when_the_run_stops_is_closed_and_not_resent(monkeypatch, 
     assert at.session_state.pending is None
 
 
+def queue_rerun():
+    """Queue a rerun the way a sidebar click does mid-run, without stopping the run yet."""
+    ctx = get_script_run_ctx()
+    # The run stops at its next stop point, i.e. the next st call or state access.
+    ctx.script_requests.request_rerun(
+        RerunData(query_string=ctx.query_string, page_script_hash=ctx.page_script_hash)
+    )
+
+
 def rerun_after_setting(monkeypatch, key, value):
     """Queue a rerun right after session state `key` is first set to `value`; return a flag."""
     original = SafeSessionState.__setitem__
     fired = []
 
     def set_then_request_rerun(self, name, new_value):
-        """Set the value, then (once) queue a rerun the way a sidebar click does mid-run."""
+        """Set the value, then (once) queue a rerun."""
         original(self, name, new_value)
         if name == key and new_value == value and not fired:
             fired.append(True)
-            ctx = get_script_run_ctx()
-            # The run stops at its next stop point, i.e. the next st call or state access.
-            ctx.script_requests.request_rerun(
-                RerunData(query_string=ctx.query_string, page_script_hash=ctx.page_script_hash)
-            )
+            queue_rerun()
 
     monkeypatch.setattr(SafeSessionState, "__setitem__", set_then_request_rerun)
     return fired
@@ -327,6 +332,40 @@ def test_rerun_just_after_the_message_leaves_pending_is_reported(monkeypatch, fa
     assert at.code[0].value == "First answer."
     assert at.session_state.history == []
     assert len(fake_llm.calls) == 1
+
+
+def test_rerun_just_after_the_interrupted_notice_is_set_resends_once(monkeypatch, fake_llm):
+    """A rerun between saving the notice and clearing pending resends the message, just once."""
+    at = start()
+    interrupted = {
+        "kind": "error",
+        "text": "The answer was interrupted before it finished.",
+        "unsent": "First answer.",
+    }
+    fired = rerun_after_setting(monkeypatch, "notice", interrupted)
+    say(at, "First answer.")
+    assert fired
+    # The request had not gone out, so the message stayed pending and the next run sent it.
+    assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
+    assert not at.error
+    assert len(fake_llm.calls) == 1
+
+
+def test_stream_error_with_a_rerun_waiting_shows_the_real_error(monkeypatch, fake_llm):
+    """A stream that fails while a rerun is waiting still shows its own error, not "interrupted"."""
+    at = start()
+
+    def failing_with_rerun_waiting(*args, **kwargs):
+        """Queue a rerun, then fail the way llm.stream does on a 5xx, before any st call."""
+        queue_rerun()
+        raise llm.LLMServerError("The AI service is having problems right now.")
+
+    monkeypatch.setattr(llm, "stream", failing_with_rerun_waiting)
+    say(at, "Answer that fails.")
+    assert len(at.error) == 1
+    assert "having problems" in at.error[0].value
+    assert at.code[0].value == "Answer that fails."
+    assert at.session_state.history == []
 
 
 def test_rerun_just_after_the_notice_is_cleared_keeps_the_reply(monkeypatch, fake_llm):
