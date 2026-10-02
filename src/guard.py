@@ -1,8 +1,13 @@
-"""Security guard: checks user input before any tokens are spent on the LLM."""
+"""Security guard: checks user input before any tokens are spent, and the LLM's reply after."""
 
+import html
 import unicodedata
 
-from src.config import MAX_INPUT_CHARS, MAX_ROLE_CHARS
+from src.config import MAX_INPUT_CHARS, MAX_ROLE_CHARS, MIN_LEAK_CHARS
+from src.prompts import FEW_SHOT_EXAMPLES
+
+# Shown instead of a reply that repeats the system prompt.
+REFUSAL_MESSAGE = "Sorry, I can't share my instructions. Let's get back to your interview practice."
 
 # Control characters (Unicode category Cc) that are still normal text and must be kept.
 _KEPT_CONTROLS = frozenset("\n\t")
@@ -11,6 +16,16 @@ _KEPT_CONTROLS = frozenset("\n\t")
 _INVISIBLE_CATEGORIES = frozenset({"Cf", "Mn"})
 # Letters and symbols that render as empty space: Hangul fillers and the blank Braille pattern.
 _BLANK_LOOKING = frozenset(map(chr, (0x115F, 0x1160, 0x3164, 0xFFA0, 0x2800)))
+# What a model may write differently from the prompt without changing the words: curly quotes,
+# Unicode hyphens and dashes (NFKC keeps them), and Markdown code/emphasis marks (dropped).
+_LOOKALIKES = str.maketrans(
+    {
+        **dict.fromkeys(map(chr, (0x2018, 0x2019)), "'"),
+        **dict.fromkeys(map(chr, (0x201C, 0x201D)), '"'),
+        **dict.fromkeys(map(chr, (*range(0x2010, 0x2016), 0x2212)), "-"),
+        **dict.fromkeys("`*_"),
+    }
+)
 
 
 class GuardError(ValueError):
@@ -57,3 +72,27 @@ def validate_role(role: str | None, max_chars: int = MAX_ROLE_CHARS) -> str:
     return _validated(
         one_line, max_chars, "Please enter the role you are practising for.", "The role"
     )
+
+
+def _normalise(text: str) -> str:
+    """Return `text` in a form where case, spacing and look-alike characters do not matter."""
+    # NFKC first, so a full-width "&lt;" is unescaped too.
+    text = html.unescape(unicodedata.normalize("NFKC", text)).translate(_LOOKALIKES)
+    text = "".join(ch for ch in text if unicodedata.category(ch) not in _INVISIBLE_CATEGORIES)
+    return " ".join(text.split()).casefold()
+
+
+# Few-shot example paragraphs are made to be imitated, so repeating one is not a leak.
+_PUBLIC_PARAGRAPHS = frozenset(
+    _normalise(p) for example in FEW_SHOT_EXAMPLES for p in example.split("\n\n")
+)
+
+
+def check_output(reply: str, system_prompt: str) -> str:
+    """Return `reply`, or `REFUSAL_MESSAGE` if it repeats the system prompt or a long part of it."""
+    seen = _normalise(reply)
+    # The whole prompt, plus each paragraph, since a leak usually copies only parts. Short text
+    # (a blank or tiny prompt, headings) may appear in a normal reply, so it never counts.
+    paragraphs = {_normalise(p) for p in system_prompt.split("\n\n")} - _PUBLIC_PARAGRAPHS
+    leaked = [p for p in (_normalise(system_prompt), *paragraphs) if len(p) >= MIN_LEAK_CHARS]
+    return REFUSAL_MESSAGE if any(part in seen for part in leaked) else reply

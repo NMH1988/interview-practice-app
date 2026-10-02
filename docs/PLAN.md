@@ -185,12 +185,13 @@ Goal: prevent misuse before any tokens are spent.
 
 ### T4.4 Output safety (S)
 **Acceptance criteria**
-- [ ] Response is rendered as Markdown without `unsafe_allow_html`.
-- [ ] If the response contains the system prompt text verbatim, it is replaced by a refusal (unit tested).
+- [x] Response is rendered as Markdown without `unsafe_allow_html`.
+- [x] If the response contains the system prompt text verbatim, it is replaced by a refusal (unit tested).
 
 **Tests**
-- [ ] Unit: a response that contains the system prompt verbatim is replaced by the refusal; a normal response is unchanged.
-- [ ] Unit (source scan): model and user text are rendered without `unsafe_allow_html`; the only allowed `unsafe_allow_html=True` is the static theme CSS block in `app.py`.
+- [x] Unit: a response that contains the system prompt verbatim is replaced by the refusal; a normal response is unchanged.
+- [x] Unit (source scan): model and user text are rendered without `unsafe_allow_html`; the only allowed `unsafe_allow_html=True` is the static theme CSS block in `app.py`.
+- [x] UI flow: HTML in the user's message and in the model's reply is shown as text (the Markdown element has `allow_html` off).
 
 ## Epic 5 — Streamlit UI
 Goal: a polished single-page app matching the diagram.
@@ -217,6 +218,7 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 - [x] UI flow (main happy path): chat input → guard → prompt → fake LLM → reply shown; after two turns, both are in the history in order.
 - [x] UI flow: the fake LLM receives the selected strategy's system prompt and the delimited user message.
 - [x] UI flow: "New session" clears the history.
+- [x] UI flow: a reply that repeats the system prompt (or a long paragraph of it) shows `guard.REFUSAL_MESSAGE` instead; pass every reply through `guard.check_output(reply, system_prompt)` before it is shown or stored (wired in by T4.4, #54, since T5.2 merged first).
 - [x] Manual: double submission is blocked while a reply is generating (`AppTest` runs one script run at a time, so it cannot test this race).
 
 ### T5.3 Interview modes (M)
