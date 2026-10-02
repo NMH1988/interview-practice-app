@@ -226,6 +226,8 @@ def test_streamed_pieces_become_one_reply(fake_llm):
         "role": "assistant",
         "content": fake_llm.reply,
         "sent": fake_llm.reply,
+        "usage": fake_llm.usage,
+        "cut_off": False,
     }
 
 

@@ -35,6 +35,11 @@ def test_default_role_fits_the_role_limit():
     assert len(config.DEFAULT_ROLE) <= config.MAX_ROLE_CHARS
 
 
+def test_default_max_tokens_fits_the_cap():
+    """The default token budget is positive and not above the per-request cap."""
+    assert 0 < config.DEFAULT_MAX_TOKENS <= config.MAX_TOKENS_CAP
+
+
 def test_default_rate_limits():
     """The T4.3 limits (10 requests a minute, 50 a session) live in config.py."""
     assert config.RATE_LIMIT_PER_MINUTE == 10
