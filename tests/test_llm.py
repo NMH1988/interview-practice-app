@@ -118,8 +118,9 @@ def test_max_tokens_at_or_below_the_cap_is_sent_unchanged(call):
     assert _sent_max_tokens(call, 300) == 300
 
 
-def test_cap_is_read_from_config_at_call_time(monkeypatch):
-    """Changing the cap changes what is sent, so the limit really is configurable."""
+def test_cap_is_read_at_call_time(monkeypatch):
+    """Changing llm's cap changes what is sent, so the limit is not fixed when llm is imported."""
+    # llm imports MAX_TOKENS_CAP by name, so patching src.config at runtime would not reach it.
     monkeypatch.setattr(llm, "MAX_TOKENS_CAP", 500)
     assert _sent_max_tokens("stream", 4000) == 500
 
@@ -654,6 +655,17 @@ def test_stream_cut_off_before_any_text_says_so():
     fake = FakeOpenRouter(_sse(_chunk(role="assistant"), _chunk(finish_reason="length")))
     with pytest.raises(llm.LLMError, match="used up its token limit"):
         _stream(fake)
+
+
+def test_stream_without_text_still_logs_its_usage(caplog):
+    """A reply that spent its whole budget thinking is still logged: it is the costliest case."""
+    events = (_chunk(role="assistant"), _chunk(finish_reason="length"), _usage_chunk())
+    fake = FakeOpenRouter(_sse(*events))
+    with caplog.at_level("INFO", logger="src.llm"), pytest.raises(llm.LLMError):
+        _stream(fake)
+    (record,) = _llm_records(caplog)
+    assert record.levelname == "INFO"
+    assert "total 165" in record.getMessage()
 
 
 def test_complete_logs_a_reply_cut_off_with_text(caplog):
