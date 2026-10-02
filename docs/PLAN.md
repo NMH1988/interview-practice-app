@@ -142,12 +142,12 @@ Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (rea
 
 ### T3.4 User-prompt builder (S)
 **Acceptance criteria**
-- [ ] Builds the user message from role, interview type, seniority, and the user's text.
-- [ ] User text is delimited (e.g. `<user_input>…</user_input>`) so the guard and prompts can reference it.
+- [x] Builds the user message from role, interview type, seniority, and the user's text.
+- [x] User text is delimited (e.g. `<user_input>…</user_input>`) so the guard and prompts can reference it.
 
 **Tests**
-- [ ] Unit: the message contains role, interview type, seniority and the user's text inside `<user_input>…</user_input>`.
-- [ ] Unit: user text that contains `</user_input>` cannot close the block early (it is escaped or removed).
+- [x] Unit: the message contains role, interview type, seniority and the user's text inside `<user_input>…</user_input>`.
+- [x] Unit: user text that contains `</user_input>` cannot close the block early (it is escaped or removed).
 
 ## Epic 4 — Security Guard (≥ 1 required)
 Goal: prevent misuse before any tokens are spent.
