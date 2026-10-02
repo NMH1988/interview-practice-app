@@ -17,7 +17,8 @@ Proposed module layout:
 app.py                  # Streamlit UI only (thin)
 src/
   config.py             # model names, defaults, secrets loading
-  guard.py              # input validation / injection / rate limit
+  guard.py              # input validation / injection / output safety
+  rate_limit.py         # per-session request limits
   prompts.py            # 5+ system prompt strategies + user prompt builder
   llm.py                # OpenRouter client wrapper (retries, errors, streaming)
 tests/                  # all LLM calls mocked
@@ -176,12 +177,12 @@ Goal: prevent misuse before any tokens are spent.
 
 ### T4.3 Rate limiting (S)
 **Acceptance criteria**
-- [ ] Per-session limit (default 10 requests/min, 50/session) enforced via `st.session_state`.
-- [ ] Exceeding the limit shows remaining wait time; limit values are in `config.py`.
+- [x] Per-session limit (default 10 requests/min, 50/session) enforced via `st.session_state`.
+- [x] Exceeding the limit shows remaining wait time; limit values are in `config.py`.
 
 **Tests**
-- [ ] Unit (fake clock, no real waiting): 10 requests in one minute pass and the 11th is blocked with the right wait time; the window resets after 60 s; the 50-per-session cap holds.
-- [ ] UI flow: over the limit, the warning shows the wait time, and the fake LLM is not called.
+- [x] Unit (fake clock, no real waiting): 10 requests in one minute pass and the 11th is blocked with the right wait time; the window resets after 60 s; the 50-per-session cap holds.
+- [x] UI flow: over the limit, the warning shows the wait time, and the fake LLM is not called.
 
 ### T4.4 Output safety (S)
 **Acceptance criteria**

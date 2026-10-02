@@ -6,7 +6,7 @@ from itertools import chain
 import pandas as pd
 import streamlit as st
 
-from src import llm
+from src import llm, rate_limit
 from src.config import (
     ALLOWED_MODELS,
     API_KEY_NAME,
@@ -31,6 +31,7 @@ from src.prompts import (
     build_messages,
     build_user_prompt,
 )
+from src.rate_limit import RateLimitError, check_rate_limit
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -98,6 +99,9 @@ df = load_sessions()
 st.session_state.setdefault("history", [])
 st.session_state.setdefault("pending", None)
 st.session_state.setdefault("notice", None)
+# When each request went to the LLM (rate_limit.clock() seconds), for the rate limit. Kept by
+# "New session", which only clears the chat, so it cannot be used to skip the limit.
+st.session_state.setdefault("request_times", [])
 
 INTERRUPTED = "The answer was interrupted before it finished."
 
@@ -121,6 +125,7 @@ def reply_pieces(
     temperature: float,
     clean: str,
     user_prompt: str,
+    request_times: list[float],
 ) -> Iterator[str]:
     """Stream the reply's pieces, saving the turn's outcome before Streamlit gets control back."""
     # The request goes out on this first next(), so from here a stopped run must not resend the
@@ -134,9 +139,17 @@ def reply_pieces(
     st.session_state.pending = None
     received = []
     try:
+        # Checks the model and the key now (a failure here sends nothing); the request itself
+        # goes out on the stream's first next().
+        stream = llm.stream(messages, model, temperature, DEFAULT_MAX_TOKENS)
+        # Counted here, just before the request goes out (a failed or cut-short one may still
+        # have spent tokens). A plain list append, and nothing from llm.stream to the request
+        # touches st.session_state, so no stop point falls between counting and sending: a
+        # message resent by a later run is never counted twice.
+        request_times.append(rate_limit.clock())
         # closing(): when this generator is closed mid-stream, close the inner one (and its
         # connection) too, rather than leaving that to garbage collection.
-        with closing(llm.stream(messages, model, temperature, DEFAULT_MAX_TOKENS)) as stream:
+        with closing(stream):
             for piece in stream:
                 received.append(piece)
                 yield piece
@@ -233,7 +246,9 @@ if notice is not None:
         st.warning(notice["text"], icon="✋")
     else:
         st.error(notice["text"])
-        st.caption("Your message was not sent. Copy it from here to try again:")
+    # Errors, and warnings the user did nothing wrong for (the rate limit), keep the message.
+    if "unsent" in notice:
+        st.caption("Your message was not sent. Copy it from here to keep it:")
         st.code(notice["unsent"], language=None, wrap_lines=True)
     # Cleared only once drawn, so a run stopped mid-draw shows it on the next run instead.
     st.session_state.notice = None
@@ -260,6 +275,13 @@ if message is not None:
             # Also gives the cleaned role, and blocks a message that was queued before the role
             # was blanked (locking the input does not stop it).
             clean_role = validate_role(role)
+            # Last, so a message the guard blocks shows the guard's reason and uses no request.
+            request_times = st.session_state.request_times
+            check_rate_limit(request_times, rate_limit.clock())
+        except RateLimitError as exc:
+            # The message was fine, so keep it in a copy box for when the wait is over.
+            st.session_state.notice = {"kind": "warning", "text": str(exc), "unsent": clean}
+            st.session_state.pending = None
         except GuardError as exc:
             st.session_state.notice = {"kind": "warning", "text": str(exc)}
             st.session_state.pending = None
@@ -268,7 +290,9 @@ if message is not None:
             user_prompt = build_user_prompt(clean_role, interview_type, seniority, clean)
             system_prompt = STRATEGIES[strategy](clean_role, interview_type)
             messages = build_messages(system_prompt, st.session_state.history, user_prompt)
-            pieces = reply_pieces(messages, system_prompt, model, temperature, clean, user_prompt)
+            pieces = reply_pieces(
+                messages, system_prompt, model, temperature, clean, user_prompt, request_times
+            )
             try:
                 with st.chat_message("assistant"):
                     # The spinner covers the wait for the first piece (gpt-5 thinks first).

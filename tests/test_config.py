@@ -35,6 +35,13 @@ def test_default_role_fits_the_role_limit():
     assert len(config.DEFAULT_ROLE) <= config.MAX_ROLE_CHARS
 
 
+def test_default_rate_limits():
+    """The T4.3 limits (10 requests a minute, 50 a session) live in config.py."""
+    assert config.RATE_LIMIT_PER_MINUTE == 10
+    assert config.RATE_LIMIT_WINDOW_SECONDS == 60
+    assert config.RATE_LIMIT_PER_SESSION == 50
+
+
 def test_default_seniority_is_a_known_level():
     """The default seniority is one of the levels the user prompt accepts."""
     assert config.DEFAULT_SENIORITY in SENIORITY_LEVELS
