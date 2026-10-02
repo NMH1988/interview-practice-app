@@ -229,6 +229,8 @@ def last_in_main(at: AppTest):
 
 def loose_in_main(at: AppTest) -> list[str]:
     """Return notice and starter elements drawn straight into the main area, outside a block."""
+    # Every element type the notice/starter block draws. Add a type here when the block gains
+    # one (e.g. st.markdown, st.success, st.link_button), or a loose one would slip through.
     loose = {"Warning", "Error", "Info", "Caption", "Code", "Button"}
     return [
         type(node).__name__ for node in at.main.children.values() if type(node).__name__ in loose
@@ -240,7 +242,8 @@ def kinds(node) -> list[str]:
     return [type(child).__name__ for child in node.children.values()]
 
 
-# The empty chat's caption and one button per example, however many the owner settles on.
+# The empty chat's caption and one button per example. Counted from the data so this layout
+# check does not repeat the number; the count itself (3 per mode) is pinned in test_prompts.py.
 STARTERS = ["Caption", *["Button"] * len(EXAMPLE_PROMPTS[INTERVIEW_TYPES[0]])]
 
 
