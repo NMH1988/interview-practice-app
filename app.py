@@ -200,7 +200,8 @@ if message is not None:
     try:
         try:
             clean = validate_input(message)
-            # Also gives the cleaned role, and catches a role changed since the sidebar check.
+            # Also gives the cleaned role, and blocks a message that was queued before the role
+            # was blanked (locking the input does not stop it).
             clean_role = validate_role(role)
         except GuardError as exc:
             st.session_state.notice = {"kind": "warning", "text": str(exc)}
