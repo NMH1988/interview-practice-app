@@ -164,14 +164,14 @@ Goal: prevent misuse before any tokens are spent.
 
 ### T4.2 Prompt-injection / off-topic guard (M)
 **Acceptance criteria**
-- [ ] Known patterns ("ignore previous instructions", "reveal your system prompt", role-override attempts) are blocked — parametrised tests cover ≥ 10 attack strings and ≥ 5 benign strings (no false positives on normal answers).
-- [ ] Blocked requests show a neutral refusal and are logged without logging the API key.
+- [x] Known patterns ("ignore previous instructions", "reveal your system prompt", role-override attempts) are blocked — parametrised tests cover ≥ 10 attack strings and ≥ 5 benign strings (no false positives on normal answers).
+- [x] Blocked requests show a neutral refusal and are logged without logging the API key.
 - [ ] Stretch: cheap LLM classifier pass (`gpt-5-nano`) for off-topic detection, behind a feature flag.
 
 **Tests**
-- [ ] Unit (parametrised): ≥ 10 attack strings are blocked, including upper-case and extra-space variants; ≥ 5 normal interview answers are allowed.
-- [ ] Unit (`caplog`): a blocked request is logged, and the log never contains the API key.
-- [ ] UI flow: an attack string shows the neutral refusal, and the fake LLM is called 0 times.
+- [x] Unit (parametrised): ≥ 10 attack strings are blocked, including upper-case and extra-space variants; ≥ 5 normal interview answers are allowed.
+- [x] Unit (`caplog`): a blocked request is logged, and the log never contains the API key.
+- [x] UI flow: an attack string shows the neutral refusal, and the fake LLM is called 0 times.
 - [ ] Stretch: with the flag off, the classifier is never called; with it on, a mocked classifier result is respected.
 
 ### T4.3 Rate limiting (S)

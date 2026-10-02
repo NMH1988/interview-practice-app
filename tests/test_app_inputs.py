@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,9 @@ from src.config import (
     MAX_TEMPERATURE,
     MIN_TEMPERATURE,
 )
+from src.guard import INJECTION_REFUSAL
 from src.prompts import INTERVIEW_TYPES, SENIORITY_LEVELS
+from tests.injection_samples import ROLE_ATTACK
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
 
@@ -103,6 +106,22 @@ def test_blank_role_warns_in_sidebar_and_locks_chat_input(fake_llm):
     at.sidebar.text_input(key="role").set_value("Data Analyst").run(timeout=30)
     assert not at.sidebar.warning
     assert not at.chat_input[0].disabled
+    assert fake_llm.calls == []
+
+
+def test_role_with_an_injection_is_refused_and_locks_chat_input(fake_llm, caplog):
+    """A role holding an instruction shows the neutral refusal in the sidebar and locks the chat."""
+    at = start()
+    with caplog.at_level(logging.DEBUG, logger="src.guard"):
+        at.sidebar.text_input(key="role").set_value(ROLE_ATTACK).run(timeout=30)
+        at.run(timeout=30)
+    # The sidebar check runs on every rerun, so it does not log; nothing was sent.
+    assert caplog.records == []
+    assert not at.exception
+    assert at.session_state.role == ROLE_ATTACK
+    assert len(at.sidebar.warning) == 1
+    assert at.sidebar.warning[0].value == INJECTION_REFUSAL
+    assert at.chat_input[0].disabled
     assert fake_llm.calls == []
 
 

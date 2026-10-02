@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pytest
@@ -12,6 +13,7 @@ from src.config import (
     MAX_INPUT_CHARS,
 )
 from src.prompts import INTERVIEW_TYPES, build_user_prompt
+from tests.injection_samples import ATTACKS
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
 FAKE_KEY = "sk-test-not-a-real-key"
@@ -98,3 +100,16 @@ def test_llm_error_shows_only_its_message(monkeypatch):
     assert "took too long to respond" in shown
     assert FAKE_KEY not in shown
     assert "upstream timeout" not in shown
+
+
+def test_injection_attempt_shows_neutral_refusal_and_skips_llm(fake_llm, caplog):
+    """An attack string shows the neutral refusal, is logged without the key, and is never sent."""
+    with caplog.at_level(logging.WARNING, logger="src.guard"):
+        at = send(ATTACKS[0])
+    assert not at.exception
+    assert len(at.warning) == 1
+    assert at.warning[0].value == guard.INJECTION_REFUSAL
+    assert fake_llm.calls == []
+    assert len(at.chat_message) == 0
+    assert caplog.messages == [f"Blocked message: patterns=role_override length={len(ATTACKS[0])}"]
+    assert FAKE_KEY not in caplog.text
