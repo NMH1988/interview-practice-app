@@ -17,8 +17,8 @@ DEFAULT_MAX_TOKENS = 4000
 
 # Longest user message (after cleaning) the guard lets through to the LLM.
 MAX_INPUT_CHARS = 2000
-# A system prompt paragraph this long, repeated in a reply, counts as a leak. Shorter ones
-# (headings, the 1-5 scale) may appear in a normal reply.
+# A system prompt (or one of its paragraphs) this long, repeated in a reply, counts as a leak.
+# Shorter text (headings, the 1-5 scale, a tiny test prompt) may appear in a normal reply.
 MIN_LEAK_CHARS = 80
 
 # The role goes into the system prompt, so it is free text but kept short (see T3.1 follow-ups).

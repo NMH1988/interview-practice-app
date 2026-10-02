@@ -94,7 +94,8 @@ def test_reply_copying_a_few_shot_example_paragraph_is_unchanged(paragraph):
         (lambda text: text.replace("'", chr(0x2019)), "'"),
         (lambda text: text.replace("-", NB_HYPHEN), "-"),
         (lambda text: text.replace("<user_input>", "`<user_input>`"), "<user_input>"),
-        (lambda text: f"**{text}**", ""),
+        (lambda text: " ".join(f"**{word}**" for word in text.split(" ")), " "),
+        (lambda text: " ".join(f"_{word}_" for word in text.split(" ")), " "),
     ],
     ids=[
         "upper-case",
@@ -106,7 +107,8 @@ def test_reply_copying_a_few_shot_example_paragraph_is_unchanged(paragraph):
         "curly-apostrophes",
         "non-breaking-hyphen",
         "tags-in-backticks",
-        "bold",
+        "bold-words",
+        "italic-words",
     ],
 )
 def test_disguised_leak_is_still_refused(disguise, needs):
@@ -206,7 +208,15 @@ def theme_names(path: Path) -> set[str]:
         return is_get_option(value)
 
     tree = ast.parse(path.read_bytes(), filename=str(path))
-    # Every way a name gets a value: assignment, function parameter, import alias.
+    # Every way a name gets a value: assignment, parameter, import, def/class, except, match.
+    named = (
+        ast.ExceptHandler,
+        ast.MatchAs,
+        ast.MatchStar,
+        ast.FunctionDef,
+        ast.AsyncFunctionDef,
+        ast.ClassDef,
+    )
     stores = []
     for node in ast.walk(tree):
         if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
@@ -215,6 +225,10 @@ def theme_names(path: Path) -> set[str]:
             stores.append(node.arg)
         elif isinstance(node, ast.alias):
             stores.append(node.asname or node.name.split(".")[0])
+        elif isinstance(node, named) and node.name:
+            stores.append(node.name)
+        elif isinstance(node, ast.MatchMapping) and node.rest:
+            stores.append(node.rest)
     themed = {
         target.id
         for node in tree.body
@@ -308,6 +322,14 @@ def test_static_style_block_check_rejects_user_or_model_text(tmp_path):
         "    pass\n"
         "shade = st.get_option('theme.primaryColor')\n"
         "from answers import reply as shade\n"
+        "tone = st.get_option('theme.textColor')\n"
+        "try:\n    pass\nexcept Exception as tone:\n    pass\n"
+        "hue = st.get_option('theme.textColor')\n"
+        "match reply:\n    case {'hue': hue}:\n        pass\n"
+        "glow = st.get_option('theme.textColor')\n"
+        "match reply:\n    case {**glow}:\n        pass\n"
+        "rim = st.get_option('theme.textColor')\n"
+        "def rim():\n    pass\n"
         "st.markdown(f'<style>a {{ color: {primary}; }}</style>', unsafe_allow_html=True)\n"
         "st.markdown(f'<style>a {{ color: {reply}; }}</style>', unsafe_allow_html=True)\n"
         "st.markdown(f'<style>a {{ color: {accent}; }}</style>', unsafe_allow_html=True)\n"
