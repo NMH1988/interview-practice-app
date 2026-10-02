@@ -379,12 +379,15 @@ def test_chat_refuses_reply_that_leaks_system_prompt(monkeypatch, no_env_key):
     """A reply repeating the system prompt shows the refusal and never enters the history."""
     calls = []
 
-    def leaking_complete(messages, *args, **kwargs):
-        """Record the call and answer with the system prompt it was given."""
+    def leaking_stream(messages, *args, **kwargs):
+        """Record the call and stream back the system prompt it was given, in small pieces."""
         calls.append(messages)
-        return f"Sure, my instructions are:\n\n{messages[0]['content']}"
+        leak = f"Sure, my instructions are:\n\n{messages[0]['content']}"
+        # Pieces shorter than the 80-character floor, so only the joined reply shows the leak.
+        for start in range(0, len(leak), 40):
+            yield leak[start : start + 40]
 
-    monkeypatch.setattr(llm, "complete", leaking_complete)
+    monkeypatch.setattr(llm, "stream", leaking_stream)
     at = AppTest.from_file(str(APP))
     at.secrets[API_KEY_NAME] = FAKE_KEY
     at.run(timeout=30)

@@ -1,4 +1,7 @@
+from collections.abc import Iterator
+from contextlib import closing
 from datetime import date, timedelta
+from itertools import chain
 
 import pandas as pd
 import streamlit as st
@@ -96,6 +99,8 @@ st.session_state.setdefault("history", [])
 st.session_state.setdefault("pending", None)
 st.session_state.setdefault("notice", None)
 
+INTERRUPTED = "The answer was interrupted before it finished."
+
 
 def queue_message() -> None:
     """Keep the submitted chat message as pending, so this run can lock the input first."""
@@ -107,6 +112,56 @@ def new_session() -> None:
     st.session_state.history = []
     st.session_state.pending = None
     st.session_state.notice = None
+
+
+def reply_pieces(
+    messages: list[dict],
+    system_prompt: str,
+    model: str,
+    temperature: float,
+    clean: str,
+    user_prompt: str,
+) -> Iterator[str]:
+    """Stream the reply's pieces, saving the turn's outcome before Streamlit gets control back."""
+    # The request goes out on this first next(), so from here a stopped run must not resend the
+    # message; until the reply is in or has failed, it counts as interrupted. Every st.session_state
+    # access is a stop point too (it checks for a rerun before it acts), so the notice comes first:
+    # a run stopped between the two writes resends the message under a stale notice rather than
+    # dropping it silently.
+    # Its own name, not "notice": the module-level notice below holds the previous run's one.
+    saved_notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
+    st.session_state.notice = saved_notice
+    st.session_state.pending = None
+    received = []
+    try:
+        # closing(): when this generator is closed mid-stream, close the inner one (and its
+        # connection) too, rather than leaving that to garbage collection.
+        with closing(llm.stream(messages, model, temperature, DEFAULT_MAX_TOKENS)) as stream:
+            for piece in stream:
+                received.append(piece)
+                yield piece
+    except llm.LLMError as exc:
+        # Only the fixed message: the chained SDK error holds the raw response body. The turn
+        # stays out of the history, so it alternates user/assistant. Changed in place (a plain
+        # dict write, not a stop point), so a rerun already waiting cannot stop the run before
+        # the real error replaces "interrupted".
+        saved_notice["text"] = str(exc)
+        raise
+    # Saved before st.write_stream draws the final text, where a requested rerun could stop it.
+    # The whole reply is checked before it is stored, so a leaked prompt never stays in the chat
+    # or reaches the next request; the streamed text is replaced by the rerun that follows.
+    reply = check_output("".join(received), system_prompt)
+    # Read before anything changes: a stop at this read leaves the "interrupted" notice in place.
+    history = st.session_state.history
+    # The last stop point: it checks before it clears, and the extend after it is a plain list
+    # call, so the notice is never cleared without the reply being saved.
+    st.session_state.notice = None
+    history.extend(
+        [
+            {"role": "user", "content": clean, "sent": user_prompt},
+            {"role": "assistant", "content": reply, "sent": reply},
+        ]
+    )
 
 
 with st.sidebar:
@@ -191,10 +246,11 @@ st.chat_input(
     disabled=not role_ok or st.session_state.pending is not None,
 )
 
-# Chat turn: guard -> prompts -> LLM. Every path clears "pending" and ends in st.rerun(),
-# which unlocks the input. A rerun requested before the LLM call (e.g. a sidebar click) stops
-# the run with the message still pending, so the next run sends it; one requested during the
-# call takes effect after the outcome is saved.
+# Chat turn: guard -> prompts -> streamed LLM reply. Every path clears "pending" and ends in
+# st.rerun(), which unlocks the input. A rerun requested before the request is sent (e.g. a
+# sidebar click) stops the run with the message still pending, so the next run sends it. One
+# requested later stops the run at the next piece drawn; reply_pieces has already saved the
+# outcome by then (reply, error or "interrupted"), so the message is never sent twice.
 message = st.session_state.pending
 if message is not None:
     try:
@@ -211,27 +267,19 @@ if message is not None:
             user_prompt = build_user_prompt(clean_role, interview_type, seniority, clean)
             system_prompt = STRATEGIES[strategy](clean_role, interview_type)
             messages = build_messages(system_prompt, st.session_state.history, user_prompt)
-            with st.spinner("Thinking..."):
-                # No st call in this try, so its outcome is saved before the spinner's exit
-                # (an st call where a requested rerun would stop the run).
-                try:
-                    reply = llm.complete(messages, model, temperature, DEFAULT_MAX_TOKENS)
-                except llm.LLMError as exc:
-                    # Only the fixed message: the chained SDK error holds the raw response
-                    # body. The turn stays out of the history, so it alternates user/assistant.
-                    st.session_state.notice = {"kind": "error", "text": str(exc), "unsent": clean}
-                else:
-                    # Checked before it is shown or stored, so a leaked prompt never reaches
-                    # the chat or the next request.
-                    reply = check_output(reply, system_prompt)
-                    st.session_state.history.extend(
-                        [
-                            {"role": "user", "content": clean, "sent": user_prompt},
-                            {"role": "assistant", "content": reply, "sent": reply},
-                        ]
-                    )
-                finally:
-                    st.session_state.pending = None
+            pieces = reply_pieces(messages, system_prompt, model, temperature, clean, user_prompt)
+            try:
+                with st.chat_message("assistant"):
+                    # The spinner covers the wait for the first piece (gpt-5 thinks first).
+                    with st.spinner("Thinking..."):
+                        first = next(pieces)
+                    st.write_stream(chain([first], pieces), cursor="▌")
+            except llm.LLMError:
+                pass  # reply_pieces has saved the error; the rerun shows it.
+            finally:
+                # A run stopped mid-stream leaves the generator open; close it (and the
+                # connection) now rather than whenever it is garbage-collected.
+                pieces.close()
     except Exception:
         # A real bug, not Streamlit's rerun signal (a BaseException): without this the message
         # would stay pending, so every later run would lock the input and crash again.

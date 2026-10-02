@@ -1,11 +1,12 @@
-"""OpenRouter client wrapper: one `complete()` call with model checks, errors and retries."""
+"""OpenRouter client wrapper: `complete()` and `stream()` with model checks, errors and retries."""
 
 import time
+from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
 import openai
-from openai import OpenAI
-from openai.types.chat import ChatCompletion
+from openai import OpenAI, Stream
+from openai.types.chat import ChatCompletion, ChatCompletionChunk
 
 from src.config import (
     ALLOWED_MODELS,
@@ -26,6 +27,7 @@ MAX_RETRIES = 2
 BACKOFF_SECONDS = 1.0
 _RETRYABLE = (openai.RateLimitError, openai.InternalServerError)
 _UNREADABLE = "The AI service sent an unreadable answer. Please try again."
+_EMPTY = "The AI service returned an empty answer. Please try again."
 
 # Indirection so tests can patch out the backoff wait.
 _sleep = time.sleep
@@ -87,6 +89,18 @@ def _reply_text(response: object) -> str | None:
     return content if isinstance(content, str) else None
 
 
+def _chunk_text(chunk: object) -> str:
+    """Return the text a streamed chunk adds ("" if none); raise LLMError for a non-chat chunk."""
+    # Streamed chunks are not validated either, so read every field defensively.
+    if not isinstance(chunk, ChatCompletionChunk):
+        raise LLMError(_UNREADABLE)
+    choices = chunk.choices
+    if not isinstance(choices, list) or not choices:
+        return ""
+    content = getattr(getattr(choices[0], "delta", None), "content", None)
+    return content if isinstance(content, str) else ""
+
+
 def make_client(api_key: str | None = None, http_client: httpx2.Client | None = None) -> OpenAI:
     """Return an OpenAI SDK client pointed at OpenRouter, with the SDK's own retries off."""
     if not api_key:
@@ -112,33 +126,39 @@ def make_client(api_key: str | None = None, http_client: httpx2.Client | None = 
         api_key=api_key,
         base_url=OPENROUTER_BASE_URL,
         timeout=REQUEST_TIMEOUT,
-        # complete() runs its own retry loop, so the SDK must not retry as well.
+        # _send() runs its own retry loop, so the SDK must not retry as well.
         max_retries=0,
         http_client=http_client,
     )
 
 
-def complete(
+def _check_model(model: str) -> None:
+    """Raise InvalidModelError if `model` is not in ALLOWED_MODELS."""
+    if model not in ALLOWED_MODELS:
+        raise InvalidModelError(f"Model {model!r} is not allowed. Choose one of the listed models.")
+
+
+def _send(
+    client: OpenAI,
     messages: list[dict],
     model: str,
     temperature: float,
     max_tokens: int,
     *,
-    client: OpenAI | None = None,
-) -> str:
-    """Send a chat request to OpenRouter and return the assistant's reply text."""
-    if model not in ALLOWED_MODELS:
-        raise InvalidModelError(f"Model {model!r} is not allowed. Choose one of the listed models.")
-    client = client or make_client()
+    stream: bool = False,
+) -> object:
+    """Send one chat request, retrying 429/5xx with backoff, and return the SDK's response."""
     for attempt in range(MAX_RETRIES + 1):
         try:
-            response = client.chat.completions.create(
+            # Arguments spelled out (no **kwargs), as T4.4's source scan requires.
+            return client.chat.completions.create(
                 model=model,
                 messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                # Left out unless streaming, so complete() sends the same body as before.
+                stream=True if stream else openai.omit,
             )
-            break
         except _RETRYABLE as exc:
             if attempt == MAX_RETRIES:
                 raise _translate(exc) from exc
@@ -150,7 +170,65 @@ def complete(
             # Request-side ValueErrors, e.g. a NaN temperature, also land here; a non-ASCII
             # key never does, because make_client() rejects it first.
             raise LLMError(_UNREADABLE) from exc
+    raise AssertionError("unreachable: the last attempt returns or raises")
+
+
+def complete(
+    messages: list[dict],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    *,
+    client: OpenAI | None = None,
+) -> str:
+    """Send a chat request to OpenRouter and return the assistant's reply text."""
+    _check_model(model)
+    client = client or make_client()
+    response = _send(client, messages, model, temperature, max_tokens)
     text = _reply_text(response)
     if not text or not text.strip():
-        raise LLMError("The AI service returned an empty answer. Please try again.")
+        raise LLMError(_EMPTY)
     return text
+
+
+def stream(
+    messages: list[dict],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    *,
+    client: OpenAI | None = None,
+) -> Iterator[str]:
+    """Check the model and key now, and return a generator of the reply's text pieces."""
+    # Not a generator itself, so a bad model or key fails here rather than on the first next().
+    _check_model(model)
+    client = client or make_client()
+    return _stream_pieces(client, messages, model, temperature, max_tokens)
+
+
+def _stream_pieces(
+    client: OpenAI, messages: list[dict], model: str, temperature: float, max_tokens: int
+) -> Iterator[str]:
+    """Send the streaming request on the first next() and yield each piece of text as it comes."""
+    # Only the request is retried: once text is shown, a retry would repeat it.
+    response = _send(client, messages, model, temperature, max_tokens, stream=True)
+    if not isinstance(response, Stream):
+        raise LLMError(_UNREADABLE)
+    has_text = False
+    try:
+        for chunk in response:
+            piece = _chunk_text(chunk)
+            if piece:
+                has_text = has_text or bool(piece.strip())
+                yield piece
+    except openai.APIError as exc:
+        # A timeout, dropped connection or error event after the reply has started.
+        raise _translate(exc) from exc
+    except ValueError as exc:
+        # An event whose data is not JSON.
+        raise LLMError(_UNREADABLE) from exc
+    finally:
+        # Also runs when the caller stops early (close()), so the connection is not kept open.
+        response.close()
+    if not has_text:
+        raise LLMError(_EMPTY)
