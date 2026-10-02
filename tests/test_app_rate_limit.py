@@ -105,8 +105,8 @@ def test_message_blocked_by_the_guard_is_not_counted(fake_llm, clock, text):
     assert fake_llm.calls == []
     assert len(at.warning) == 1
     assert "wait" not in at.warning[0].value
-    # Guard warnings keep no copy box; only the rate limit (and errors) do.
-    assert not at.code
+    # The injected message is kept for copying like any block; a blank one has nothing to keep.
+    assert [code.value for code in at.code] == ([] if text.isspace() else [text])
 
     at = start()
     say(at, text)

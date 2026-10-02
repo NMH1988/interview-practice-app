@@ -4,8 +4,9 @@ import pytest
 import streamlit as st
 from streamlit.testing.v1 import AppTest
 
-from src import llm, rate_limit
-from src.config import API_KEY_NAME, RATE_LIMIT_PER_MINUTE
+from src import guard, llm, rate_limit
+from src.config import API_KEY_NAME, MAX_INPUT_CHARS, RATE_LIMIT_PER_MINUTE
+from tests.injection_samples import ATTACKS
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
 FAKE_KEY = "sk-test-not-a-real-key"
@@ -138,3 +139,52 @@ def test_rate_limit_caption_says_the_message_was_not_sent(monkeypatch, fake_llm)
     say(at, "One too many.")
     assert at.caption[0].value == NOT_SENT
     assert at.code[0].value == "One too many."
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["a" * (MAX_INPUT_CHARS + 1), ATTACKS[0]],
+    ids=["too-long", "injection"],
+)
+def test_message_the_guard_blocks_is_kept_in_a_copy_box(fake_llm, text):
+    """A blocked message is shown back in a copy box, so a long answer need not be retyped."""
+    at = start()
+    say(at, text)
+    assert fake_llm.calls == []
+    assert notice_style(at) == ("warning", "✋", "Message not sent")
+    assert at.caption[0].value == NOT_SENT
+    assert [code.value for code in at.code] == [text]
+
+
+def test_any_guard_block_keeps_the_message(monkeypatch, fake_llm):
+    """Every GuardError keeps the message, not only the length and injection checks."""
+
+    def blocking_validate(message):
+        """Block every message the way a future guard check would."""
+        raise guard.GuardError("That message was blocked.")
+
+    # app.py re-imports validate_input from the module on every run, so this patch reaches it.
+    monkeypatch.setattr(guard, "validate_input", blocking_validate)
+    at = start()
+    say(at, "Line one.\nLine two.")
+    assert notice_style(at) == ("warning", "✋", "Message not sent")
+    assert [code.value for code in at.code] == ["Line one.\nLine two."]
+
+
+def test_copy_box_holds_the_cleaned_message(fake_llm):
+    """The copy box shows the message as the guard saw it: trimmed, control characters gone."""
+    at = start()
+    say(at, "  " + "a" * MAX_INPUT_CHARS + chr(0x07) + "b \r\n")
+    assert [code.value for code in at.code] == ["a" * MAX_INPUT_CHARS + "b"]
+
+
+@pytest.mark.parametrize(
+    "text", ["   ", "\n\t ", chr(0x200B) + " " + chr(0x3164)], ids=["spaces", "breaks", "fillers"]
+)
+def test_blank_message_gets_no_copy_box(fake_llm, text):
+    """A blank message is refused with no copy box: there is nothing to keep."""
+    at = start()
+    say(at, text)
+    assert notice_style(at) == ("warning", "✋", "Message not sent")
+    assert not at.code
+    assert not at.caption

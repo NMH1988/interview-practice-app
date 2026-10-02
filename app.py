@@ -22,7 +22,14 @@ from src.config import (
     SecretsFileError,
     get_api_key,
 )
-from src.guard import GuardError, check_output, validate_input, validate_role
+from src.guard import (
+    GuardError,
+    check_output,
+    clean_input,
+    is_blank,
+    validate_input,
+    validate_role,
+)
 from src.prompts import (
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
@@ -295,7 +302,13 @@ if message is not None:
             st.session_state.notice = {"kind": "rate_limit", "text": str(exc), "unsent": clean}
             st.session_state.pending = None
         except GuardError as exc:
-            st.session_state.notice = {"kind": "guard", "text": str(exc)}
+            # Kept in a copy box too (a block may be a false positive, or the message only too
+            # long), unless there is nothing to keep. Built first, so it is one write.
+            blocked = {"kind": "guard", "text": str(exc)}
+            kept = clean_input(message).strip()
+            if not is_blank(kept):
+                blocked["unsent"] = kept
+            st.session_state.notice = blocked
             st.session_state.pending = None
         else:
             st.chat_message("user").markdown(clean)
