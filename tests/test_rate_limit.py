@@ -72,7 +72,8 @@ def test_limits_can_be_changed():
 def test_wait_counts_every_request_over_the_limit():
     """With more requests in the window than the limit, the wait lasts until enough have left."""
     # Limit 2, window 10 s, requests at t=0, 1, 2: a slot opens only when t=1 leaves, at t=11.
-    with pytest.raises(RateLimitError, match="wait 8 seconds"):
+    # The message counts the requests really in the window (3), not the limit (2).
+    with pytest.raises(RateLimitError, match="sent 3 messages.*wait 8 seconds"):
         check_rate_limit([0.0, 1.0, 2.0], now=3.0, per_minute=2, window=10)
     with pytest.raises(RateLimitError, match="wait 1 second "):
         check_rate_limit([0.0, 1.0, 2.0], now=10.0, per_minute=2, window=10)

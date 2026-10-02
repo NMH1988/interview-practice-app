@@ -41,6 +41,6 @@ def check_rate_limit(
         unit = "second" if wait == 1 else "seconds"
         logger.warning("Rate limited: per_minute (wait %d s)", wait)
         raise RateLimitError(
-            f"You've sent {per_minute} messages in the last minute. "
+            f"You've sent {len(recent)} messages in the last minute. "
             f"Please wait {wait} {unit} before sending another."
         )
