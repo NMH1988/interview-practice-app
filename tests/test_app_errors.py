@@ -187,4 +187,5 @@ def test_blank_message_gets_no_copy_box(fake_llm, text):
     say(at, text)
     assert notice_style(at) == ("warning", "✋", "Message not sent")
     assert not at.code
-    assert not at.caption
+    # The only caption left is the empty chat's starter line, not a copy-box one.
+    assert NOT_SENT not in [caption.value for caption in at.caption]

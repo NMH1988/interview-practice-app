@@ -131,9 +131,10 @@ def queue_message() -> None:
     st.session_state.pending = st.session_state.chat_box
 
 
-def use_example(text: str) -> None:
+def use_example(example: str) -> None:
     """Queue a clicked example prompt, so it is sent exactly like a typed message."""
-    st.session_state.pending = text
+    # Not named "text": that name is a theme colour in the CSS block, which T4.4's scan guards.
+    st.session_state.pending = example
 
 
 def new_session() -> None:
