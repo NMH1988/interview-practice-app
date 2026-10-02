@@ -183,7 +183,7 @@ _INJECTION_PHRASES: dict[str, tuple[str, ...]] = {
         r"(?:rules|instructions|prompts?)\b",
         r"\b(?:reveal|leak|dump)(?: me)? (?:the |your )?system prompt\b",
         r"\b(?:show|print|repeat|output|tell|give|share|display|list) "
-        r"(?:(?:me (?:the |your )|your )system prompt\b|me system prompt(?=[.!?,;:]|$))",
+        r"(?:(?:me (?:the |your )|your )system prompt\b|me system prompt(?=[.!?;:]|$))",
         rf"{_START}(?:please )?(?:show|print|repeat|output|display) the system prompt\b",
         r"\bwhat(?:'s| is) your system prompt\b",
         r"\b(?:reveal|show|print|repeat|output|leak|dump)(?: me)? "

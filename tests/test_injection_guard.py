@@ -84,6 +84,7 @@ NEAR_MISSES = (
     "My manager told me to ignore the previous guidelines and ship on Friday.",
     "Can you give me system prompt examples for a RAG chatbot?",
     "Tell me system prompt best practices I could mention.",
+    "Can you give me system prompt, RAG and agent design questions?",
     "As a recruiter I act as a candidate advocate in every debrief.",
     "I act as the candidate's main point of contact.",
     "In my first job I had to act as a general assistant to the CEO.",
