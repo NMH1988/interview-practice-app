@@ -11,6 +11,7 @@ from src.config import (
     RATE_LIMIT_PER_MINUTE,
     RATE_LIMIT_PER_SESSION,
 )
+from src.prompts import EXAMPLE_PROMPTS, INTERVIEW_TYPES
 from tests.injection_samples import ATTACKS
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
@@ -219,12 +220,19 @@ def test_notice_of_an_unknown_kind_is_shown_as_an_error_not_a_crash(fake_llm):
     assert at.session_state.notice is None
 
 
-def below_chat(at: AppTest) -> list:
-    """Return the main-area nodes drawn after the dashboard chart and the chat messages."""
-    nodes = list(at.main.children.values())
-    anchors = ("vega_lite_chart", "chat_message")
-    last = max(i for i, node in enumerate(nodes) if getattr(node, "type", "") in anchors)
-    return nodes[last + 1 :]
+def last_in_main(at: AppTest):
+    """Return the last node of the main area: the one just above the chat input."""
+    # The chat input lives in the bottom area, not in main, so this is whatever comes last
+    # after the dashboard and the chat, whatever T5.5 does to the dashboard.
+    return list(at.main.children.values())[-1]
+
+
+def loose_in_main(at: AppTest) -> list[str]:
+    """Return notice and starter elements drawn straight into the main area, outside a block."""
+    loose = {"Warning", "Error", "Info", "Caption", "Code", "Button"}
+    return [
+        type(node).__name__ for node in at.main.children.values() if type(node).__name__ in loose
+    ]
 
 
 def kinds(node) -> list[str]:
@@ -232,16 +240,21 @@ def kinds(node) -> list[str]:
     return [type(child).__name__ for child in node.children.values()]
 
 
-STARTERS = ["Caption", "Button", "Button", "Button"]
+# The empty chat's caption and one button per example, however many the owner settles on.
+STARTERS = ["Caption", *["Button"] * len(EXAMPLE_PROMPTS[INTERVIEW_TYPES[0]])]
+
+
+def assert_one_block_below_the_chat(at: AppTest, expected: list[str]) -> None:
+    """Check that the area above the chat input is exactly one block holding `expected`."""
+    assert loose_in_main(at) == []
+    assert kinds(last_in_main(at)) == expected
 
 
 def test_notice_and_starters_share_one_container(fake_llm):
     """A notice, its copy box and the starters are one block, so a send run replaces all of it."""
     at = start()
     say(at, "a" * (MAX_INPUT_CHARS + 1))
-    below = below_chat(at)
-    assert len(below) == 1
-    assert kinds(below[0]) == ["Warning", "Caption", "Code", *STARTERS]
+    assert_one_block_below_the_chat(at, ["Warning", "Caption", "Code", *STARTERS])
 
 
 def test_notice_after_earlier_turns_is_one_container(monkeypatch, fake_llm):
@@ -250,29 +263,24 @@ def test_notice_after_earlier_turns_is_one_container(monkeypatch, fake_llm):
     say(at, "First answer.")
     monkeypatch.setattr(llm, "stream", raising_stream(LLM_ERRORS[0], []))
     say(at, "Second answer.")
-    below = below_chat(at)
-    assert len(below) == 1
-    assert kinds(below[0]) == ["Error", "Caption", "Code"]
+    assert_one_block_below_the_chat(at, ["Error", "Caption", "Code"])
 
 
 def test_session_cap_info_shares_the_starters_container(fake_llm):
     """The cap notice sits in the same block as the (locked) starters."""
     at = start([0.0] * RATE_LIMIT_PER_SESSION)
-    below = below_chat(at)
-    assert len(below) == 1
-    assert kinds(below[0]) == ["Info", *STARTERS]
+    assert_one_block_below_the_chat(at, ["Info", *STARTERS])
 
 
 def test_empty_chat_starters_are_one_container(fake_llm):
     """With nothing else to show, the starters alone still form one block."""
     at = start()
-    below = below_chat(at)
-    assert len(below) == 1
-    assert kinds(below[0]) == STARTERS
+    assert_one_block_below_the_chat(at, STARTERS)
 
 
 def test_nothing_is_drawn_below_a_finished_turn(fake_llm):
     """After a reply with no notice, no empty container is left between the chat and the input."""
     at = start()
     say(at, "My answer.")
-    assert below_chat(at) == []
+    assert loose_in_main(at) == []
+    assert getattr(last_in_main(at), "type", None) == "chat_message"
