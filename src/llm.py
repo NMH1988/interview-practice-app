@@ -2,7 +2,7 @@
 
 import logging
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -276,8 +276,9 @@ def complete(
 class ReplyStream(Iterator[str]):
     """The reply's text pieces; `usage` and `finish_reason` are set once all of them are read."""
 
-    def __init__(self, pieces: Iterator[str], end: _StreamEnd):
+    def __init__(self, pieces: Generator[str], end: _StreamEnd):
         """Wrap the piece generator and the record it fills in when the stream ends."""
+        # A generator, not any iterator: close() needs its close() to shut the HTTP response.
         # The generator holds `end`, not this object, so there is no reference cycle and
         # refcounting still closes it as soon as nobody holds the stream.
         self._pieces = pieces
@@ -325,7 +326,7 @@ def _stream_pieces(
     temperature: float,
     max_tokens: int,
     end: _StreamEnd,
-) -> Iterator[str]:
+) -> Generator[str]:
     """Send the streaming request on the first next() and yield each piece of text as it comes."""
     # Only the request is retried: once text is shown, a retry would repeat it.
     response = _send(client, messages, model, temperature, max_tokens, stream=True)
