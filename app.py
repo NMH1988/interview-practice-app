@@ -22,7 +22,7 @@ from src.config import (
     SecretsFileError,
     get_api_key,
 )
-from src.guard import GuardError, validate_input, validate_role
+from src.guard import GuardError, check_output, validate_input, validate_role
 from src.prompts import (
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
@@ -115,7 +115,12 @@ def new_session() -> None:
 
 
 def reply_pieces(
-    messages: list[dict], model: str, temperature: float, clean: str, user_prompt: str
+    messages: list[dict],
+    system_prompt: str,
+    model: str,
+    temperature: float,
+    clean: str,
+    user_prompt: str,
 ) -> Iterator[str]:
     """Stream the reply's pieces, saving the turn's outcome before Streamlit gets control back."""
     # The request goes out on this first next(), so from here a stopped run must not resend the
@@ -136,7 +141,9 @@ def reply_pieces(
         st.session_state.notice = {"kind": "error", "text": str(exc), "unsent": clean}
         raise
     # Saved before st.write_stream draws the final text, where a requested rerun could stop it.
-    reply = "".join(received)
+    # The whole reply is checked before it is stored, so a leaked prompt never stays in the chat
+    # or reaches the next request; the streamed text is replaced by the rerun that follows.
+    reply = check_output("".join(received), system_prompt)
     st.session_state.notice = None
     st.session_state.history.extend(
         [
@@ -247,12 +254,9 @@ if message is not None:
         else:
             st.chat_message("user").markdown(clean)
             user_prompt = build_user_prompt(clean_role, interview_type, seniority, clean)
-            messages = build_messages(
-                STRATEGIES[strategy](clean_role, interview_type),
-                st.session_state.history,
-                user_prompt,
-            )
-            pieces = reply_pieces(messages, model, temperature, clean, user_prompt)
+            system_prompt = STRATEGIES[strategy](clean_role, interview_type)
+            messages = build_messages(system_prompt, st.session_state.history, user_prompt)
+            pieces = reply_pieces(messages, system_prompt, model, temperature, clean, user_prompt)
             try:
                 with st.chat_message("assistant"):
                     # The spinner covers the wait for the first piece (gpt-5 thinks first).

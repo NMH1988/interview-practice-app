@@ -89,6 +89,7 @@ def test_complete_sends_arguments_as_given():
     assert body["messages"] == MESSAGES
     assert body["temperature"] == 0.3
     assert body["max_tokens"] == 128
+    assert "stream" not in body
 
 
 @pytest.mark.parametrize("model", ["openai/gpt-4o", "anthropic/claude-x", "", "OPENAI/GPT-5-MINI"])

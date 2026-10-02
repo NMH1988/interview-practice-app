@@ -138,11 +138,27 @@ def _check_model(model: str) -> None:
         raise InvalidModelError(f"Model {model!r} is not allowed. Choose one of the listed models.")
 
 
-def _send(client: OpenAI, **request: object) -> object:
+def _send(
+    client: OpenAI,
+    messages: list[dict],
+    model: str,
+    temperature: float,
+    max_tokens: int,
+    *,
+    stream: bool = False,
+) -> object:
     """Send one chat request, retrying 429/5xx with backoff, and return the SDK's response."""
     for attempt in range(MAX_RETRIES + 1):
         try:
-            return client.chat.completions.create(**request)
+            # Arguments spelled out (no **kwargs), as T4.4's source scan requires.
+            return client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                # Left out unless streaming, so complete() sends the same body as before.
+                stream=True if stream else openai.omit,
+            )
         except _RETRYABLE as exc:
             if attempt == MAX_RETRIES:
                 raise _translate(exc) from exc
@@ -168,9 +184,7 @@ def complete(
     """Send a chat request to OpenRouter and return the assistant's reply text."""
     _check_model(model)
     client = client or make_client()
-    response = _send(
-        client, model=model, messages=messages, temperature=temperature, max_tokens=max_tokens
-    )
+    response = _send(client, messages, model, temperature, max_tokens)
     text = _reply_text(response)
     if not text or not text.strip():
         raise LLMError(_EMPTY)
@@ -189,20 +203,15 @@ def stream(
     # Not a generator itself, so a bad model or key fails here rather than on the first next().
     _check_model(model)
     client = client or make_client()
-    request = {
-        "model": model,
-        "messages": messages,
-        "temperature": temperature,
-        "max_tokens": max_tokens,
-        "stream": True,
-    }
-    return _stream_pieces(client, request)
+    return _stream_pieces(client, messages, model, temperature, max_tokens)
 
 
-def _stream_pieces(client: OpenAI, request: dict) -> Iterator[str]:
+def _stream_pieces(
+    client: OpenAI, messages: list[dict], model: str, temperature: float, max_tokens: int
+) -> Iterator[str]:
     """Send the streaming request on the first next() and yield each piece of text as it comes."""
     # Only the request is retried: once text is shown, a retry would repeat it.
-    response = _send(client, **request)
+    response = _send(client, messages, model, temperature, max_tokens, stream=True)
     if not isinstance(response, Stream):
         raise LLMError(_UNREADABLE)
     has_text = False
