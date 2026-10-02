@@ -14,6 +14,7 @@ from src.config import (
     get_api_key,
 )
 from src.guard import GuardError, validate_input
+from src.prompts import STRATEGIES, STRATEGY_LABELS
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -76,6 +77,13 @@ def load_sessions() -> pd.DataFrame:
 df = load_sessions()
 
 with st.sidebar:
+    # Shows each strategy by its technique label; T5.2 sends the chosen one to the LLM.
+    st.selectbox(
+        "Prompt strategy",
+        list(STRATEGIES),
+        format_func=STRATEGY_LABELS.__getitem__,
+        key="strategy",
+    )
     st.header("Filters")
     picked = st.date_input(
         "Date range",
