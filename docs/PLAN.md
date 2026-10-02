@@ -121,14 +121,14 @@ Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evi
 ### T3.2 Implement five strategies (M)
 Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (reason before scoring) · Role/persona (strict senior interviewer) · Structured-output (rubric + fixed Markdown/JSON sections). Optional 6th: self-critique.
 **Acceptance criteria**
-- [ ] Each strategy is clearly labelled with its technique in code and UI.
-- [ ] Every prompt instructs the model to stay on interview-prep topics and ignore instructions embedded in user answers.
-- [ ] Few-shot examples are realistic and contain no real personal data.
+- [x] Each strategy is clearly labelled with its technique in code and UI.
+- [x] Every prompt instructs the model to stay on interview-prep topics and ignore instructions embedded in user answers.
+- [x] Few-shot examples are realistic and contain no real personal data.
 
 **Tests**
-- [ ] Unit (parametrised over all strategies): every prompt contains the stay-on-topic rule and the ignore-embedded-instructions rule.
-- [ ] Unit: every strategy has a technique label; the few-shot prompt contains its examples; no prompt contains an email address or phone number.
-- [ ] UI flow: the strategy select lists every registered strategy by its label.
+- [x] Unit (parametrised over all strategies): every prompt contains the stay-on-topic rule and the ignore-embedded-instructions rule.
+- [x] Unit: every strategy has a technique label; the few-shot prompt contains its examples; no prompt contains an email address or phone number.
+- [x] UI flow: the strategy select lists every registered strategy by its label.
 
 ### T3.3 Prompt evaluation (M)
 - Run the same 3–5 fixed test inputs through all strategies at the default temperature; score on a rubric (relevance, actionability, structure, tone, 1–5).
