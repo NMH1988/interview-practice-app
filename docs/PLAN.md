@@ -36,7 +36,7 @@ Every ticket lists its own **Tests**, written in the same PR as the code (not sa
 | Deploy smoke | CD job (`/_stcore/health`) + one manual chat turn | The live app is up and really talks to OpenRouter | After merge to `main` |
 
 - **No test calls OpenRouter.** Unit tests mock the HTTP layer; UI flow tests use a `fake_llm` fixture in `tests/conftest.py`, added by the first ticket that needs it.
-- UI flow tests patch module attributes (e.g. `src.llm.complete`) with `monkeypatch`. This works because `app.py` looks the name up again on every run (see `tests/test_app_smoke.py`). So call the LLM only from `app.py`, or via `llm.complete(...)`; never through a name another `src` module bound at import time (`from src.llm import complete`), which the patch would not reach.
+- UI flow tests patch module attributes (e.g. `src.llm.stream`) with `monkeypatch`. This works because `app.py` looks the name up again on every run (see `tests/test_app_smoke.py`). So call the LLM only from `app.py`, or via `llm.stream(...)`; never through a name another `src` module bound at import time (`from src.llm import stream`), which the patch would not reach.
 - Time-based code (retry backoff, rate limits) takes a clock/sleep that tests replace, so tests never really wait.
 - What `AppTest` cannot check (layout width, streaming animation, double-click races) is listed as a **Manual** check.
 - **No browser E2E suite (Playwright/Selenium) for now.** UI flow tests already run the real `app.py` from input to reply with only the LLM faked, and the deploy smoke test covers the live app. A browser suite would be slow and flaky and would mostly re-test Streamlit itself. Revisit if we add custom components (`st.components`) or more pages.
@@ -89,13 +89,13 @@ Goal: reliable LLM calls behind one small interface.
 
 ### T2.2 Streaming responses (S)
 **Acceptance criteria**
-- [ ] Answer renders incrementally via `st.write_stream`.
-- [ ] Stream errors mid-response show a message and keep the chat history intact.
+- [x] Answer renders incrementally via `st.write_stream`.
+- [x] Stream errors mid-response show a message and keep the chat history intact.
 
 **Tests**
-- [ ] Unit: the stream generator yields the chunks of a mocked stream in order; an error mid-stream raises the mapped exception.
-- [ ] UI flow: with a fake streaming LLM, the full reply is the last assistant message (`AppTest` sees the final result, not the incremental render).
-- [ ] UI flow: a stream that fails part-way shows an error, and the earlier chat history is still there.
+- [x] Unit: the stream generator yields the chunks of a mocked stream in order; an error mid-stream raises the mapped exception.
+- [x] UI flow: with a fake streaming LLM, the full reply is the last assistant message (`AppTest` sees the final result, not the incremental render).
+- [x] UI flow: a stream that fails part-way shows an error, and the earlier chat history is still there.
 
 ### T2.3 Cost & usage guardrails (S)
 **Acceptance criteria**
@@ -209,7 +209,7 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 
 ### T5.2 Chat flow (M)
 **Acceptance criteria**
-- [ ] `st.chat_input` → guard → prompt → LLM → streamed reply; history kept in `st.session_state`.
+- [x] `st.chat_input` → guard → prompt → LLM → streamed reply; history kept in `st.session_state`.
 - [x] "New session" button clears history.
 - [x] A spinner/disabled input prevents double submission.
 

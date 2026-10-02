@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from src import llm, prompts
@@ -122,12 +123,12 @@ def test_chat_input_is_unlocked_after_the_reply(fake_llm):
 
 
 @pytest.mark.parametrize(
-    ("module", "name"),
-    [(llm, "complete"), (prompts, "build_user_prompt")],
+    ("module", "name", "errors_after"),
+    [(llm, "stream", 1), (prompts, "build_user_prompt", 0)],
     ids=["crash-in-llm-call", "crash-building-prompt"],
 )
 def test_chat_input_is_locked_during_the_turn_and_freed_after_a_crash(
-    monkeypatch, fake_llm, module, name
+    monkeypatch, fake_llm, module, name, errors_after
 ):
     """The input is drawn locked before the turn runs; a crash in it does not leave it locked."""
 
@@ -146,6 +147,8 @@ def test_chat_input_is_locked_during_the_turn_and_freed_after_a_crash(
     at.run(timeout=30)
     assert not at.exception
     assert not at.chat_input[0].disabled
+    # Once the request was due, the turn counts as interrupted, so the next run says so.
+    assert len(at.error) == errors_after
 
 
 def test_settings_changed_mid_session_keep_history(fake_llm):
@@ -166,28 +169,134 @@ def test_settings_changed_mid_session_keep_history(fake_llm):
     assert second_user["content"].startswith("Role: Data Analyst\n")
 
 
-def test_failed_turn_stays_out_of_history(monkeypatch, fake_llm):
-    """An LLM error shows its message and the unsent text, and the turn is not kept or resent."""
+def failing_stream(pieces_before_failure):
+    """Return an llm.stream stand-in that sends some pieces, then fails with a 5xx error."""
+
+    def stream(*args, **kwargs):
+        """Yield the given pieces, then fail the way llm.stream does mid-reply."""
+        yield from pieces_before_failure
+        raise llm.LLMServerError("The AI service is having problems right now.")
+
+    return stream
+
+
+@pytest.mark.parametrize(
+    "pieces_before_failure",
+    [[], ["Half of ", "a reply"]],
+    ids=["before-first-piece", "mid-stream"],
+)
+def test_failed_turn_stays_out_of_history(monkeypatch, fake_llm, pieces_before_failure):
+    """A stream that fails shows its error and the unsent text; earlier turns stay intact."""
     at = start()
     say(at, "First answer.")
 
-    def failing_complete(*args, **kwargs):
-        """Fail the way llm.complete does when OpenRouter keeps answering 5xx."""
-        raise llm.LLMServerError("The AI service is having problems right now.")
-
-    monkeypatch.setattr(llm, "complete", failing_complete)
+    monkeypatch.setattr(llm, "stream", failing_stream(pieces_before_failure))
     say(at, "Answer that fails.")
     assert len(at.error) == 1
     assert "having problems" in at.error[0].value
     assert at.code[0].value == "Answer that fails."
+    # No half reply is kept: the chat and the history hold only the earlier turn.
     assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
+    assert [turn["content"] for turn in at.session_state.history] == [
+        "First answer.",
+        fake_llm.reply,
+    ]
     assert not at.chat_input[0].disabled
 
-    monkeypatch.setattr(llm, "complete", fake_llm)
+    monkeypatch.setattr(llm, "stream", fake_llm.stream)
     say(at, "Third answer.")
     sent = [msg["content"] for msg in fake_llm.calls[-1]["messages"]]
     assert not any("Answer that fails." in text for text in sent)
+    assert not any("Half of" in text for text in sent)
     assert not at.error
+
+
+def test_streamed_pieces_become_one_reply(fake_llm):
+    """A reply streamed in many pieces is the last assistant message, whole and in order."""
+    fake_llm.reply = "**Good** start.\n\n- Name the result\n- Add a number"
+    at = start()
+    say(at, "I fixed the build.")
+    assert at.chat_message[-1].name == "assistant"
+    assert at.chat_message[-1].markdown[0].value == fake_llm.reply
+    assert at.session_state.history[-1] == {
+        "role": "assistant",
+        "content": fake_llm.reply,
+        "sent": fake_llm.reply,
+    }
+
+
+def test_stream_interrupted_by_a_rerun_is_reported_and_not_resent(monkeypatch, fake_llm):
+    """A rerun mid-stream (e.g. a sidebar click) drops the turn, says so, and sends no retry."""
+    at = start()
+    say(at, "First answer.")
+
+    def interrupted_stream(*args, **kwargs):
+        """Send one piece, then request a rerun the way a sidebar click does mid-stream."""
+        fake_llm.calls.append({"messages": args[0]})
+        yield "Half of "
+        st.rerun()
+
+    monkeypatch.setattr(llm, "stream", interrupted_stream)
+    say(at, "Answer that is cut off.")
+    assert len(fake_llm.calls) == 2
+    assert len(at.error) == 1
+    assert "interrupted" in at.error[0].value
+    assert at.code[0].value == "Answer that is cut off."
+    assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
+    assert at.session_state.pending is None
+    assert not at.chat_input[0].disabled
+
+
+def test_stream_paused_when_the_run_stops_is_closed_and_not_resent(monkeypatch, fake_llm):
+    """A rerun while a piece is drawn closes the paused stream, says so, and sends no retry."""
+    at = start()
+    say(at, "First answer.")
+    events = []
+
+    def paused_stream(*args, **kwargs):
+        """Yield pieces until closed, recording the call and the close."""
+        fake_llm.calls.append({"messages": args[0]})
+        try:
+            yield "Half of "
+            yield "a reply."
+        finally:
+            events.append("closed")
+
+    def rerun_while_drawing(stream, **kwargs):
+        """Stop the run the way a sidebar click does when Streamlit draws the next piece."""
+        events.append("rerun")
+        st.rerun()
+
+    monkeypatch.setattr(llm, "stream", paused_stream)
+    # app.py looks st.write_stream up on every run, so the patch reaches it.
+    monkeypatch.setattr(st, "write_stream", rerun_while_drawing)
+    say(at, "Answer that is cut off.")
+    # Closed by the stopped run itself, before the next run drew anything.
+    assert events == ["rerun", "closed"]
+    assert len(fake_llm.calls) == 2
+    assert len(at.error) == 1
+    assert "interrupted" in at.error[0].value
+    assert at.code[0].value == "Answer that is cut off."
+    assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
+    assert at.session_state.pending is None
+
+
+def test_rerun_after_the_last_piece_keeps_the_reply(monkeypatch, fake_llm):
+    """A rerun that lands after the last piece, while the final text is drawn, keeps the reply."""
+
+    def drain_then_rerun(stream, **kwargs):
+        """Read the whole stream, then stop the run before anything is drawn."""
+        for _ in stream:
+            pass
+        st.rerun()
+
+    # app.py looks st.write_stream up on every run, so the patch reaches it.
+    monkeypatch.setattr(st, "write_stream", drain_then_rerun)
+    at = start()
+    say(at, "First answer.")
+    assert shown(at) == [("user", "First answer."), ("assistant", fake_llm.reply)]
+    assert not at.error
+    assert len(fake_llm.calls) == 1
 
 
 def test_new_session_clears_history(fake_llm):

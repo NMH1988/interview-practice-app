@@ -286,3 +286,196 @@ def test_disallowed_model_does_not_need_api_key(no_env_key, monkeypatch):
     monkeypatch.setattr(llm, "make_client", lambda: pytest.fail("client was built"))
     with pytest.raises(llm.InvalidModelError):
         llm.complete(MESSAGES, "openai/gpt-4o", 0.7, 256)
+
+
+# --- stream() -------------------------------------------------------------------------------
+
+
+def _chunk(content=None, *, role=None, choices=True):
+    """Return one OpenAI-style streamed chat chunk carrying `content` (or none)."""
+    delta = {}
+    if role is not None:
+        delta["role"] = role
+    if content is not None:
+        delta["content"] = content
+    return {
+        "id": "gen-test",
+        "object": "chat.completion.chunk",
+        "created": 0,
+        "model": DEFAULT_MODEL,
+        "choices": [{"index": 0, "delta": delta, "finish_reason": None}] if choices else [],
+    }
+
+
+def _sse_bytes(*events):
+    """Encode events (dicts as JSON, strings as raw data) as server-sent event bytes."""
+    lines = []
+    for event in events:
+        data = event if isinstance(event, str) else json.dumps(event)
+        lines.append(f"data: {data}\n\n".encode())
+    return b"".join(lines)
+
+
+def _sse(*events, done=True):
+    """Return a 200 event-stream response holding `events`, ending with [DONE] if asked."""
+    body = _sse_bytes(*events) + (b"data: [DONE]\n\n" if done else b"")
+    return httpx2.Response(200, content=body, headers={"content-type": "text/event-stream"})
+
+
+def _sse_then_fail(error, *events):
+    """Return an event-stream response that sends `events`, then raises `error` mid-body."""
+
+    def body():
+        """Yield the events, then fail the way a dropped or slow connection does."""
+        yield _sse_bytes(*events)
+        raise error
+
+    return httpx2.Response(200, content=body(), headers={"content-type": "text/event-stream"})
+
+
+def _stream(fake, model=DEFAULT_MODEL):
+    """Start a stream through `fake` and return its pieces as a list."""
+    return list(llm.stream(MESSAGES, model, 0.7, 256, client=fake.client()))
+
+
+def test_stream_yields_pieces_in_order():
+    """The text pieces come out in the order sent, skipping chunks without text."""
+    fake = FakeOpenRouter(
+        _sse(
+            _chunk(role="assistant"),
+            _chunk("Tell me "),
+            _chunk(choices=False),
+            _chunk(""),
+            _chunk("about a time "),
+            _chunk("you led a team."),
+        )
+    )
+    assert _stream(fake) == ["Tell me ", "about a time ", "you led a team."]
+
+
+def test_stream_sends_arguments_and_asks_for_a_stream():
+    """Model, messages, temperature and max_tokens are sent unchanged, with stream on."""
+    fake = FakeOpenRouter(_sse(_chunk("ok")))
+    list(llm.stream(MESSAGES, "openai/gpt-5-nano", 0.3, 128, client=fake.client()))
+    (request,) = fake.requests
+    body = json.loads(request.content)
+    assert body["stream"] is True
+    assert body["model"] == "openai/gpt-5-nano"
+    assert body["messages"] == MESSAGES
+    assert body["temperature"] == 0.3
+    assert body["max_tokens"] == 128
+
+
+def test_stream_sends_nothing_until_first_piece_is_asked_for():
+    """The request goes out on the first next(), not when stream() is called."""
+    fake = FakeOpenRouter(_sse(_chunk("ok")))
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert fake.requests == []
+    assert next(pieces) == "ok"
+    assert len(fake.requests) == 1
+
+
+def test_stream_disallowed_model_raises_at_call_time():
+    """A model outside the allowed list raises when stream() is called, before any request."""
+    fake = FakeOpenRouter(_sse(_chunk("should not be sent")))
+    with pytest.raises(llm.InvalidModelError):
+        llm.stream(MESSAGES, "openai/gpt-4o", 0.7, 256, client=fake.client())
+    assert fake.requests == []
+
+
+def test_stream_missing_key_raises_at_call_time(no_env_key, monkeypatch):
+    """With no API key, stream() raises LLMAuthError at once, not on the first next()."""
+    monkeypatch.setattr(config.st, "secrets", {})
+    with pytest.raises(llm.LLMAuthError):
+        llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256)
+
+
+def test_stream_error_event_mid_reply_raises_readable_llm_error():
+    """An error event after some text raises LLMError with a fixed message, not the raw one."""
+    fake = FakeOpenRouter(
+        _sse(_chunk("Partial "), {"error": {"message": f"boom for key {FAKE_KEY}"}}, done=False)
+    )
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert next(pieces) == "Partial "
+    with pytest.raises(llm.LLMError) as excinfo:
+        next(pieces)
+    assert type(excinfo.value) is llm.LLMError
+    assert "boom" not in str(excinfo.value)
+    assert FAKE_KEY not in str(excinfo.value)
+
+
+@pytest.mark.parametrize(
+    ("error", "error_class"),
+    [
+        (httpx2.ReadTimeout("timed out"), llm.LLMTimeoutError),
+        (httpx2.ReadError("connection reset"), llm.LLMError),
+    ],
+    ids=["timeout", "dropped"],
+)
+def test_stream_transport_failure_mid_reply_raises_mapped_error(error, error_class):
+    """A timeout or dropped connection after some text raises the mapped LLMError."""
+    fake = FakeOpenRouter(_sse_then_fail(error, _chunk("Partial ")))
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert next(pieces) == "Partial "
+    with pytest.raises(error_class) as excinfo:
+        next(pieces)
+    assert type(excinfo.value) is error_class
+    assert len(fake.requests) == 1
+
+
+def test_stream_unparseable_event_raises_unreadable():
+    """An event whose data is not JSON raises LLMError saying the answer was unreadable."""
+    fake = FakeOpenRouter(_sse(_chunk("Partial "), "{not json", done=False))
+    with pytest.raises(llm.LLMError, match="unreadable answer"):
+        _stream(fake)
+
+
+@pytest.mark.parametrize(
+    "events",
+    [(), (_chunk(role="assistant"),), (_chunk("  "), _chunk("\n"))],
+    ids=["no-chunks", "role-only", "whitespace"],
+)
+def test_stream_without_text_raises_empty_answer(events):
+    """A stream that ends without any real text raises LLMError saying the answer was empty."""
+    fake = FakeOpenRouter(_sse(*events))
+    with pytest.raises(llm.LLMError, match="empty answer"):
+        _stream(fake)
+
+
+@pytest.mark.parametrize("status", [429, 500])
+def test_stream_retries_before_the_first_piece(status, sleeps):
+    """A 429/5xx when the request is sent is retried, and the next try's stream comes through."""
+    fake = FakeOpenRouter(_error(status), _sse(_chunk("Second time lucky.")))
+    assert _stream(fake) == ["Second time lucky."]
+    assert len(fake.requests) == 2
+    assert sleeps == [llm.BACKOFF_SECONDS]
+
+
+@pytest.mark.parametrize(
+    ("make_failure", "error_class", "requests"),
+    [
+        (lambda: _error(401), llm.LLMAuthError, 1),
+        (_timeout, llm.LLMTimeoutError, 1),
+        (lambda: _error(503), llm.LLMServerError, 1 + llm.MAX_RETRIES),
+    ],
+    ids=["401", "timeout", "503"],
+)
+def test_stream_request_failures_raise_mapped_error(make_failure, error_class, requests):
+    """Failures when sending the request raise the same mapped errors as complete()."""
+    fake = FakeOpenRouter(*[make_failure() for _ in range(3)])
+    with pytest.raises(error_class):
+        _stream(fake)
+    assert len(fake.requests) == requests
+
+
+def test_stream_closed_early_closes_the_response():
+    """Stopping the generator after one piece closes the HTTP response."""
+    # A body fed from an iterator stays open until read or closed (a bytes body never is).
+    body = iter([_sse_bytes(_chunk("One ")), _sse_bytes(_chunk("two."), "[DONE]")])
+    response = httpx2.Response(200, content=body, headers={"content-type": "text/event-stream"})
+    fake = FakeOpenRouter(response)
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert next(pieces) == "One "
+    assert not response.is_closed
+    pieces.close()
+    assert response.is_closed

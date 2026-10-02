@@ -84,13 +84,13 @@ def test_llm_error_shows_only_its_message(monkeypatch):
     """An LLMError is shown as its fixed text; the chained SDK error (key, body) never is."""
     raw_body = f'{{"error": "upstream timeout", "auth": "Bearer {FAKE_KEY}"}}'
 
-    def failing_complete(*args, **kwargs):
-        """Fail the way llm.complete does on a timeout, with the raw SDK error chained."""
+    def failing_stream(*args, **kwargs):
+        """Fail the way llm.stream does on a timeout, with the raw SDK error chained."""
         raise llm.LLMTimeoutError(
             "The AI service took too long to respond. Please try again."
         ) from RuntimeError(raw_body)
 
-    monkeypatch.setattr(llm, "complete", failing_complete)
+    monkeypatch.setattr(llm, "stream", failing_stream)
     at = send("Tell me about yourself.")
     assert not at.exception
     assert len(at.error) == 1
