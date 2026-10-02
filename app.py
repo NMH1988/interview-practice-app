@@ -95,7 +95,8 @@ df = load_sessions()
 
 # Chat state. Each history turn is {"role", "content" (shown in the chat), "sent" (sent to the
 # LLM)}. "pending" holds a submitted message until its reply is in; "notice" is a warning or
-# error to show once, since the run that sets it ends with st.rerun().
+# error to show once, since the run that sets it ends with st.rerun(): {"kind" (a key of
+# NOTICE_STYLES), "text", and "unsent" (the user's message, for a copy box) when there is one}.
 st.session_state.setdefault("history", [])
 st.session_state.setdefault("pending", None)
 st.session_state.setdefault("notice", None)
@@ -104,6 +105,17 @@ st.session_state.setdefault("notice", None)
 st.session_state.setdefault("request_times", [])
 
 INTERRUPTED = "The answer was interrupted before it finished."
+
+# How each kind of notice is shown: (st element, icon, title, copy-box caption), so the user can
+# tell at a glance whether to fix the message, wait, or try again.
+NOT_SENT = "Your message was not sent. Copy it from here to keep it:"
+NO_ANSWER = "Your message got no answer. Copy it from here to keep it:"
+NOTICE_STYLES = {
+    "guard": (st.warning, "✋", "Message not sent", NOT_SENT),
+    "rate_limit": (st.warning, "⏳", "Message limit reached", NOT_SENT),
+    "llm": (st.error, "⚠️", "AI service problem", NO_ANSWER),
+    "interrupted": (st.error, "⏹️", "Answer interrupted", NO_ANSWER),
+}
 
 
 def queue_message() -> None:
@@ -134,7 +146,7 @@ def reply_pieces(
     # a run stopped between the two writes resends the message under a stale notice rather than
     # dropping it silently.
     # Its own name, not "notice": the module-level notice below holds the previous run's one.
-    saved_notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
+    saved_notice = {"kind": "interrupted", "text": INTERRUPTED, "unsent": clean}
     st.session_state.notice = saved_notice
     st.session_state.pending = None
     received = []
@@ -158,6 +170,7 @@ def reply_pieces(
         # stays out of the history, so it alternates user/assistant. Changed in place (a plain
         # dict write, not a stop point), so a rerun already waiting cannot stop the run before
         # the real error replaces "interrupted".
+        saved_notice["kind"] = "llm"
         saved_notice["text"] = str(exc)
         raise
     # Saved before st.write_stream draws the final text, where a requested rerun could stop it.
@@ -242,13 +255,12 @@ for turn in st.session_state.history:
 
 notice = st.session_state.notice
 if notice is not None:
-    if notice["kind"] == "warning":
-        st.warning(notice["text"], icon="✋")
-    else:
-        st.error(notice["text"])
-    # Errors, and warnings the user did nothing wrong for (the rate limit), keep the message.
+    show, icon, title, caption = NOTICE_STYLES[notice["kind"]]
+    # Only str(exc) is shown, never the exception: a chained SDK error holds the raw response.
+    show(notice["text"], icon=icon, title=title)
+    # Every notice keeps the message the user typed, unless it was blank.
     if "unsent" in notice:
-        st.caption("Your message was not sent. Copy it from here to keep it:")
+        st.caption(caption)
         st.code(notice["unsent"], language=None, wrap_lines=True)
     # Cleared only once drawn, so a run stopped mid-draw shows it on the next run instead.
     st.session_state.notice = None
@@ -280,10 +292,10 @@ if message is not None:
             check_rate_limit(request_times, rate_limit.clock())
         except RateLimitError as exc:
             # The message was fine, so keep it in a copy box for when the wait is over.
-            st.session_state.notice = {"kind": "warning", "text": str(exc), "unsent": clean}
+            st.session_state.notice = {"kind": "rate_limit", "text": str(exc), "unsent": clean}
             st.session_state.pending = None
         except GuardError as exc:
-            st.session_state.notice = {"kind": "warning", "text": str(exc)}
+            st.session_state.notice = {"kind": "guard", "text": str(exc)}
             st.session_state.pending = None
         else:
             st.chat_message("user").markdown(clean)
