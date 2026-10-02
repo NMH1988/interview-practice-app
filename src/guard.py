@@ -2,7 +2,7 @@
 
 import unicodedata
 
-from src.config import MAX_INPUT_CHARS
+from src.config import MAX_INPUT_CHARS, MAX_ROLE_CHARS
 
 # Control characters (Unicode category Cc) that are still normal text and must be kept.
 _KEPT_CONTROLS = frozenset("\n\t")
@@ -18,7 +18,7 @@ class GuardError(ValueError):
 
 
 class InvalidInputError(GuardError):
-    """Raised when a message is empty or too long."""
+    """Raised when a message or the role is empty or too long."""
 
 
 def clean_input(text: str) -> str:
@@ -32,14 +32,25 @@ def _looks_blank(ch: str) -> bool:
     return ch.isspace() or ch in _BLANK_LOOKING or unicodedata.category(ch) in _INVISIBLE_CATEGORIES
 
 
-def validate_input(text: str | None, max_chars: int = MAX_INPUT_CHARS) -> str:
-    """Return the cleaned, trimmed message, or raise `InvalidInputError` if it cannot be sent."""
+def _validated(text: str | None, max_chars: int, blank_msg: str, what: str) -> str:
+    """Return `text` cleaned and trimmed, or raise `InvalidInputError` if blank or too long."""
     cleaned = clean_input(text or "").strip()
     if all(_looks_blank(ch) for ch in cleaned):
-        raise InvalidInputError("Please type a message before sending.")
+        raise InvalidInputError(blank_msg)
     if len(cleaned) > max_chars:
         raise InvalidInputError(
-            f"Your message is too long ({len(cleaned):,} characters). "
+            f"{what} is too long ({len(cleaned):,} characters). "
             f"Please shorten it to {max_chars:,} characters or fewer."
         )
     return cleaned
+
+
+def validate_input(text: str | None, max_chars: int = MAX_INPUT_CHARS) -> str:
+    """Return the cleaned, trimmed message, or raise `InvalidInputError` if it cannot be sent."""
+    return _validated(text, max_chars, "Please type a message before sending.", "Your message")
+
+
+def validate_role(role: str | None, max_chars: int = MAX_ROLE_CHARS) -> str:
+    """Return the cleaned, trimmed role, or raise `InvalidInputError` if it is blank or too long."""
+    blank = "Please enter the role you are practising for in the sidebar."
+    return _validated(role, max_chars, blank, "The role")

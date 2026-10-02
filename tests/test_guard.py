@@ -1,7 +1,13 @@
 import pytest
 
-from src.config import MAX_INPUT_CHARS
-from src.guard import GuardError, InvalidInputError, clean_input, validate_input
+from src.config import MAX_INPUT_CHARS, MAX_ROLE_CHARS
+from src.guard import (
+    GuardError,
+    InvalidInputError,
+    clean_input,
+    validate_input,
+    validate_role,
+)
 
 # Invisible characters are built with chr() so they cannot be lost or mangled in the source.
 NUL, BEL, ESC, DEL, NEL = chr(0x00), chr(0x07), chr(0x1B), chr(0x7F), chr(0x85)
@@ -131,3 +137,39 @@ def test_zero_width_characters_inside_text_are_kept():
     """Format characters are not stripped, so emoji joined with ZWJ stay intact."""
     family = chr(0x1F468) + chr(0x200D) + chr(0x1F469) + chr(0x200D) + chr(0x1F467)
     assert validate_input(f"My team {family}") == f"My team {family}"
+
+
+@pytest.mark.parametrize(
+    "role",
+    ["", "   ", f"{ZWSP}{BOM}", f"{NUL}{BEL}", None],
+    ids=["empty", "spaces", "zero-width", "only-controls", "none"],
+)
+def test_blank_role_is_rejected(role):
+    """A role with nothing visible in it is rejected with a message pointing to the sidebar."""
+    with pytest.raises(InvalidInputError, match="enter the role"):
+        validate_role(role)
+
+
+def test_role_over_the_limit_is_rejected():
+    """A role one character over the limit is rejected and the message says how long it is."""
+    with pytest.raises(InvalidInputError, match="role is too long") as info:
+        validate_role("a" * (MAX_ROLE_CHARS + 1))
+    assert f"{MAX_ROLE_CHARS + 1}" in str(info.value)
+
+
+def test_role_of_exactly_the_limit_is_accepted():
+    """A role of exactly the limit passes unchanged."""
+    role = "a" * MAX_ROLE_CHARS
+    assert validate_role(role) == role
+
+
+def test_role_is_cleaned_and_trimmed():
+    """Control characters and surrounding spaces are removed from the role."""
+    assert validate_role(f"  Data{BEL} Engineer  ") == "Data Engineer"
+
+
+def test_custom_role_limit_is_respected():
+    """The role limit can be passed in, so the check does not depend on the config value."""
+    with pytest.raises(InvalidInputError):
+        validate_role("abcdef", max_chars=5)
+    assert validate_role("abcde", max_chars=5) == "abcde"

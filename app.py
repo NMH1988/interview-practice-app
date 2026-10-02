@@ -5,16 +5,22 @@ import streamlit as st
 
 from src import llm
 from src.config import (
+    ALLOWED_MODELS,
     API_KEY_NAME,
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
+    DEFAULT_ROLE,
+    DEFAULT_SENIORITY,
     DEFAULT_TEMPERATURE,
+    MAX_ROLE_CHARS,
+    MAX_TEMPERATURE,
+    MIN_TEMPERATURE,
     MissingAPIKeyError,
     SecretsFileError,
     get_api_key,
 )
-from src.guard import GuardError, validate_input
-from src.prompts import STRATEGIES, STRATEGY_LABELS
+from src.guard import GuardError, validate_input, validate_role
+from src.prompts import INTERVIEW_TYPES, SENIORITY_LEVELS, STRATEGIES, STRATEGY_LABELS
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -77,12 +83,33 @@ def load_sessions() -> pd.DataFrame:
 df = load_sessions()
 
 with st.sidebar:
+    st.header("Session settings")
+    model = st.selectbox(
+        "Model", ALLOWED_MODELS, index=ALLOWED_MODELS.index(DEFAULT_MODEL), key="model"
+    )
     # Shows each strategy by its technique label; T5.2 sends the chosen one to the LLM.
     st.selectbox(
         "Prompt strategy",
         list(STRATEGIES),
         format_func=STRATEGY_LABELS.__getitem__,
         key="strategy",
+    )
+    temperature = st.slider(
+        "Temperature",
+        MIN_TEMPERATURE,
+        MAX_TEMPERATURE,
+        DEFAULT_TEMPERATURE,
+        step=0.1,
+        key="temperature",
+    )
+    st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
+    # Streamlit cuts the value to max_chars on the server too; validate_role checks it again.
+    role = st.text_input("Role", DEFAULT_ROLE, max_chars=MAX_ROLE_CHARS, key="role")
+    st.selectbox(
+        "Seniority",
+        SENIORITY_LEVELS,
+        index=SENIORITY_LEVELS.index(DEFAULT_SENIORITY),
+        key="seniority",
     )
     st.header("Filters")
     picked = st.date_input(
@@ -112,6 +139,8 @@ message = st.chat_input("Type your answer or question")
 if message is not None:
     try:
         clean = validate_input(message)
+        # The role is checked before any call; T5.2 sends the cleaned role in the prompts.
+        validate_role(role)
     except GuardError as exc:
         st.warning(str(exc), icon="✋")
     else:
@@ -119,8 +148,8 @@ if message is not None:
         try:
             reply = llm.complete(
                 [{"role": "user", "content": clean}],
-                DEFAULT_MODEL,
-                DEFAULT_TEMPERATURE,
+                model,
+                temperature,
                 DEFAULT_MAX_TOKENS,
             )
         except llm.LLMError as exc:

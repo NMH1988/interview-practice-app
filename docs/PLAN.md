@@ -198,14 +198,14 @@ Goal: a polished single-page app matching the diagram.
 ### T5.1 Layout & inputs (M)
 Sidebar: model select, strategy select, temperature slider, interview type, role. Main: chat.
 **Acceptance criteria**
-- [ ] Single page, works at desktop and mobile widths.
-- [ ] Temperature slider 0.0–1.5 (default 0.7) is passed to the API call.
-- [ ] Theme colours still come from `.streamlit/config.toml`.
+- [x] Single page, works at desktop and mobile widths.
+- [x] Temperature slider 0.0–1.5 (default 0.7) is passed to the API call.
+- [x] Theme colours still come from `.streamlit/config.toml`.
 
 **Tests**
-- [ ] UI flow: the sidebar shows model (exactly the allowed models, default `gpt-5-mini`), strategy, temperature (0.0–1.5, default 0.7), interview type and role.
-- [ ] UI flow: a changed model and temperature reach the fake LLM call.
-- [ ] Manual: check desktop and mobile widths in a browser (`AppTest` cannot measure layout).
+- [x] UI flow: the sidebar shows model (exactly the allowed models, default `gpt-5-mini`), strategy, temperature (0.0–1.5, default 0.7), interview type and role.
+- [x] UI flow: a changed model and temperature reach the fake LLM call.
+- [x] Manual: check desktop and mobile widths in a browser (`AppTest` cannot measure layout).
 
 ### T5.2 Chat flow (M)
 **Acceptance criteria**
