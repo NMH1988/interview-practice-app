@@ -210,14 +210,14 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 ### T5.2 Chat flow (M)
 **Acceptance criteria**
 - [ ] `st.chat_input` → guard → prompt → LLM → streamed reply; history kept in `st.session_state`.
-- [ ] "New session" button clears history.
-- [ ] A spinner/disabled input prevents double submission.
+- [x] "New session" button clears history.
+- [x] A spinner/disabled input prevents double submission.
 
 **Tests**
-- [ ] UI flow (main happy path): chat input → guard → prompt → fake LLM → reply shown; after two turns, both are in the history in order.
-- [ ] UI flow: the fake LLM receives the selected strategy's system prompt and the delimited user message.
-- [ ] UI flow: "New session" clears the history.
-- [ ] Manual: double submission is blocked while a reply is generating (`AppTest` runs one script run at a time, so it cannot test this race).
+- [x] UI flow (main happy path): chat input → guard → prompt → fake LLM → reply shown; after two turns, both are in the history in order.
+- [x] UI flow: the fake LLM receives the selected strategy's system prompt and the delimited user message.
+- [x] UI flow: "New session" clears the history.
+- [x] Manual: double submission is blocked while a reply is generating (`AppTest` runs one script run at a time, so it cannot test this race).
 
 ### T5.3 Interview modes (M)
 **Acceptance criteria**

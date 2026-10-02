@@ -4,7 +4,14 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from src import guard, llm
-from src.config import API_KEY_NAME, DEFAULT_MODEL, MAX_INPUT_CHARS
+from src.config import (
+    API_KEY_NAME,
+    DEFAULT_MODEL,
+    DEFAULT_ROLE,
+    DEFAULT_SENIORITY,
+    MAX_INPUT_CHARS,
+)
+from src.prompts import INTERVIEW_TYPES, build_user_prompt
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
 FAKE_KEY = "sk-test-not-a-real-key"
@@ -43,8 +50,14 @@ def test_valid_input_reaches_llm_once_with_cleaned_text(fake_llm):
     assert not at.warning
     assert len(fake_llm.calls) == 1
     call = fake_llm.calls[0]
-    assert call["messages"] == [{"role": "user", "content": "I led the migration.\nIt went well."}]
+    clean = "I led the migration.\nIt went well."
+    # The cleaned text reaches the LLM inside the built user prompt; the chat shows it as is.
+    assert call["messages"][-1] == {
+        "role": "user",
+        "content": build_user_prompt(DEFAULT_ROLE, INTERVIEW_TYPES[0], DEFAULT_SENIORITY, clean),
+    }
     assert call["model"] == DEFAULT_MODEL
+    assert at.chat_message[0].markdown[0].value == clean
     assert at.chat_message[1].markdown[0].value == fake_llm.reply
 
 

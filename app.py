@@ -20,7 +20,14 @@ from src.config import (
     get_api_key,
 )
 from src.guard import GuardError, validate_input, validate_role
-from src.prompts import INTERVIEW_TYPES, SENIORITY_LEVELS, STRATEGIES, STRATEGY_LABELS
+from src.prompts import (
+    INTERVIEW_TYPES,
+    SENIORITY_LEVELS,
+    STRATEGIES,
+    STRATEGY_LABELS,
+    build_messages,
+    build_user_prompt,
+)
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -82,13 +89,33 @@ def load_sessions() -> pd.DataFrame:
 
 df = load_sessions()
 
+# Chat state. Each history turn is {"role", "content" (shown in the chat), "sent" (sent to the
+# LLM)}. "pending" holds a submitted message until its reply is in; "notice" is a warning or
+# error to show once, since the run that sets it ends with st.rerun().
+st.session_state.setdefault("history", [])
+st.session_state.setdefault("pending", None)
+st.session_state.setdefault("notice", None)
+
+
+def queue_message() -> None:
+    """Keep the submitted chat message as pending, so this run can lock the input first."""
+    st.session_state.pending = st.session_state.chat_box
+
+
+def new_session() -> None:
+    """Forget the chat history and anything still waiting to be sent or shown."""
+    st.session_state.history = []
+    st.session_state.pending = None
+    st.session_state.notice = None
+
+
 with st.sidebar:
     st.header("Session settings")
     model = st.selectbox(
         "Model", ALLOWED_MODELS, index=ALLOWED_MODELS.index(DEFAULT_MODEL), key="model"
     )
-    # Shows each strategy by its technique label; T5.2 sends the chosen one to the LLM.
-    st.selectbox(
+    # Shows each strategy by its technique label; the key picks the system prompt.
+    strategy = st.selectbox(
         "Prompt strategy",
         list(STRATEGIES),
         format_func=STRATEGY_LABELS.__getitem__,
@@ -102,15 +129,23 @@ with st.sidebar:
         step=0.1,
         key="temperature",
     )
-    st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
+    interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
     # Streamlit cuts the value to max_chars on the server too; validate_role checks it again.
     role = st.text_input("Role", DEFAULT_ROLE, max_chars=MAX_ROLE_CHARS, key="role")
-    st.selectbox(
+    # Checked here, not on send, so the chat input is locked before anything is typed.
+    try:
+        validate_role(role)
+        role_ok = True
+    except GuardError as exc:
+        st.warning(str(exc), icon="✋")
+        role_ok = False
+    seniority = st.selectbox(
         "Seniority",
         SENIORITY_LEVELS,
         index=SENIORITY_LEVELS.index(DEFAULT_SENIORITY),
         key="seniority",
     )
+    st.button("New session", on_click=new_session, icon="🔄")
     st.header("Filters")
     picked = st.date_input(
         "Date range",
@@ -133,27 +168,71 @@ c3.metric("Average score", f"{filtered['score'].mean():.0f}" if len(filtered) el
 
 st.line_chart(filtered.set_index("date")["score"])
 
-# Minimal chat turn so the input guard runs before any API call; T5.2 replaces it with the
-# full flow (prompts, history, streaming).
-message = st.chat_input("Type your answer or question")
+for turn in st.session_state.history:
+    st.chat_message(turn["role"]).markdown(turn["content"])
+
+notice = st.session_state.notice
+if notice is not None:
+    if notice["kind"] == "warning":
+        st.warning(notice["text"], icon="✋")
+    else:
+        st.error(notice["text"])
+        st.caption("Your message was not sent. Copy it from here to try again:")
+        st.code(notice["unsent"], language=None, wrap_lines=True)
+    # Cleared only once drawn, so a run stopped mid-draw shows it on the next run instead.
+    st.session_state.notice = None
+
+# Drawn before the LLM call and locked while a reply is pending, so a second message cannot
+# be sent (and cut this run short) while the first one is waiting.
+st.chat_input(
+    "Type your answer or question",
+    key="chat_box",
+    on_submit=queue_message,
+    disabled=not role_ok or st.session_state.pending is not None,
+)
+
+# Chat turn: guard -> prompts -> LLM. Every path clears "pending" and ends in st.rerun(),
+# which unlocks the input. Only a rerun requested mid-turn (e.g. a sidebar click) stops the
+# run at its next st call with the message still pending, so that run sends it again.
+message = st.session_state.pending
 if message is not None:
     try:
-        clean = validate_input(message)
-        # The role is checked before any call; T5.2 sends the cleaned role in the prompts.
-        validate_role(role)
-    except GuardError as exc:
-        st.warning(str(exc), icon="✋")
-    else:
-        st.chat_message("user").markdown(clean)
         try:
-            reply = llm.complete(
-                [{"role": "user", "content": clean}],
-                model,
-                temperature,
-                DEFAULT_MAX_TOKENS,
-            )
-        except llm.LLMError as exc:
-            # Only the fixed message: the chained SDK error holds the raw response body.
-            st.error(str(exc))
+            clean = validate_input(message)
+            # Also gives the cleaned role, and catches a role changed since the sidebar check.
+            clean_role = validate_role(role)
+        except GuardError as exc:
+            st.session_state.notice = {"kind": "warning", "text": str(exc)}
+            st.session_state.pending = None
         else:
-            st.chat_message("assistant").markdown(reply)
+            st.chat_message("user").markdown(clean)
+            user_prompt = build_user_prompt(clean_role, interview_type, seniority, clean)
+            messages = build_messages(
+                STRATEGIES[strategy](clean_role, interview_type),
+                st.session_state.history,
+                user_prompt,
+            )
+            with st.spinner("Thinking..."):
+                # No st call in this try, so its outcome is saved before the spinner's exit
+                # (an st call where a requested rerun would stop the run).
+                try:
+                    reply = llm.complete(messages, model, temperature, DEFAULT_MAX_TOKENS)
+                except llm.LLMError as exc:
+                    # Only the fixed message: the chained SDK error holds the raw response
+                    # body. The turn stays out of the history, so it alternates user/assistant.
+                    st.session_state.notice = {"kind": "error", "text": str(exc), "unsent": clean}
+                else:
+                    st.session_state.history.extend(
+                        [
+                            {"role": "user", "content": clean, "sent": user_prompt},
+                            {"role": "assistant", "content": reply, "sent": reply},
+                        ]
+                    )
+                finally:
+                    st.session_state.pending = None
+    except Exception:
+        # A real bug, not Streamlit's rerun signal (a BaseException): without this the message
+        # would stay pending, so every later run would lock the input and crash again.
+        st.session_state.pending = None
+        raise
+    st.rerun()
