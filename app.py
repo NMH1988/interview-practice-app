@@ -187,9 +187,10 @@ with st.sidebar:
     interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
     # Streamlit cuts the value to max_chars on the server too; validate_role checks it again.
     role = st.text_input("Role", DEFAULT_ROLE, max_chars=MAX_ROLE_CHARS, key="role")
-    # Checked here, not on send, so the chat input is locked before anything is typed.
+    # Checked here, not on send, so the chat input is locked before anything is typed. Not
+    # logged: this runs on every rerun, and only a message that is sent counts as a request.
     try:
-        validate_role(role)
+        validate_role(role, log=False)
         role_ok = True
     except GuardError as exc:
         st.warning(str(exc), icon="✋")

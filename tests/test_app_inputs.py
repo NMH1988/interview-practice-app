@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 
 import pytest
@@ -14,7 +15,9 @@ from src.config import (
     MAX_TEMPERATURE,
     MIN_TEMPERATURE,
 )
+from src.guard import INJECTION_REFUSAL
 from src.prompts import INTERVIEW_TYPES, SENIORITY_LEVELS
+from tests.injection_samples import ROLE_ATTACK
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
 
@@ -104,6 +107,44 @@ def test_blank_role_warns_in_sidebar_and_locks_chat_input(fake_llm):
     assert not at.sidebar.warning
     assert not at.chat_input[0].disabled
     assert fake_llm.calls == []
+
+
+def test_role_with_an_injection_is_refused_and_locks_chat_input(fake_llm, caplog):
+    """A role holding an instruction shows the neutral refusal in the sidebar and locks the chat."""
+    at = start()
+    with caplog.at_level(logging.DEBUG, logger="src.guard"):
+        at.sidebar.text_input(key="role").set_value(ROLE_ATTACK).run(timeout=30)
+        at.run(timeout=30)
+    # The sidebar check runs on every rerun, so it does not log; nothing was sent.
+    # Only the guard's records: Streamlit may log its own warnings while AppTest runs.
+    assert [r for r in caplog.records if r.name == "src.guard"] == []
+    assert not at.exception
+    assert at.session_state.role == ROLE_ATTACK
+    assert len(at.sidebar.warning) == 1
+    assert at.sidebar.warning[0].value == INJECTION_REFUSAL
+    assert at.chat_input[0].disabled
+    assert fake_llm.calls == []
+
+
+def test_message_queued_before_an_injected_role_is_refused_and_logged_once(fake_llm, caplog):
+    """A message already pending when the role turns into an attack is blocked on send, once."""
+    at = start()
+    # The message is queued and the role changed in the same run, as when the user sends a
+    # message and edits the role before that run reaches the send step.
+    at.session_state["pending"] = "Tell me about yourself."
+    at.sidebar.text_input(key="role").set_value(ROLE_ATTACK)
+    with caplog.at_level(logging.DEBUG, logger="src.guard"):
+        at.run(timeout=30)
+    assert not at.exception
+    assert fake_llm.calls == []
+    assert at.session_state.pending is None
+    assert len(at.chat_message) == 0
+    # The refusal shows in the chat area (from the send step) and in the sidebar.
+    assert [w.value for w in at.main.warning] == [INJECTION_REFUSAL]
+    assert [w.value for w in at.sidebar.warning] == [INJECTION_REFUSAL]
+    # Logged by the send step only: the sidebar check runs with log=False.
+    guard_logs = [r.getMessage() for r in caplog.records if r.name == "src.guard"]
+    assert guard_logs == [f"Blocked role: patterns=mode_override length={len(ROLE_ATTACK)}"]
 
 
 def test_too_long_role_is_cut_to_the_limit(fake_llm):
