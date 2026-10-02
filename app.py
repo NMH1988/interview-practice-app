@@ -39,7 +39,7 @@ from src.prompts import (
     build_messages,
     build_user_prompt,
 )
-from src.rate_limit import RateLimitError, check_rate_limit
+from src.rate_limit import RateLimitError, check_rate_limit, session_cap_reached
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -279,7 +279,12 @@ if notice is not None:
     # Cleared only once drawn, so a run stopped mid-draw shows it on the next run instead.
     st.session_state.notice = None
 
-can_send = role_ok
+# Once the session has used all its requests, say so and lock the input, rather than letting
+# the user type message after message only to have each one refused.
+used_up = session_cap_reached(st.session_state.request_times)
+if used_up is not None:
+    st.info(used_up, icon="⏳", title="Session limit reached")
+can_send = role_ok and used_up is None
 
 # Empty chat: offer a few starters for the chosen mode. A click queues the text as pending, so it
 # goes through the guard, the rate limit and the LLM like a typed message.

@@ -5,7 +5,7 @@ import pytest
 
 from src import rate_limit
 from src.guard import GuardError
-from src.rate_limit import RateLimitError, check_rate_limit
+from src.rate_limit import RateLimitError, check_rate_limit, session_cap_reached
 
 # Ten requests one second apart, from t=0 to t=9: the per-minute limit is used up.
 FULL_MINUTE = [float(t) for t in range(10)]
@@ -111,3 +111,25 @@ def test_allowed_request_logs_nothing(caplog):
     with caplog.at_level(logging.DEBUG, logger="src.rate_limit"):
         check_rate_limit(FULL_MINUTE[:9], now=9.5)
     assert not [r for r in caplog.records if r.name == "src.rate_limit"]
+
+
+def test_session_cap_reached_only_once_every_request_is_used():
+    """The cap message comes at exactly 50 requests (or more), never before."""
+    assert session_cap_reached([0.0] * 49) is None
+    assert session_cap_reached([0.0] * 50) == "You have used all 50 messages for this session."
+    assert session_cap_reached([0.0] * 51) is not None
+
+
+def test_session_cap_reached_respects_a_custom_cap():
+    """A custom cap is used both for the check and in the message."""
+    assert session_cap_reached([0.0, 1.0], per_session=3) is None
+    assert session_cap_reached([0.0, 1.0], per_session=2) == (
+        "You have used all 2 messages for this session."
+    )
+
+
+def test_session_cap_error_has_the_same_text_as_the_lock_message():
+    """The refusal and the locked-input notice say the same thing."""
+    with pytest.raises(RateLimitError) as caught:
+        check_rate_limit([0.0] * 50, now=10_000.0)
+    assert str(caught.value) == session_cap_reached([0.0] * 50)

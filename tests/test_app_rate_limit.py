@@ -75,11 +75,27 @@ def test_eleventh_message_in_a_minute_is_blocked_until_the_window_passes(fake_ll
     assert at.chat_message[-2].markdown[0].value == "After the wait."
 
 
-def test_session_cap_blocks_the_next_message(fake_llm, clock):
-    """After 50 requests, spread over the session, the next message is refused for good."""
+def test_used_up_session_locks_the_input(fake_llm, clock):
+    """After 50 requests, spread over the session, the input is locked and the cap is explained."""
     earlier = [clock.now - 120.0 * (i + 1) for i in range(RATE_LIMIT_PER_SESSION)]
     at = start(earlier)
-    say(at, "My answer.")
+    assert at.chat_input[0].disabled
+    assert [(info.icon, info.proto.title, info.value) for info in at.info] == [
+        ("⏳", "Session limit reached", "You have used all 50 messages for this session.")
+    ]
+    # The empty chat's example prompts are locked too, so nothing can be sent.
+    starters = [b for b in at.main.button if (b.key or "").startswith("example_")]
+    assert starters and all(button.disabled for button in starters)
+    assert not at.warning
+
+
+def test_message_queued_before_the_cap_is_still_refused(fake_llm, clock):
+    """A message already pending when the cap is hit is refused on send and kept for copying."""
+    earlier = [clock.now - 120.0 * (i + 1) for i in range(RATE_LIMIT_PER_SESSION)]
+    at = start(earlier)
+    at.session_state["pending"] = "My answer."
+    at.run(timeout=30)
+    assert not at.exception
     assert fake_llm.calls == []
     assert len(at.warning) == 1
     assert at.warning[0].value == "You have used all 50 messages for this session."
@@ -88,13 +104,26 @@ def test_session_cap_blocks_the_next_message(fake_llm, clock):
 
 
 def test_last_message_of_the_session_is_still_sent(fake_llm, clock):
-    """The 50th request of a session is allowed."""
+    """The 50th request of a session is allowed, and only then is the input locked."""
     earlier = [clock.now - 120.0 * (i + 1) for i in range(RATE_LIMIT_PER_SESSION - 1)]
     at = start(earlier)
+    assert not at.chat_input[0].disabled
+    assert not at.info
     say(at, "My answer.")
     assert len(fake_llm.calls) == 1
     assert not at.warning
     assert len(at.session_state.request_times) == RATE_LIMIT_PER_SESSION
+    assert at.chat_input[0].disabled
+    assert at.info[0].proto.title == "Session limit reached"
+
+
+def test_new_session_does_not_unlock_a_used_up_session(fake_llm, clock):
+    """New session clears the chat but keeps the count, so the input stays locked."""
+    at = start([clock.now - 120.0 * (i + 1) for i in range(RATE_LIMIT_PER_SESSION)])
+    new_session = next(button for button in at.button if button.label == "New session")
+    new_session.click().run(timeout=30)
+    assert at.chat_input[0].disabled
+    assert len(at.info) == 1
 
 
 @pytest.mark.parametrize("text", ["   ", ATTACKS[0]], ids=["blank", "injection"])
