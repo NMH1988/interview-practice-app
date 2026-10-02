@@ -74,6 +74,18 @@ def test_every_strategy_has_a_technique_label():
     assert len(set(labels)) == len(labels)
 
 
+def test_each_key_has_its_own_technique_label():
+    """Labels are pinned to their keys, so a swap that mislabels a technique fails."""
+    # Written out on purpose: the UI test builds its expected list from STRATEGY_LABELS itself.
+    assert dict(STRATEGY_LABELS) == {
+        "zero_shot": "Zero-shot",
+        "few_shot": "Few-shot",
+        "chain_of_thought": "Chain-of-thought",
+        "persona": "Role / persona",
+        "structured_output": "Structured output",
+    }
+
+
 # Text only that technique's prompt contains; zero-shot is the one with none of them.
 TECHNIQUE_MARKERS = {
     "few_shot": FEW_SHOT_EXAMPLES[0],
