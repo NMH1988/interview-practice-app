@@ -63,15 +63,19 @@ def everything_shown(at: AppTest) -> str:
     return "\n".join(texts + [alert.proto.title for alert in alerts])
 
 
-def raising_stream(error: llm.LLMError, pieces_before: list[str]):
-    """Return an llm.stream stand-in that sends some pieces, then raises `error` over RAW_BODY."""
+def raising_stream(error: llm.LLMError, pieces_before: list[str] | None):
+    """Return an llm.stream stand-in that raises `error` over RAW_BODY at the given point."""
+
+    def at_call(*args, **kwargs):
+        """Fail when called, as llm.stream does for a bad model or key (nothing is sent)."""
+        raise error from RuntimeError(RAW_BODY)
 
     def stream(*args, **kwargs):
         """Yield the given pieces, then fail with the raw SDK error chained, as llm.py does."""
         yield from pieces_before
         raise error from RuntimeError(RAW_BODY)
 
-    return stream
+    return at_call if pieces_before is None else stream
 
 
 def test_guard_block_rate_limit_llm_error_and_interruption_each_look_different(
@@ -113,13 +117,17 @@ def test_guard_block_rate_limit_llm_error_and_interruption_each_look_different(
     assert len(set(styles.values())) == len(styles)
 
 
-@pytest.mark.parametrize("pieces_before", [[], ["Half of ", "a reply"]], ids=["first", "mid"])
+@pytest.mark.parametrize(
+    "pieces_before", [None, [], ["Half of ", "a reply"]], ids=["at-call", "first", "mid"]
+)
 @pytest.mark.parametrize("error", LLM_ERRORS, ids=lambda exc: type(exc).__name__)
 def test_each_llm_error_shows_only_its_own_text(monkeypatch, fake_llm, error, pieces_before):
     """Every LLMError shows as an error with its fixed text, never the key or the raw body."""
     monkeypatch.setattr(llm, "stream", raising_stream(error, pieces_before))
     at = start()
     say(at, "My answer.")
+    # Failing at the call sends nothing, so it uses no turn; failing later may have spent tokens.
+    assert len(at.session_state.request_times) == (0 if pieces_before is None else 1)
     assert notice_style(at) == ("error", "⚠️", "AI service problem")
     assert at.error[0].value == str(error)
     assert at.caption[0].value == NO_ANSWER
@@ -189,3 +197,15 @@ def test_blank_message_gets_no_copy_box(fake_llm, text):
     assert not at.code
     # The only caption left is the empty chat's starter line, not a copy-box one.
     assert NOT_SENT not in [caption.value for caption in at.caption]
+
+
+def test_notice_of_an_unknown_kind_is_shown_as_an_error_not_a_crash(fake_llm):
+    """A notice saved with an old or unknown kind is shown once as an error, without crashing."""
+    at = AppTest.from_file(str(APP))
+    at.secrets[API_KEY_NAME] = FAKE_KEY
+    at.session_state["notice"] = {"kind": "warning", "text": "Saved by an older version."}
+    at.run(timeout=30)
+    assert not at.exception
+    assert notice_style(at) == ("error", "⚠️", "AI service problem")
+    assert at.error[0].value == "Saved by an older version."
+    assert at.session_state.notice is None

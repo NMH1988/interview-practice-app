@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from src import rate_limit
+from src import guard, rate_limit
 from src.config import API_KEY_NAME, DEFAULT_ROLE, DEFAULT_SENIORITY, RATE_LIMIT_PER_MINUTE
 from src.prompts import EXAMPLE_PROMPTS, INTERVIEW_TYPES, build_user_prompt
 
@@ -91,3 +91,20 @@ def test_clicked_example_still_meets_the_rate_limit(monkeypatch, fake_llm):
     assert fake_llm.calls == []
     assert at.main.warning[0].proto.title == "Message limit reached"
     assert [code.value for code in at.code] == [example]
+
+
+def test_clicked_example_still_meets_the_guard(monkeypatch, fake_llm):
+    """An example takes no shortcut past the guard: a block refuses it like a typed message."""
+
+    def blocking_validate(message):
+        """Block every message the way any guard check would."""
+        raise guard.GuardError("That message was blocked.")
+
+    # app.py re-imports validate_input from the module on every run, so this patch reaches it.
+    monkeypatch.setattr(guard, "validate_input", blocking_validate)
+    at = start()
+    examples(at)[0].click().run(timeout=30)
+    assert not at.exception
+    assert fake_llm.calls == []
+    assert at.main.warning[0].proto.title == "Message not sent"
+    assert [code.value for code in at.code] == [EXAMPLE_PROMPTS[INTERVIEW_TYPES[0]][0]]

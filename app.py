@@ -269,7 +269,9 @@ for turn in st.session_state.history:
 
 notice = st.session_state.notice
 if notice is not None:
-    show, icon, title, caption = NOTICE_STYLES[notice["kind"]]
+    # An unknown kind (e.g. a notice saved by an older version before a hot reload) is shown as
+    # an error rather than crashing every run until "New session".
+    show, icon, title, caption = NOTICE_STYLES.get(notice["kind"], NOTICE_STYLES["llm"])
     # Only str(exc) is shown, never the exception: a chained SDK error holds the raw response.
     show(notice["text"], icon=icon, title=title)
     # Every notice keeps the message the user typed, unless it was blank.
@@ -287,19 +289,22 @@ if used_up is not None:
 can_send = role_ok and used_up is None
 
 # Empty chat: offer a few starters for the chosen mode. A click queues the text as pending, so it
-# goes through the guard, the rate limit and the LLM like a typed message.
+# goes through the guard, the rate limit and the LLM like a typed message. One container, so
+# the run that sends the click replaces all of it at once with the new chat message, instead of
+# leaving stale buttons on screen while the reply streams.
 if not st.session_state.history and st.session_state.pending is None:
-    st.caption("Not sure where to start? Try one of these:")
-    mode = INTERVIEW_TYPES.index(interview_type)
-    for i, example in enumerate(EXAMPLE_PROMPTS.get(interview_type, ())):
-        st.button(
-            example,
-            key=f"example_{mode}_{i}",
-            on_click=use_example,
-            args=(example,),
-            icon="💬",
-            disabled=not can_send,
-        )
+    with st.container():
+        st.caption("Not sure where to start? Try one of these:")
+        mode = INTERVIEW_TYPES.index(interview_type)
+        for i, example in enumerate(EXAMPLE_PROMPTS.get(interview_type, ())):
+            st.button(
+                example,
+                key=f"example_{mode}_{i}",
+                on_click=use_example,
+                args=(example,),
+                icon="💬",
+                disabled=not can_send,
+            )
 
 # Drawn before the LLM call and locked while a reply is pending, so a second message cannot
 # be sent (and cut this run short) while the first one is waiting.
