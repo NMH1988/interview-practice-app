@@ -1,3 +1,4 @@
+import gc
 from pathlib import Path
 
 import pytest
@@ -270,9 +271,15 @@ def test_stream_paused_when_the_run_stops_is_closed_and_not_resent(monkeypatch, 
     monkeypatch.setattr(llm, "stream", paused_stream)
     # app.py looks st.write_stream up on every run, so the patch reaches it.
     monkeypatch.setattr(st, "write_stream", rerun_while_drawing)
-    say(at, "Answer that is cut off.")
-    # Closed by the stopped run itself, before the next run drew anything.
-    assert events == ["rerun", "closed"]
+    # The paused generator sits in a reference cycle (module globals -> pieces -> its frame), so
+    # the cyclic GC could close it too. With GC off, only app.py's explicit close() can.
+    gc.disable()
+    try:
+        say(at, "Answer that is cut off.")
+        seen = list(events)
+    finally:
+        gc.enable()
+    assert seen == ["rerun", "closed"]
     assert len(fake_llm.calls) == 2
     assert len(at.error) == 1
     assert "interrupted" in at.error[0].value
