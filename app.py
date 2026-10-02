@@ -192,8 +192,9 @@ st.chat_input(
 )
 
 # Chat turn: guard -> prompts -> LLM. Every path clears "pending" and ends in st.rerun(),
-# which unlocks the input. Only a rerun requested mid-turn (e.g. a sidebar click) stops the
-# run at its next st call with the message still pending, so that run sends it again.
+# which unlocks the input. A rerun requested before the LLM call (e.g. a sidebar click) stops
+# the run with the message still pending, so the next run sends it; one requested during the
+# call takes effect after the outcome is saved.
 message = st.session_state.pending
 if message is not None:
     try:
