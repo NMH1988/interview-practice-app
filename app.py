@@ -94,8 +94,10 @@ def load_sessions() -> pd.DataFrame:
 df = load_sessions()
 
 # Chat state. Each history turn is {"role", "content" (shown in the chat), "sent" (sent to the
-# LLM)}. "pending" holds a submitted message until its reply is in; "notice" is a warning or
-# error to show once, since the run that sets it ends with st.rerun().
+# LLM)}; assistant turns also keep "usage" (an llm.Usage, or None if not reported) and
+# "cut_off" (True if max_tokens stopped the reply). "pending" holds a submitted message until
+# its reply is in; "notice" is a warning or error to show once, since the run that sets it ends
+# with st.rerun().
 st.session_state.setdefault("history", [])
 st.session_state.setdefault("pending", None)
 st.session_state.setdefault("notice", None)
@@ -104,6 +106,7 @@ st.session_state.setdefault("notice", None)
 st.session_state.setdefault("request_times", [])
 
 INTERRUPTED = "The answer was interrupted before it finished."
+CUT_OFF = "The answer was cut off because it reached the token limit."
 
 
 def queue_message() -> None:
@@ -116,6 +119,17 @@ def new_session() -> None:
     st.session_state.history = []
     st.session_state.pending = None
     st.session_state.notice = None
+
+
+def usage_text(usage: llm.Usage) -> str:
+    """Return one reply's token counts as a short line for its usage expander."""
+    completion = f"{usage.completion_tokens:,}"
+    if usage.reasoning_tokens is not None:
+        completion += f" (reasoning {usage.reasoning_tokens:,})"
+    return (
+        f"Prompt {usage.prompt_tokens:,} · Completion {completion} · "
+        f"Total {usage.total_tokens:,} tokens"
+    )
 
 
 def reply_pieces(
@@ -163,7 +177,11 @@ def reply_pieces(
     # Saved before st.write_stream draws the final text, where a requested rerun could stop it.
     # The whole reply is checked before it is stored, so a leaked prompt never stays in the chat
     # or reaches the next request; the streamed text is replaced by the rerun that follows.
-    reply = check_output("".join(received), system_prompt)
+    streamed = "".join(received)
+    reply = check_output(streamed, system_prompt)
+    # Plain attributes, set once the stream ended, so reading them is not a stop point. A reply
+    # replaced by the refusal is complete, whatever happened to the text it replaced.
+    cut_off = stream.finish_reason == "length" and reply == streamed
     # Read before anything changes: a stop at this read leaves the "interrupted" notice in place.
     history = st.session_state.history
     # The last stop point: it checks before it clears, and the extend after it is a plain list
@@ -172,7 +190,13 @@ def reply_pieces(
     history.extend(
         [
             {"role": "user", "content": clean, "sent": user_prompt},
-            {"role": "assistant", "content": reply, "sent": reply},
+            {
+                "role": "assistant",
+                "content": reply,
+                "sent": reply,
+                "usage": stream.usage,
+                "cut_off": cut_off,
+            },
         ]
     )
 
@@ -238,7 +262,14 @@ c3.metric("Average score", f"{filtered['score'].mean():.0f}" if len(filtered) el
 st.line_chart(filtered.set_index("date")["score"])
 
 for turn in st.session_state.history:
-    st.chat_message(turn["role"]).markdown(turn["content"])
+    with st.chat_message(turn["role"]):
+        st.markdown(turn["content"])
+        # User turns have neither key.
+        if turn.get("cut_off"):
+            st.warning(CUT_OFF, icon="✂️")
+        if turn.get("usage") is not None:
+            with st.expander("Token usage"):
+                st.caption(usage_text(turn["usage"]))
 
 notice = st.session_state.notice
 if notice is not None:

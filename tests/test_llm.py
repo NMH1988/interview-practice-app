@@ -1,3 +1,4 @@
+import gc
 import json
 
 import httpx2
@@ -18,24 +19,24 @@ def sleeps(monkeypatch):
     return delays
 
 
-def _reply(text):
+def _reply(text, *, finish_reason="stop", usage=None):
     """Return a minimal OpenAI-style chat completion response with the given text."""
-    return httpx2.Response(
-        200,
-        json={
-            "id": "gen-test",
-            "object": "chat.completion",
-            "created": 0,
-            "model": DEFAULT_MODEL,
-            "choices": [
-                {
-                    "index": 0,
-                    "finish_reason": "stop",
-                    "message": {"role": "assistant", "content": text},
-                }
-            ],
-        },
-    )
+    body = {
+        "id": "gen-test",
+        "object": "chat.completion",
+        "created": 0,
+        "model": DEFAULT_MODEL,
+        "choices": [
+            {
+                "index": 0,
+                "finish_reason": finish_reason,
+                "message": {"role": "assistant", "content": text},
+            }
+        ],
+    }
+    if usage is not None:
+        body["usage"] = usage
+    return httpx2.Response(200, json=body)
 
 
 def _error(status):
@@ -90,6 +91,37 @@ def test_complete_sends_arguments_as_given():
     assert body["temperature"] == 0.3
     assert body["max_tokens"] == 128
     assert "stream" not in body
+    assert "stream_options" not in body
+
+
+def _sent_max_tokens(call, requested):
+    """Make one request asking for `requested` tokens and return the max_tokens actually sent."""
+    fake = FakeOpenRouter(_reply("ok") if call == "complete" else _sse(_chunk("ok")))
+    if call == "complete":
+        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, requested, client=fake.client())
+    else:
+        list(llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, requested, client=fake.client()))
+    (request,) = fake.requests
+    return json.loads(request.content)["max_tokens"]
+
+
+@pytest.mark.parametrize("call", ["complete", "stream"])
+def test_max_tokens_above_the_cap_is_clamped(call):
+    """A request for more tokens than MAX_TOKENS_CAP sends the cap from config.py instead."""
+    assert _sent_max_tokens(call, config.MAX_TOKENS_CAP + 1000) == config.MAX_TOKENS_CAP
+
+
+@pytest.mark.parametrize("call", ["complete", "stream"])
+def test_max_tokens_at_or_below_the_cap_is_sent_unchanged(call):
+    """A request at or under the cap keeps the number it asked for."""
+    assert _sent_max_tokens(call, config.MAX_TOKENS_CAP) == config.MAX_TOKENS_CAP
+    assert _sent_max_tokens(call, 300) == 300
+
+
+def test_cap_is_read_from_config_at_call_time(monkeypatch):
+    """Changing the cap changes what is sent, so the limit really is configurable."""
+    monkeypatch.setattr(llm, "MAX_TOKENS_CAP", 500)
+    assert _sent_max_tokens("stream", 4000) == 500
 
 
 @pytest.mark.parametrize("model", ["openai/gpt-4o", "anthropic/claude-x", "", "OPENAI/GPT-5-MINI"])
@@ -292,7 +324,7 @@ def test_disallowed_model_does_not_need_api_key(no_env_key, monkeypatch):
 # --- stream() -------------------------------------------------------------------------------
 
 
-def _chunk(content=None, *, role=None, choices=True):
+def _chunk(content=None, *, role=None, choices=True, finish_reason=None):
     """Return one OpenAI-style streamed chat chunk carrying `content` (or none)."""
     delta = {}
     if role is not None:
@@ -304,7 +336,9 @@ def _chunk(content=None, *, role=None, choices=True):
         "object": "chat.completion.chunk",
         "created": 0,
         "model": DEFAULT_MODEL,
-        "choices": [{"index": 0, "delta": delta, "finish_reason": None}] if choices else [],
+        "choices": (
+            [{"index": 0, "delta": delta, "finish_reason": finish_reason}] if choices else []
+        ),
     }
 
 
@@ -480,3 +514,179 @@ def test_stream_closed_early_closes_the_response():
     assert not response.is_closed
     pieces.close()
     assert response.is_closed
+
+
+# --- token usage and finish_reason ----------------------------------------------------------
+
+USAGE = {
+    "prompt_tokens": 120,
+    "completion_tokens": 45,
+    "total_tokens": 165,
+    "completion_tokens_details": {"reasoning_tokens": 20},
+}
+
+
+def _llm_records(caplog):
+    """Return only the log records from src.llm (the HTTP library logs its requests at INFO)."""
+    return [record for record in caplog.records if record.name == "src.llm"]
+
+
+def _usage_chunk(usage=USAGE):
+    """Return the last, textless chunk a stream sends when include_usage is on."""
+    return {**_chunk(choices=False), "usage": usage}
+
+
+def test_stream_asks_for_usage():
+    """A streaming request turns on include_usage, or OpenRouter would report no token counts."""
+    fake = FakeOpenRouter(_sse(_chunk("ok")))
+    _stream(fake)
+    (request,) = fake.requests
+    assert json.loads(request.content)["stream_options"] == {"include_usage": True}
+
+
+def test_stream_reads_usage_from_the_last_chunk():
+    """The token counts in the final usage chunk are available once the stream has ended."""
+    fake = FakeOpenRouter(
+        _sse(_chunk("Hi "), _chunk("there.", finish_reason="stop"), _usage_chunk())
+    )
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert stream.usage is None
+    assert list(stream) == ["Hi ", "there."]
+    assert stream.usage == llm.Usage(
+        prompt_tokens=120, completion_tokens=45, total_tokens=165, reasoning_tokens=20
+    )
+    assert stream.finish_reason == "stop"
+
+
+def test_stream_without_usage_does_not_crash():
+    """A stream that reports no usage still gives its text, and usage stays None."""
+    fake = FakeOpenRouter(_sse(_chunk("Hi.")))
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert list(stream) == ["Hi."]
+    assert stream.usage is None
+    assert stream.finish_reason is None
+
+
+@pytest.mark.parametrize(
+    "usage",
+    [
+        None,
+        "lots",
+        {"prompt_tokens": 1, "completion_tokens": 2},
+        # The SDK turns "1" or True into 1 itself, so only values it cannot convert get here.
+        {"prompt_tokens": "many", "completion_tokens": 2, "total_tokens": 3},
+        {"prompt_tokens": 2.5, "completion_tokens": 2, "total_tokens": 3},
+        {"prompt_tokens": -1, "completion_tokens": 2, "total_tokens": 3},
+    ],
+    ids=["null", "string", "missing-total", "word-count", "fraction", "negative"],
+)
+def test_malformed_usage_is_ignored(usage):
+    """Usage that is missing a count or holds a wrong type is treated as not reported."""
+    fake = FakeOpenRouter(_sse(_chunk("Hi."), _usage_chunk(usage)))
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert list(stream) == ["Hi."]
+    assert stream.usage is None
+
+
+def test_usage_without_reasoning_details_has_no_reasoning_count():
+    """Usage without completion_tokens_details gives the counts, with reasoning_tokens None."""
+    usage = {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    fake = FakeOpenRouter(_sse(_chunk("Hi."), _usage_chunk(usage)))
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    list(stream)
+    assert stream.usage == llm.Usage(10, 5, 15, None)
+
+
+def test_usage_log_leaves_out_an_unreported_reasoning_count(caplog):
+    """Without a reasoning count the log line just gives the three totals."""
+    usage = {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
+    fake = FakeOpenRouter(_sse(_chunk("Hi."), _usage_chunk(usage)))
+    with caplog.at_level("INFO", logger="src.llm"):
+        _stream(fake)
+    (record,) = _llm_records(caplog)
+    assert record.getMessage() == (
+        f"Token usage ({DEFAULT_MODEL}): prompt 10, completion 5, total 15"
+    )
+
+
+def test_stream_logs_usage_without_the_text(caplog):
+    """The token counts are logged once at INFO, and neither the messages nor the reply are."""
+    fake = FakeOpenRouter(_sse(_chunk("Secret reply."), _usage_chunk()))
+    with caplog.at_level("INFO", logger="src.llm"):
+        _stream(fake)
+    (record,) = _llm_records(caplog)
+    assert record.levelname == "INFO"
+    message = record.getMessage()
+    assert "prompt 120" in message
+    assert "completion 45 (reasoning 20)" in message
+    assert "total 165" in message
+    assert "Secret reply" not in message
+    assert MESSAGES[0]["content"] not in message
+
+
+def test_complete_logs_usage(caplog):
+    """complete() logs the token counts from its response too."""
+    fake = FakeOpenRouter(_reply("ok", usage=USAGE))
+    with caplog.at_level("INFO", logger="src.llm"):
+        assert llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client()) == "ok"
+    (record,) = _llm_records(caplog)
+    assert "total 165" in record.getMessage()
+
+
+def test_complete_without_usage_logs_nothing(caplog):
+    """A response without usage does not crash and logs no usage line."""
+    fake = FakeOpenRouter(_reply("ok"))
+    with caplog.at_level("INFO", logger="src.llm"):
+        assert llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client()) == "ok"
+    assert _llm_records(caplog) == []
+
+
+def test_stream_cut_off_by_the_token_limit_keeps_its_text():
+    """A reply stopped by max_tokens still yields its text, with finish_reason "length"."""
+    fake = FakeOpenRouter(_sse(_chunk("Half an "), _chunk("answer", finish_reason="length")))
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert list(stream) == ["Half an ", "answer"]
+    assert stream.finish_reason == "length"
+
+
+def test_stream_cut_off_before_any_text_says_so():
+    """No text plus finish_reason "length" (all tokens spent thinking) gets its own message."""
+    fake = FakeOpenRouter(_sse(_chunk(role="assistant"), _chunk(finish_reason="length")))
+    with pytest.raises(llm.LLMError, match="used up its token limit"):
+        _stream(fake)
+
+
+def test_complete_logs_a_reply_cut_off_with_text(caplog):
+    """complete() returns a cut-off reply's text but logs a warning that it was cut off."""
+    fake = FakeOpenRouter(_reply("Half an answer", finish_reason="length"))
+    with caplog.at_level("INFO", logger="src.llm"):
+        text = llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert text == "Half an answer"
+    (record,) = _llm_records(caplog)
+    assert record.levelname == "WARNING"
+    assert "cut off" in record.getMessage()
+    assert "Half an answer" not in record.getMessage()
+
+
+def test_complete_cut_off_before_any_text_says_so():
+    """complete() gives the same token-limit message for an empty reply stopped by max_tokens."""
+    fake = FakeOpenRouter(_reply(None, finish_reason="length"))
+    with pytest.raises(llm.LLMError, match="used up its token limit"):
+        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+
+
+def test_closed_stream_has_no_reference_cycle():
+    """Dropping an unfinished stream closes its response at once, without waiting for the GC."""
+    body = iter([_sse_bytes(_chunk("One ")), _sse_bytes(_chunk("two."), "[DONE]")])
+    response = httpx2.Response(200, content=body, headers={"content-type": "text/event-stream"})
+    fake = FakeOpenRouter(response)
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    assert next(stream) == "One "
+    gc_was_on = gc.isenabled()
+    gc.disable()
+    try:
+        del stream
+        assert response.is_closed
+    finally:
+        if gc_was_on:
+            gc.enable()

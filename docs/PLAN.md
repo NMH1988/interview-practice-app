@@ -100,13 +100,13 @@ Goal: reliable LLM calls behind one small interface.
 
 ### T2.3 Cost & usage guardrails (S)
 **Acceptance criteria**
-- [ ] `max_tokens` capped per request (configurable).
-- [ ] Token usage from the response is shown in an expander (or logged).
+- [x] `max_tokens` capped per request (configurable).
+- [x] Token usage from the response is shown in an expander (or logged).
 
 **Tests**
-- [ ] Unit: a requested `max_tokens` above the cap is clamped to the value in `config.py`.
-- [ ] Unit: token usage is read from the response; a response without usage does not crash.
-- [ ] UI flow: after a reply, the usage expander shows the token counts.
+- [x] Unit: a requested `max_tokens` above the cap is clamped to the value in `config.py`.
+- [x] Unit: token usage is read from the response; a response without usage does not crash.
+- [x] UI flow: after a reply, the usage expander shows the token counts.
 
 ## Epic 3 — Prompt Engineering (≥ 5 strategies)
 Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evidence.
