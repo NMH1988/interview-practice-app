@@ -111,5 +111,7 @@ def test_injection_attempt_shows_neutral_refusal_and_skips_llm(fake_llm, caplog)
     assert at.warning[0].value == guard.INJECTION_REFUSAL
     assert fake_llm.calls == []
     assert len(at.chat_message) == 0
-    assert caplog.messages == [f"Blocked message: patterns=role_override length={len(ATTACKS[0])}"]
+    # Only the guard's records: Streamlit may log its own warnings while AppTest runs.
+    guard_logs = [r.getMessage() for r in caplog.records if r.name == "src.guard"]
+    assert guard_logs == [f"Blocked message: patterns=role_override length={len(ATTACKS[0])}"]
     assert FAKE_KEY not in caplog.text

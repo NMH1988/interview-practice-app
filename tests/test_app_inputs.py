@@ -116,7 +116,8 @@ def test_role_with_an_injection_is_refused_and_locks_chat_input(fake_llm, caplog
         at.sidebar.text_input(key="role").set_value(ROLE_ATTACK).run(timeout=30)
         at.run(timeout=30)
     # The sidebar check runs on every rerun, so it does not log; nothing was sent.
-    assert caplog.records == []
+    # Only the guard's records: Streamlit may log its own warnings while AppTest runs.
+    assert [r for r in caplog.records if r.name == "src.guard"] == []
     assert not at.exception
     assert at.session_state.role == ROLE_ATTACK
     assert len(at.sidebar.warning) == 1
