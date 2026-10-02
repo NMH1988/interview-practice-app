@@ -18,6 +18,12 @@ DEFAULT_MAX_TOKENS = 4000
 # Longest user message (after cleaning) the guard lets through to the LLM.
 MAX_INPUT_CHARS = 2000
 
+# The role goes into the system prompt, so it is free text but kept short (see T3.1 follow-ups).
+DEFAULT_ROLE = "Software Engineer"
+MAX_ROLE_CHARS = 60
+# Must be one of prompts.SENIORITY_LEVELS (a test checks this).
+DEFAULT_SENIORITY = "Mid-level"
+
 API_KEY_NAME = "OPENROUTER_API_KEY"
 
 

@@ -5,6 +5,7 @@ from streamlit import config as st_config
 from streamlit.runtime.secrets import Secrets
 
 from src import config
+from src.prompts import SENIORITY_LEVELS
 
 
 def test_allowed_models():
@@ -21,6 +22,22 @@ def test_default_model_is_allowed():
 def test_default_temperature_in_range():
     """Default temperature lies within the allowed temperature range."""
     assert config.MIN_TEMPERATURE <= config.DEFAULT_TEMPERATURE <= config.MAX_TEMPERATURE
+
+
+def test_default_role_limit_is_60():
+    """The role limit agreed for T5.1 lives in config.py."""
+    assert config.MAX_ROLE_CHARS == 60
+
+
+def test_default_role_fits_the_role_limit():
+    """The default role is not blank and passes the role length limit."""
+    assert config.DEFAULT_ROLE.strip()
+    assert len(config.DEFAULT_ROLE) <= config.MAX_ROLE_CHARS
+
+
+def test_default_seniority_is_a_known_level():
+    """The default seniority is one of the levels the user prompt accepts."""
+    assert config.DEFAULT_SENIORITY in SENIORITY_LEVELS
 
 
 class _NoSecretsFile:
