@@ -19,7 +19,7 @@ from src.config import (
     SecretsFileError,
     get_api_key,
 )
-from src.guard import GuardError, validate_input, validate_role
+from src.guard import GuardError, check_output, validate_input, validate_role
 from src.prompts import (
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
@@ -209,11 +209,8 @@ if message is not None:
         else:
             st.chat_message("user").markdown(clean)
             user_prompt = build_user_prompt(clean_role, interview_type, seniority, clean)
-            messages = build_messages(
-                STRATEGIES[strategy](clean_role, interview_type),
-                st.session_state.history,
-                user_prompt,
-            )
+            system_prompt = STRATEGIES[strategy](clean_role, interview_type)
+            messages = build_messages(system_prompt, st.session_state.history, user_prompt)
             with st.spinner("Thinking..."):
                 # No st call in this try, so its outcome is saved before the spinner's exit
                 # (an st call where a requested rerun would stop the run).
@@ -224,6 +221,9 @@ if message is not None:
                     # body. The turn stays out of the history, so it alternates user/assistant.
                     st.session_state.notice = {"kind": "error", "text": str(exc), "unsent": clean}
                 else:
+                    # Checked before it is shown or stored, so a leaked prompt never reaches
+                    # the chat or the next request.
+                    reply = check_output(reply, system_prompt)
                     st.session_state.history.extend(
                         [
                             {"role": "user", "content": clean, "sent": user_prompt},
