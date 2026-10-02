@@ -51,6 +51,9 @@ def validate_input(text: str | None, max_chars: int = MAX_INPUT_CHARS) -> str:
 
 
 def validate_role(role: str | None, max_chars: int = MAX_ROLE_CHARS) -> str:
-    """Return the cleaned, trimmed role, or raise `InvalidInputError` if it is blank or too long."""
-    blank = "Please enter the role you are practising for in the sidebar."
-    return _validated(role, max_chars, blank, "The role")
+    """Return the cleaned role on one line, or raise `InvalidInputError` if blank or too long."""
+    # Fold line breaks and tabs first, so the limit measures the text that goes into the prompt.
+    one_line = " ".join(clean_input(role or "").split())
+    return _validated(
+        one_line, max_chars, "Please enter the role you are practising for.", "The role"
+    )
