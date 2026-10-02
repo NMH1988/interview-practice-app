@@ -4,7 +4,12 @@ from pathlib import Path
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
-SOURCES = [ROOT / "app.py", *(ROOT / "src").rglob("*.py"), *(ROOT / "tests").rglob("*.py")]
+SOURCES = [
+    ROOT / "app.py",
+    *(ROOT / "src").rglob("*.py"),
+    *(ROOT / "scripts").rglob("*.py"),
+    *(ROOT / "tests").rglob("*.py"),
+]
 
 
 def missing_docstrings(paths: list[Path], root: Path) -> list[str]:
@@ -83,9 +88,9 @@ def test_missing_docstrings_names_file_on_syntax_error(tmp_path):
 
 
 def test_every_function_and_class_has_a_docstring():
-    """Every function, method and class in app.py, src/ and tests/ has a one-line docstring."""
+    """Every function, method and class in app.py, src/, scripts/ and tests/ has a docstring."""
     # rglob on a missing folder yields nothing, so a renamed folder would silently go unchecked.
-    for folder in ("src", "tests"):
+    for folder in ("src", "scripts", "tests"):
         assert (ROOT / folder).is_dir(), f"{folder}/ not found; update SOURCES in this test"
     missing = missing_docstrings(SOURCES, ROOT)
     assert not missing, "Add a one-line docstring to: " + ", ".join(missing)

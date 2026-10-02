@@ -1,0 +1,10 @@
+[
+  {
+    "id": "TODO-short-id",
+    "role": "TODO the role, e.g. as typed in the sidebar",
+    "interview_type": "TODO one of: Behavioural, Technical, Questions to ask the interviewer, Job-description analysis",
+    "seniority": "TODO one of: Junior, Mid-level, Senior, Lead",
+    "question": "TODO optional: the question the coach asked before this message; delete this line if there is none",
+    "text": "TODO the candidate's message, exactly as they would type it in the chat"
+  }
+]
