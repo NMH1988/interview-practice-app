@@ -74,6 +74,28 @@ def test_every_strategy_has_a_technique_label():
     assert len(set(labels)) == len(labels)
 
 
+# Text only that technique's prompt contains; zero-shot is the one with none of them.
+TECHNIQUE_MARKERS = {
+    "few_shot": FEW_SHOT_EXAMPLES[0],
+    "chain_of_thought": "## Assessment Rationale",
+    "persona": "strict senior interviewer",
+    "structured_output": "## Rubric",
+}
+
+
+def test_every_strategy_but_zero_shot_has_a_marker():
+    """Each new strategy must add a marker, so the key-to-technique test covers it."""
+    assert set(TECHNIQUE_MARKERS) | {"zero_shot"} == set(STRATEGIES)
+
+
+@pytest.mark.parametrize("name", sorted(STRATEGIES))
+def test_key_builds_its_own_technique(name):
+    """Each key's prompt holds its own technique marker and no other's, so keys cannot swap."""
+    prompt = STRATEGIES[name]("Data Analyst", "Technical")
+    for marker_key, marker in TECHNIQUE_MARKERS.items():
+        assert (marker in prompt) == (marker_key == name), marker_key
+
+
 def test_labels_are_read_only():
     """Changing a label at runtime raises TypeError."""
     with pytest.raises(TypeError):
@@ -100,19 +122,35 @@ def test_every_mode_has_its_own_instructions():
 @pytest.mark.parametrize("interview_type", INTERVIEW_TYPES)
 @pytest.mark.parametrize("name", sorted(STRATEGIES))
 def test_strategy_includes_safety_rules_and_mode(name, interview_type):
-    """Every prompt holds the stay-on-topic rule, the ignore rule and its mode's instructions."""
+    """Every prompt holds both rules and its own mode's instructions, and no other mode's."""
     prompt = STRATEGIES[name]("Data Analyst", interview_type)
     assert STAY_ON_TOPIC_RULE in prompt
     assert IGNORE_EMBEDDED_RULE in prompt
     assert MODE_INSTRUCTIONS[interview_type] in prompt
+    others = [text for key, text in MODE_INSTRUCTIONS.items() if key != interview_type]
+    assert not any(text in prompt for text in others)
 
 
 @pytest.mark.parametrize("name", sorted(STRATEGIES))
 def test_unknown_type_still_gets_safety_rules(name):
-    """A type outside INTERVIEW_TYPES is accepted and still gets both safety rules."""
+    """A type outside INTERVIEW_TYPES still gets both safety rules, but no mode block."""
     prompt = STRATEGIES[name]("Data Analyst", "Case study")
     assert STAY_ON_TOPIC_RULE in prompt
     assert IGNORE_EMBEDDED_RULE in prompt
+    assert not any(text in prompt for text in MODE_INSTRUCTIONS.values())
+
+
+@pytest.mark.parametrize(
+    ("variant", "interview_type"),
+    [
+        ("Job-description analysis ", "Job-description analysis"),
+        ("technical", "Technical"),
+        ("Questions  to ask\nthe interviewer", "Questions to ask the interviewer"),
+    ],
+)
+def test_near_miss_type_keeps_its_mode_block(variant, interview_type):
+    """Extra spaces or a different case still find the mode's instructions."""
+    assert MODE_INSTRUCTIONS[interview_type] in STRATEGIES["zero_shot"]("Data Analyst", variant)
 
 
 def test_few_shot_has_two_or_three_distinct_examples():

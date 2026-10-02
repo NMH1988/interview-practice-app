@@ -341,10 +341,20 @@ def _session_context(role: str, interview_type: str) -> str:
     )
 
 
+def _mode_instructions(interview_type: str) -> str | None:
+    """Return the instructions for `interview_type`, ignoring case and extra spaces, or None."""
+    # A near-miss such as "Job-description analysis " must not silently lose its mode block.
+    wanted = " ".join(interview_type.split()).casefold()
+    for name, text in MODE_INSTRUCTIONS.items():
+        if name.casefold() == wanted:
+            return text
+    return None
+
+
 def _shared_rules(interview_type: str) -> str:
     """Return the mode's instructions plus the two safety rules every strategy must include."""
     # An unknown type gets no mode line: strategies accept any type string (see T3.1).
-    parts = [MODE_INSTRUCTIONS.get(interview_type), STAY_ON_TOPIC_RULE, IGNORE_EMBEDDED_RULE]
+    parts = [_mode_instructions(interview_type), STAY_ON_TOPIC_RULE, IGNORE_EMBEDDED_RULE]
     return "\n\n".join(part for part in parts if part)
 
 
