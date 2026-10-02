@@ -5,7 +5,12 @@ import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from src import guard, llm, rate_limit
-from src.config import API_KEY_NAME, MAX_INPUT_CHARS, RATE_LIMIT_PER_MINUTE
+from src.config import (
+    API_KEY_NAME,
+    MAX_INPUT_CHARS,
+    RATE_LIMIT_PER_MINUTE,
+    RATE_LIMIT_PER_SESSION,
+)
 from tests.injection_samples import ATTACKS
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
@@ -107,6 +112,9 @@ def test_guard_block_rate_limit_llm_error_and_interruption_each_look_different(
     at = start()
     say(at, "My answer.")
     styles["interrupted"] = notice_style(at)
+    # The interrupted request went out, so the copy box must not claim it was not sent.
+    assert at.caption[0].value == NO_ANSWER
+    assert at.code[0].value == "My answer."
 
     assert styles == {
         "guard": ("warning", "✋", "Message not sent"),
@@ -209,3 +217,62 @@ def test_notice_of_an_unknown_kind_is_shown_as_an_error_not_a_crash(fake_llm):
     assert notice_style(at) == ("error", "⚠️", "AI service problem")
     assert at.error[0].value == "Saved by an older version."
     assert at.session_state.notice is None
+
+
+def below_chat(at: AppTest) -> list:
+    """Return the main-area nodes drawn after the dashboard chart and the chat messages."""
+    nodes = list(at.main.children.values())
+    anchors = ("vega_lite_chart", "chat_message")
+    last = max(i for i, node in enumerate(nodes) if getattr(node, "type", "") in anchors)
+    return nodes[last + 1 :]
+
+
+def kinds(node) -> list[str]:
+    """Return the element types directly inside a block, in order."""
+    return [type(child).__name__ for child in node.children.values()]
+
+
+STARTERS = ["Caption", "Button", "Button", "Button"]
+
+
+def test_notice_and_starters_share_one_container(fake_llm):
+    """A notice, its copy box and the starters are one block, so a send run replaces all of it."""
+    at = start()
+    say(at, "a" * (MAX_INPUT_CHARS + 1))
+    below = below_chat(at)
+    assert len(below) == 1
+    assert kinds(below[0]) == ["Warning", "Caption", "Code", *STARTERS]
+
+
+def test_notice_after_earlier_turns_is_one_container(monkeypatch, fake_llm):
+    """A failed later turn's error and copy box form one block below the chat."""
+    at = start()
+    say(at, "First answer.")
+    monkeypatch.setattr(llm, "stream", raising_stream(LLM_ERRORS[0], []))
+    say(at, "Second answer.")
+    below = below_chat(at)
+    assert len(below) == 1
+    assert kinds(below[0]) == ["Error", "Caption", "Code"]
+
+
+def test_session_cap_info_shares_the_starters_container(fake_llm):
+    """The cap notice sits in the same block as the (locked) starters."""
+    at = start([0.0] * RATE_LIMIT_PER_SESSION)
+    below = below_chat(at)
+    assert len(below) == 1
+    assert kinds(below[0]) == ["Info", *STARTERS]
+
+
+def test_empty_chat_starters_are_one_container(fake_llm):
+    """With nothing else to show, the starters alone still form one block."""
+    at = start()
+    below = below_chat(at)
+    assert len(below) == 1
+    assert kinds(below[0]) == STARTERS
+
+
+def test_nothing_is_drawn_below_a_finished_turn(fake_llm):
+    """After a reply with no notice, no empty container is left between the chat and the input."""
+    at = start()
+    say(at, "My answer.")
+    assert below_chat(at) == []
