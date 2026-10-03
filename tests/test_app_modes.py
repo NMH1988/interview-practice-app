@@ -82,10 +82,13 @@ def test_jd_longer_than_a_message_is_sent_in_jd_mode(fake_llm):
 
 def test_jd_over_the_jd_limit_is_blocked(fake_llm):
     """In JD mode, one character over MAX_JD_CHARS is refused as too long and not sent."""
-    at = send(pick_mode(start(), JD_ANALYSIS), jd_of(MAX_JD_CHARS + 1))
+    jd = jd_of(MAX_JD_CHARS + 1)
+    at = send(pick_mode(start(), JD_ANALYSIS), jd)
     assert fake_llm.calls == []
     assert "too long" in at.warning[0].value
     assert f"{MAX_JD_CHARS:,}" in at.warning[0].value
+    # The refused JD is kept in T5.4's copy box, so it need not be pasted again after trimming.
+    assert [code.value for code in at.code] == [jd]
 
 
 @pytest.mark.parametrize("interview_type", [t for t in INTERVIEW_TYPES if t != JD_ANALYSIS])

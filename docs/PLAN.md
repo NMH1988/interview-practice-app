@@ -224,7 +224,7 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 
 ### T5.3 Interview modes (M)
 **Acceptance criteria**
-- [x] Modes: Behavioural Q&A, Technical questions, Questions to ask the interviewer, Job-description analysis (paste JD → prep strategy).
+- [x] Modes: Behavioural Q&A, Technical questions, Questions to ask the interviewer, Job-description analysis (paste JD → prep strategy). The modes exist; the JD mode does not yet ask for a prep strategy or study plan, which is T5.8 (#70).
 - [x] Each mode changes the system/user prompt and the placeholder text.
 
 **Tests**

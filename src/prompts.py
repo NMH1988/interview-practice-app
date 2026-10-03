@@ -120,7 +120,7 @@ EXAMPLE_PROMPTS: Mapping[str, tuple[ExamplePrompt, ...]] = MappingProxyType(
 
 def example_prompts(interview_type: str, role: str, seniority: str) -> tuple[ExamplePrompt, ...]:
     """Return the empty chat's starters for a mode; the job-description one names the role."""
-    if interview_type == "Job-description analysis":
+    if interview_type == JD_ANALYSIS:
         return (sample_job_description(role, seniority),)
     return EXAMPLE_PROMPTS.get(interview_type, ())
 
@@ -134,7 +134,7 @@ EXAMPLE_CAPTIONS: Mapping[str, str] = MappingProxyType(
             "Practise the questions you'll ask your interviewer at the end of a real interview. "
             "Type one and the coach will rate it, or try one of these:"
         ),
-        "Job-description analysis": "Paste a job description into the box below, or try a sample:",
+        JD_ANALYSIS: "Paste a job description into the box below, or try a sample:",
     }
 )
 
