@@ -10,11 +10,12 @@ Run the five phases **in order** for every coding task. Do not write or edit cod
 Trivial edits (typo, comment, formatting, a one-line config change) may collapse Q-R-S-P into a single sentence, but must still state the plan before editing.
 
 ## 1. Question
-First read `docs/PROGRESS.md` and run `gh pr list --state open`, so earlier decisions, open work and follow-ups shape the questions. If `gh` is not installed or not logged in, say so and go on with only the log. Then break the task into clarifying questions.
+First read `docs/BRIEF.md` (the project brief), then `docs/PROGRESS.md`, and run `gh pr list --state open`, so the brief, earlier decisions, open work and follow-ups shape the questions. If `gh` is not installed or not logged in, say so and go on with only the log. Then break the task into clarifying questions.
 - List every unknown that affects the solution: scope, inputs/outputs, edge cases, acceptance criteria, constraints, affected files.
 - If the task comes from a GitHub issue, read it (`gh issue view <n>`) and turn each acceptance criterion into at least one question.
+- Name the brief's requirement, starter idea or optional task the ticket serves, or write "beyond the brief (owner's request)" for work it does not cover (read the full brief when the exact wording matters; ask the user for it if it is not at hand). If the ticket, `docs/PLAN.md` or the prompts (e.g. `MODE_INSTRUCTIONS`) **contradict** the brief, or a choice changes **what the product does** (who speaks in a mode, what a mode produces, which users it serves), list it as a **needs the user** question instead of inferring an answer. Implementation details the brief does not mention follow the normal default rule below.
 - Mark each question as **answerable from the code/docs** or **needs the user**.
-- Ask the user the "needs the user" questions and wait for answers before moving on, unless a sensible default exists; if so, state the default explicitly.
+- Ask the user the "needs the user" questions and wait for answers before moving on, unless a sensible default exists; if so, state the default explicitly. A brief contradiction or a choice that changes what the product does (the brief bullet above) is never settled by a default: always ask. When the user requested the change, still flag it if it contradicts the brief or goes beyond it ("beyond the brief (owner's request)"); a requested change in line with the brief needs no second question.
 
 ## 2. Research
 Answer each question **using only facts from the codebase or provided documents** (files, `docs/PLAN.md`, `docs/PROGRESS.md`, issues, README, the user's messages).

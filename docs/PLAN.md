@@ -22,7 +22,7 @@ src/
   prompts.py            # 5+ system prompt strategies + user prompt builder + example prompts
   llm.py                # OpenRouter client wrapper (retries, errors, streaming)
 tests/                  # all LLM calls mocked
-docs/PLAN.md  docs/PROMPT_EVALUATION.md
+docs/BRIEF.md  docs/PLAN.md  docs/PROMPT_EVALUATION.md
 ```
 
 **Product decision (default, change if you prefer):** *Mock interview coach* — the user picks a role + interview type (behavioural, technical, questions-to-ask, job-description analysis), the app asks a question, the user answers, and the app gives feedback.
@@ -325,6 +325,11 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function, an empty docstring and a multi-line docstring in a temporary file, and nothing for documented ones.
 - [ ] Unit: a UTF-8 BOM file is still checked, and a file that does not parse raises a SyntaxError naming it.
 - [ ] Unit: the repo-wide check fails if `src/` or `tests/` is missing, so a renamed folder cannot go unchecked.
+
+### T6.11 Read the project brief before every ticket (S)
+**Acceptance criteria**
+- [x] `docs/BRIEF.md` summarises the course brief in our own words (the repo is public): mandatory requirements, the "don't put it in a box" freedom, the five starter ideas, the optional tasks with the brief's numbering, the evaluation criteria and the bonus rule.
+- [x] `CLAUDE.md` and the `qrspi` skill's Question phase say to read it before every ticket (and the full brief when the exact wording matters), name the brief item the ticket serves (or label it "beyond the brief (owner's request)"), and ask (not infer) when our docs or prompts contradict the brief or a choice changes what the product does. A contradiction with the brief or work beyond it is always flagged, even when the owner asks for it.
 
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
