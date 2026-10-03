@@ -19,9 +19,16 @@ def test_default_model_is_allowed():
     assert config.DEFAULT_MODEL in config.ALLOWED_MODELS
 
 
-def test_default_temperature_in_range():
-    """Default temperature lies within the allowed temperature range."""
-    assert config.MIN_TEMPERATURE <= config.DEFAULT_TEMPERATURE <= config.MAX_TEMPERATURE
+def test_reasoning_efforts_and_default():
+    """The four effort levels every gpt-5 model accepts, with OpenAI's default "medium"."""
+    assert config.REASONING_EFFORTS == ("minimal", "low", "medium", "high")
+    assert config.DEFAULT_REASONING_EFFORT == "medium"
+    assert config.DEFAULT_REASONING_EFFORT in config.REASONING_EFFORTS
+
+
+def test_temperature_settings_are_gone():
+    """gpt-5 models ignore temperature, so config.py no longer offers one (T2.4)."""
+    assert not [name for name in dir(config) if "TEMPERATURE" in name]
 
 
 def test_default_role_limit_is_60():

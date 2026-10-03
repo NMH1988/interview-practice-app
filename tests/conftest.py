@@ -26,22 +26,22 @@ class FakeLLM:
         """Start with no recorded calls."""
         self.calls: list[dict] = []
 
-    def __call__(self, messages, model, temperature, max_tokens, **kwargs):
+    def __call__(self, messages, model, reasoning_effort, max_tokens, **kwargs):
         """Record the call's arguments and return the fixed reply."""
         self.calls.append(
             {
                 "messages": messages,
                 "model": model,
-                "temperature": temperature,
+                "reasoning_effort": reasoning_effort,
                 "max_tokens": max_tokens,
                 **kwargs,
             }
         )
         return self.reply
 
-    def stream(self, messages, model, temperature, max_tokens, **kwargs):
+    def stream(self, messages, model, reasoning_effort, max_tokens, **kwargs):
         """Record the call like `__call__` and return the fixed reply in word-sized pieces."""
-        reply = self(messages, model, temperature, max_tokens, **kwargs)
+        reply = self(messages, model, reasoning_effort, max_tokens, **kwargs)
         end = llm._StreamEnd()
         return llm.ReplyStream(self._pieces(reply, end), end)
 
