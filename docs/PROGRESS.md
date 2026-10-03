@@ -24,7 +24,13 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - `FakeLLM` records `reasoning_effort`. Tests in `tests/test_llm.py`, `tests/test_config.py` and `tests/test_app_inputs.py`.
   - Docs: `PLAN.md` gets the T2.4 entry and notes on T2.1, T3.3 and T5.1; `BRIEF.md` and the code-reviewer agent no longer mention a temperature range.
 - **Why:** OpenRouter's model list (`/api/v1/models`) gives no `temperature` in `supported_parameters` for any of the three allowed gpt-5 models, and `default_parameters.temperature` is `null`, so the slider did nothing. That undercut the brief's "understand how LLM settings change the output" and would have made T3.3's temperature comparison compare identical settings. The brief's Easy #8 names reasoning effort, and the owner chose it. The owner chose the four levels from the ticket and `medium` as the default: it is OpenAI's own default for gpt-5, so the default answers, speed and cost stay as they were.
-- **Live check (owner, real key):** _pending._ Besides `temperature`, it should show whether asking for `reasoning` changes anything visible, e.g. a delay before the first text (code review round 1).
+- **Live check (owner, real key, 2026-10-03):** four non-streaming calls to `openai/gpt-5-mini` with the same one-line prompt and `max_tokens=1000`:
+  - `temperature=1.5` alone: **200 OK** (completion 236, reasoning 192 tokens). Not rejected.
+  - The same with `provider.require_parameters=true`: **404** "No endpoints found that can handle the requested parameters". No provider supports `temperature`, so OpenRouter **silently drops it**: the old slider really had no effect.
+  - `reasoning={"effort": "minimal"}`: 200, completion 49, **reasoning 0**, about $0.0001.
+  - `reasoning={"effort": "high"}`: 200, completion 353, **reasoning 256**, about $0.0007.
+  - Without an effort the call used 192 reasoning tokens, between the two, consistent with the `medium` default. So the effort setting does change how the model works, and costs up to about 7× more at `high` here.
+  - Not measured: whether asking for `reasoning` delays the first streamed text (the check did not stream; code review round 1's question). Nothing in the app's handling depends on it.
 - **Decisions & gotchas:**
   - `reasoning={"effort": ...}` is the shape OpenRouter's reasoning docs give. The SDK (openai 3.22) has a typed `reasoning_effort` argument but no `reasoning`, so it goes in `extra_body`: one named argument, still no `**kwargs`. OpenRouter also lists `reasoning_effort`; if `reasoning` ever stops working, swapping to it is a one-line change in `_send`.
   - `none` and `xhigh` exist in OpenRouter's docs and the SDK's types, but are for newer models than gpt-5, so they are refused.
