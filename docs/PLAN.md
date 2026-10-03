@@ -115,7 +115,7 @@ OpenRouter lists no `temperature` support for the three allowed gpt-5 models, so
 - [x] A "Reasoning effort" select (`minimal` / `low` / `medium` / `high`, default `medium` from `config.py`) replaces the slider and is sent as `reasoning={"effort": ...}`.
 - [x] `temperature` is no longer sent; `config.py` drops its temperature settings.
 - [x] A help text explains the trade-off: thinking time and tokens versus answer depth.
-- [x] T3.3 (#10) compares reasoning effort instead of temperature.
+- [x] T3.3 (#10) compares reasoning effort instead of temperature (PLAN T3.3 entry and a comment on #10; the script switches when its branch merges).
 
 **Tests**
 - [x] Unit: `stream()` / `complete()` send the chosen effort and no `temperature`; an effort outside the list raises before any request.
