@@ -329,7 +329,7 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 ### T6.11 Read the project brief before every ticket (S)
 **Acceptance criteria**
 - [x] `docs/BRIEF.md` summarises the course brief in our own words (the repo is public): mandatory requirements, the "don't put it in a box" freedom, the five starter ideas, the optional tasks with the brief's numbering, the evaluation criteria and the bonus rule.
-- [x] `CLAUDE.md` and the `qrspi` skill's Question phase say to read it before every ticket (and the full brief when the exact wording matters), name the brief item the ticket serves, and ask (not infer) when our docs or prompts contradict the brief or a choice changes what the product does.
+- [x] `CLAUDE.md` and the `qrspi` skill's Question phase say to read it before every ticket (and the full brief when the exact wording matters), name the brief item the ticket serves (or label it "beyond the brief (owner's request)"), and ask (not infer) when our docs or prompts contradict the brief or a choice changes what the product does. A contradiction with the brief or work beyond it is always flagged, even when the owner asks for it.
 
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.

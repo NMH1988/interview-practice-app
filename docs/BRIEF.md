@@ -6,7 +6,7 @@
 
 Build a **single-page interview-preparation web app** in Streamlit (or Next.js). It calls the OpenRouter API with a system prompt and a user prompt that **we write** to carry the interview-prep instructions (in this repo: `prompts.STRATEGIES` and `build_user_prompt`). It also has security guards. The app should bring together the whole sprint: calling OpenRouter, prompt techniques, LLM settings and security guards. Estimated time: about 5 hours.
 
-Diagram (from the image the owner shared; the brief's text only gives its caption): Streamlit UI → security guard → system prompt + user prompt → OpenRouter API → LLM (model settings such as temperature) → generated interview answer back to the UI. Note: the three allowed gpt-5 models do not accept `temperature` (OpenRouter's model list), so the app replaces it with reasoning effort (*planned:* T2.4, #68).
+Diagram (from the image the owner shared; the brief's text only gives its caption): Streamlit UI → security guard → system prompt + user prompt → OpenRouter API → LLM (model settings such as temperature) → generated interview answer back to the UI. Note: OpenRouter's model list shows no `temperature` support for the three allowed gpt-5 models, so the setting is most likely ignored (to be confirmed in T2.4, #68), and the app will offer reasoning effort instead (*planned:* T2.4, #68).
 
 ### Freedom, and what we chose with it
 
@@ -39,14 +39,14 @@ Do these **only after the core app works**. Anyone with software experience is i
 1. Have ChatGPT review the app: how easy it is to use, how safe it is, and how good the prompts are.
 2. Improve prompts for your own domain (IT, finance, HR, communication, ...).
 3. More security constraints: input validation and system-prompt validation (possibly checked by an LLM). (*partly done:* input validation T4.1, injection checks T4.2, rate limiting T4.3, prompt-leak check T4.4; no LLM-based check yet)
-4. Difficulty levels for the questions (easy, medium, hard). Not started: two strategies scale depth and difficulty to the chosen seniority (T3.2), but there is no difficulty setting.
+4. Difficulty levels for the questions (easy, medium, hard). Two strategies scale depth and difficulty to the chosen seniority (T3.2), but that is not a difficulty setting, so this is untagged.
 5. Concise vs. detailed answers through prompting.
 6. Have the model draft interviewer guidelines: a structured scoring guide for technical and behavioural interviews.
 7. Mock interview with AI personas (strict, neutral, friendly). (*partly done:* the `persona` strategy is a strict senior interviewer, T3.2; no neutral or friendly persona)
 8. Pick a model setting (temperature, max tokens, reasoning effort, ...), try a few values and note how the answers change. (*planned:* reasoning effort, T2.4 #68, compared in T3.3 #10)
 
 **Medium**
-1. Let the user set every model setting (model, temperature, max tokens, ...) through sliders or fields. (*partly done:* model since T5.1; the temperature slider has no effect on gpt-5 and is replaced by reasoning effort, *planned:* T2.4 #68; max tokens *planned:* #64)
+1. Let the user set every model setting (model, temperature, max tokens, ...) through sliders or fields. (*partly done:* model since T5.1; the temperature slider most likely has no effect on gpt-5 (to be confirmed) and is to be replaced by reasoning effort, *planned:* T2.4 #68; max tokens *planned:* #64)
 2. Two or more structured JSON output formats.
 3. Show the price of the prompt (pricing from OpenRouter's models endpoint).
 4. Read the OpenRouter docs and implement your own improvement.
@@ -74,6 +74,7 @@ Do these **only after the core app works**. Anyone with software experience is i
 
 - At the start of every ticket, name the requirement, idea or optional task the ticket serves. A ticket the brief does not cover (the owner's own idea) writes "beyond the brief (owner's request)" instead, and its PROGRESS entry records that decision.
 - When the exact wording matters, or this summary is unclear, read the full brief (ask the owner for it if it is not at hand). Don't guess from the summary.
-- If the ticket, our plan, prompts or mode instructions **contradict** the brief, or a choice changes **what the product does** (who speaks in a mode, what a mode produces, which users it serves), say so and ask the owner; never settle these with a default. This holds **at any time**, also when the owner asks for the change: warn first, then do what the owner decides. Ordinary implementation choices the brief says nothing about follow the usual QRSPI rule: use a sensible default and state it.
+- If the ticket, our plan, prompts or mode instructions **contradict** the brief, or a choice changes **what the product does** (who speaks in a mode, what a mode produces, which users it serves), say so and ask the owner; never settle these with a default. Ordinary implementation choices the brief says nothing about follow the usual QRSPI rule: use a sensible default and state it.
 - Submission and the project review go through the GitHub repository the course provides: this repo, `NMH1988/interview-practice-app` (confirmed by the owner). Reviewers read it as submitted, so keep `main`, the README and `docs/` in a state you would hand in.
-- This repo is also the owner's own long-term project. Work beyond the brief (new modes, fields, features) is welcome when the owner asks for it: say it is beyond the brief, record it as **our** decision, not a brief rule, and keep the mandatory requirements working. Anything that departs from the brief is always flagged first (see above), before and after the project review.
+- **Always flag, even when the owner asks for it, at any time** (before and after the project review): (a) a change that **contradicts** the brief, and (b) work the brief does **not** ask for, labelled "beyond the brief (owner's request)". Warn first, then do what the owner decides. A change the owner asks for that is **in line with** the brief (e.g. #62, #70) is simply done, without asking again.
+- This repo is also the owner's own long-term project. Work beyond the brief (new modes, fields, features) is welcome when the owner asks for it: flag and label it as above, record it as **our** decision, not a brief rule, and keep the mandatory requirements working.
