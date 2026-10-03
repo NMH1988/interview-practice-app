@@ -26,10 +26,12 @@ from src.guard import (
     check_output,
     clean_input,
     is_blank,
+    max_input_chars,
     validate_input,
     validate_role,
 )
 from src.prompts import (
+    CHAT_PLACEHOLDERS,
     EXAMPLE_CAPTIONS,
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
@@ -370,9 +372,9 @@ if notice is not None or used_up is not None or show_starters:
                 )
 
 # Drawn before the LLM call and locked while a reply is pending, so a second message cannot
-# be sent (and cut this run short) while the first one is waiting.
+# be sent (and cut this run short) while the first one is waiting. The hint follows the mode.
 st.chat_input(
-    "Type your answer or question",
+    CHAT_PLACEHOLDERS[interview_type],
     key="chat_box",
     on_submit=queue_message,
     disabled=not can_send or st.session_state.pending is not None,
@@ -387,7 +389,8 @@ message = st.session_state.pending
 if message is not None:
     try:
         try:
-            clean = validate_input(message)
+            # A pasted job description may be longer than a normal answer.
+            clean = validate_input(message, max_input_chars(interview_type))
             # Also gives the cleaned role, and blocks a message that was queued before the role
             # was blanked (locking the input does not stop it).
             clean_role = validate_role(role)

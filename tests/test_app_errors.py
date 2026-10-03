@@ -176,7 +176,7 @@ def test_message_the_guard_blocks_is_kept_in_a_copy_box(fake_llm, text):
 def test_any_guard_block_keeps_the_message(monkeypatch, fake_llm):
     """Every GuardError keeps the message, not only the length and injection checks."""
 
-    def blocking_validate(message):
+    def blocking_validate(message, max_chars=guard.MAX_INPUT_CHARS):
         """Block every message the way a future guard check would."""
         raise guard.GuardError("That message was blocked.")
 
