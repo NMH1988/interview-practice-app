@@ -3,6 +3,7 @@
 import html
 from collections.abc import Callable, Mapping
 from types import MappingProxyType
+from typing import NamedTuple
 
 # The interview modes from docs/PLAN.md; T5.3 shows them in the UI.
 INTERVIEW_TYPES: tuple[str, ...] = (
@@ -15,30 +16,86 @@ INTERVIEW_TYPES: tuple[str, ...] = (
 # Candidate levels for the user prompt; T5.1 shows them in the UI.
 SENIORITY_LEVELS: tuple[str, ...] = ("Junior", "Mid-level", "Senior", "Lead")
 
-# Starter messages the empty chat offers for each interview mode; clicking one sends it like a
-# typed message. Not part of any prompt, so they are not secret.
-EXAMPLE_PROMPTS: Mapping[str, tuple[str, ...]] = MappingProxyType(
+
+class ExamplePrompt(NamedTuple):
+    """A starter for the empty chat: the button's label and the message a click sends."""
+
+    label: str
+    text: str
+
+
+def _same(text: str) -> ExamplePrompt:
+    """Return a starter whose button shows exactly the message it sends."""
+    return ExamplePrompt(text, text)
+
+
+def _question_for_the_interviewer(question: str) -> ExamplePrompt:
+    """Return a starter that asks the coach to rate `question`, not to answer it."""
+    # Framed, so neither the user nor the model takes it as a question for the coach itself.
+    return ExamplePrompt(
+        f'"{question}"',
+        f'I plan to ask my interviewer: "{question}" Is this a good question to ask?',
+    )
+
+
+# A short, made-up job description that matches the default role (Software Engineer).
+_SAMPLE_JOB_DESCRIPTION = (
+    "Please analyze this sample job description:\n\n"
+    "Junior Software Engineer (sample company)\n"
+    "We are looking for a Junior Software Engineer to join a small product team.\n\n"
+    "Responsibilities:\n"
+    "- Build and maintain features in a Python web application\n"
+    "- Write automated tests and take part in code reviews\n"
+    "- Fix bugs reported by users and the support team\n"
+    "- Work with the product designer to turn ideas into working features\n\n"
+    "Requirements:\n"
+    "- Good knowledge of Python and Git\n"
+    "- Basic SQL and experience with REST APIs\n"
+    "- Clear written communication in English\n"
+    "- Nice to have: Docker or experience with a cloud platform"
+)
+
+# Starters the empty chat offers for each interview mode; clicking one sends its text like a
+# typed message. Each mode's starters follow MODE_INSTRUCTIONS: in Behavioural and Technical the
+# user asks the coach to start the interview, in "Questions to ask the interviewer" the user
+# offers a question for the coach to rate, and in Job-description analysis the user sends a job
+# description. Not part of any prompt, so they are not secret.
+EXAMPLE_PROMPTS: Mapping[str, tuple[ExamplePrompt, ...]] = MappingProxyType(
     {
         "Behavioural": (
-            "Ask me a behavioural question to get started.",
-            "Ask me about a time I disagreed with a teammate.",
-            "Ask me about a project that did not go as planned.",
+            _same("Ask me a behavioural question to get started."),
+            _same("Ask me about a time I disagreed with a teammate."),
+            _same("Ask me about a project that did not go as planned."),
         ),
         "Technical": (
-            "Ask me a technical question for this role.",
-            "Ask me to explain a core concept from this role in simple words.",
-            "Give me a short problem to solve, then review my approach.",
+            _same("Ask me a technical question for this role."),
+            _same("Ask me to explain a core concept from this role in simple words."),
+            _same("Give me a short problem to solve, then review my approach."),
         ),
         "Questions to ask the interviewer": (
-            "What are good questions to ask at the end of an interview?",
-            "Which questions help me learn about the team's culture?",
-            "What should I avoid asking in a first interview?",
+            _question_for_the_interviewer(
+                "What does success look like in this role after the first 90 days?"
+            ),
+            _question_for_the_interviewer("How does the team give feedback on someone's work?"),
+            # A weak question on purpose, so the user sees what the coach says about one.
+            _question_for_the_interviewer("How many vacation days do I get?"),
         ),
         "Job-description analysis": (
-            "How should I use a job description to prepare for an interview?",
-            "Which parts of a job description matter most when I prepare?",
-            "I'll paste a job description next. What will you look for in it?",
+            ExamplePrompt("Analyze a sample job description", _SAMPLE_JOB_DESCRIPTION),
         ),
+    }
+)
+
+# The line above each mode's starters, saying what the user is expected to send in that mode.
+EXAMPLE_CAPTIONS: Mapping[str, str] = MappingProxyType(
+    {
+        "Behavioural": "Not sure where to start? Try one of these:",
+        "Technical": "Not sure where to start? Try one of these:",
+        "Questions to ask the interviewer": (
+            "Practise the questions you'll ask your interviewer at the end of a real interview. "
+            "Type one and the coach will rate it, or try one of these:"
+        ),
+        "Job-description analysis": "Paste a job description into the box below, or try a sample:",
     }
 )
 

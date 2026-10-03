@@ -31,6 +31,7 @@ from src.guard import (
     validate_role,
 )
 from src.prompts import (
+    EXAMPLE_CAPTIONS,
     EXAMPLE_PROMPTS,
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
@@ -331,14 +332,17 @@ if notice is not None or used_up is not None or show_starters:
         if show_starters:
             # A click queues the text as pending, so it goes through the guard, the rate limit
             # and the LLM like a typed message.
-            st.caption("Not sure where to start? Try one of these:")
+            # The caption says what this mode expects the user to send (an answer, a question
+            # for their interviewer, or a job description).
+            st.caption(EXAMPLE_CAPTIONS.get(interview_type, "Try one of these:"))
             mode = INTERVIEW_TYPES.index(interview_type)
             for i, example in enumerate(EXAMPLE_PROMPTS.get(interview_type, ())):
+                # The label can be shorter than the text it sends (e.g. a sample job description).
                 st.button(
-                    example,
+                    example.label,
                     key=f"example_{mode}_{i}",
                     on_click=use_example,
-                    args=(example,),
+                    args=(example.text,),
                     icon="💬",
                     disabled=not can_send,
                 )

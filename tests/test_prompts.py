@@ -4,6 +4,7 @@ import pytest
 
 from src.guard import matching_patterns, validate_input
 from src.prompts import (
+    EXAMPLE_CAPTIONS,
     EXAMPLE_PROMPTS,
     FEW_SHOT_EXAMPLES,
     IGNORE_EMBEDDED_RULE,
@@ -330,26 +331,64 @@ def test_build_messages_sends_earlier_turns_in_order_as_sent():
     ]
 
 
-def test_every_mode_has_three_distinct_example_prompts():
-    """Each interview mode, and only those, offers three different starter messages."""
+EVERY_EXAMPLE = [example for examples in EXAMPLE_PROMPTS.values() for example in examples]
+
+
+def test_every_mode_has_its_own_example_prompts_and_caption():
+    """Each interview mode, and only those, has a caption and one to three distinct starters."""
     assert list(EXAMPLE_PROMPTS) == list(INTERVIEW_TYPES)
+    assert list(EXAMPLE_CAPTIONS) == list(INTERVIEW_TYPES)
     for examples in EXAMPLE_PROMPTS.values():
-        assert len(examples) == 3
-        assert len(set(examples)) == 3
-    every_example = [text for examples in EXAMPLE_PROMPTS.values() for text in examples]
-    assert len(set(every_example)) == len(every_example)
+        assert 1 <= len(examples) <= 3
+        assert len({example.label for example in examples}) == len(examples)
+    assert len({example.text for example in EVERY_EXAMPLE}) == len(EVERY_EXAMPLE)
+    assert all(caption.strip() for caption in EXAMPLE_CAPTIONS.values())
 
 
-@pytest.mark.parametrize(
-    "example", [text for examples in EXAMPLE_PROMPTS.values() for text in examples]
-)
+@pytest.mark.parametrize("interview_type", ["Behavioural", "Technical"])
+def test_interview_mode_starters_ask_the_coach_to_start(interview_type):
+    """In the interview modes the coach asks and the user answers, so the starters invite it."""
+    examples = EXAMPLE_PROMPTS[interview_type]
+    assert len(examples) == 3
+    for example in examples:
+        assert example.label == example.text
+        assert example.text.startswith(("Ask me", "Give me"))
+
+
+def test_interviewer_question_starters_ask_the_coach_to_rate_a_question():
+    """Each starter offers a question for the user's interviewer and asks the coach to rate it."""
+    examples = EXAMPLE_PROMPTS["Questions to ask the interviewer"]
+    assert len(examples) == 3
+    for example in examples:
+        question = example.label.strip('"')
+        assert example.label == f'"{question}"'
+        assert question.endswith("?")
+        assert example.text == (
+            f'I plan to ask my interviewer: "{question}" Is this a good question to ask?'
+        )
+    assert "interviewer" in EXAMPLE_CAPTIONS["Questions to ask the interviewer"]
+
+
+def test_job_description_starter_sends_a_sample_job_description():
+    """The one job-description starter sends a whole sample description under a short label."""
+    (example,) = EXAMPLE_PROMPTS["Job-description analysis"]
+    assert example.label == "Analyze a sample job description"
+    assert example.text.startswith("Please analyze this sample job description:\n\n")
+    assert "Responsibilities:" in example.text
+    assert "Requirements:" in example.text
+    assert "Paste a job description" in EXAMPLE_CAPTIONS["Job-description analysis"]
+
+
+@pytest.mark.parametrize("example", EVERY_EXAMPLE, ids=[e.label[:30] for e in EVERY_EXAMPLE])
 def test_example_prompt_passes_the_guard_unchanged(example):
     """A clicked example is never blocked or changed by the guard, so clicking always works."""
-    assert validate_input(example) == example
-    assert matching_patterns(example) == set()
+    assert validate_input(example.text) == example.text
+    assert matching_patterns(example.text) == set()
 
 
-def test_example_prompts_are_read_only():
-    """Changing the examples at runtime raises TypeError."""
+def test_example_prompts_and_captions_are_read_only():
+    """Changing the examples or captions at runtime raises TypeError."""
     with pytest.raises(TypeError):
-        EXAMPLE_PROMPTS["Technical"] = ("replaced",)  # type: ignore[index]
+        EXAMPLE_PROMPTS["Technical"] = ()  # type: ignore[index]
+    with pytest.raises(TypeError):
+        EXAMPLE_CAPTIONS["Technical"] = "replaced"  # type: ignore[index]
