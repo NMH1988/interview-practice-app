@@ -26,7 +26,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - The title uses Streamlit 1.64's `title=` argument, so the body stays exactly `str(exc)`. The caption is "was not sent" for blocks and "got no answer" for LLM errors and interruptions (the request may have gone out). A notice of an unknown kind falls back to the error style.
   - A guard block keeps the message in the copy box unless it is blank (new `guard.is_blank()`).
   - Empty chat: starter buttons with a caption per mode (`EXAMPLE_CAPTIONS`). `prompts.example_prompts(interview_type, role, seniority)` returns `ExamplePrompt(label, text)` items: the button shows the label and a click sends the text.
-    - Behavioural / Technical: three "Ask me ..." kick-offs.
+    - Behavioural / Technical: three kick-offs each that ask the coach to start ("Ask me ...", "Give me a short problem ...").
     - "Questions to ask the interviewer": three questions for a real interviewer, one weak on purpose ("How many vacation days do I get?"). Each is sent framed as `I plan to ask my interviewer: "..." Is this a good question to ask?`.
     - Job-description analysis: one button built from the role and seniority ("Please write a short sample job description for a <seniority> <role> role, then analyze it.", with a/an, and no second "role").
   - `use_example(interview_type, index)` rebuilds the starter from session state at the click and puts it in `pending`, so it takes the normal guard → rate limit → LLM path.
@@ -37,6 +37,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - The starters follow `MODE_INSTRUCTIONS`. The user caught a first draft that reversed who speaks in two modes, because it asked the coach for answers.
   - A fixed "Junior Software Engineer" sample job description clashed with other roles and with the default seniority. "Any role and level" is our own design (free-text role since T5.1). The brief leaves that choice to the learner (`docs/BRIEF.md`, added by T6.11, #67).
   - So the coach writes the sample. The project owner wrote the matching sentence in the job-description block of `MODE_INSTRUCTIONS`, and it is pinned verbatim in every strategy (`SAMPLE_JD_RULE` in `tests/test_prompts.py`). A typed request for another role gets that role, by the owner's choice.
+  - This also settles T2.3's follow-up that the copy box said "was not sent" after the token-limit error: that error is an `LLMError`, so it now says "got no answer".
   - The 402/403 messages were not done: they need `src/llm.py`, which T2.3 was rewriting at the time.
 - **Decisions:**
   - The rate-limit title is "Message limit reached", because the same notice also reports the session cap.
@@ -48,14 +49,18 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - Never bind the name `text` anywhere in `app.py`: it is a theme colour in the CSS block, and T4.4's source scan fails if it is bound twice.
   - Once the cap locks the input, `AppTest` cannot type into it, so the defensive "queued before the cap" path is tested by setting `pending` directly.
   - `loose_in_main` in the layout tests must list every element type the block draws.
+  - Starter button keys are `example_<mode index>_<i>`, so switching mode gives new widgets.
+  - The empty-chat caption also shows under a notice on an empty chat (e.g. after a failed first turn), so a test that wants "no copy box" checks for the copy-box caption, not for no caption at all.
   - Merged `main` after T2.3 (#59); the only conflict was the chat-state comment.
-  - Review history: nine code-reviewer rounds; every finding and reply is in the PR #60 threads.
+  - Manual check in the browser pane (fake key, no secrets file): the starters showed; a click got OpenRouter's real 401 shown as "AI service problem" with the copy box and no key; an injection message showed "Message not sent" with the copy box, and the server logged only the pattern names and length.
+  - Review history: several code-reviewer rounds; every finding and reply is in the PR #60 threads.
 - **Left as is:**
   - No test pins the `pending is None` part of the starters condition, because AppTest only shows the final run.
   - Two narrow cases can still leave a stale starter during a stream; closing them would change T2.2's notice/pending order.
   - The cap sentence shows twice in the defensive path.
   - A role that already names a level reads oddly ("a Mid-level Junior Data Analyst").
   - The unreachable caption fallback is kept.
+  - T2.3's idea of a "Continue" action for a cut-off reply is not part of this ticket; it stays open.
 - **Follow-ups:**
   - **Merge order: #67 (T6.11) → #60 → #61 (T5.3).** #61 changes the job-description mode's preface to "the job description they want analysed, or a question about it", which does not cover this PR's "write a sample" starter, and the two merge without a conflict there. When #61 merges `main` in, widen it, e.g. "..., a request for a sample one, or a question about it". #61 also conflicts with this PR in `app.py` and two test files; its description says which lines to keep.
   - **Live check by the owner after #60 and #61 are both merged** (needs a real key), with the default strategy:
@@ -64,7 +69,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - Friendlier OpenRouter 402/403 messages in `src/llm.py`.
   - A title for T2.3's cut-off warning (✂️).
   - T5.5 removes the dashboard that pushes the starters below the fold.
-  - Gaps found against the brief: T5.6 (#62, turn "Questions to ask the interviewer" into a generator, and widen the user-prompt preface), T5.7 (#63), T7.5 (#64), T6.10 (#65).
+  - Gaps found against the brief: T5.6 (#62, turn "Questions to ask the interviewer" into a generator and widen the user-prompt preface), T5.7 (#63, separate developer settings), T7.5 (#64, max tokens setting), T6.10 (#65, tick PLAN boxes and fix stale PROGRESS text), T2.4 (#68, reasoning effort instead of temperature), T6.12 (#69, README), T5.8 (#70, study plan in job-description analysis).
 
 ## 2026-10-02 · T2.3 Cost & usage guardrails · #59 (closes #6)
 - **What:** `config.py` gets `MAX_TOKENS_CAP = 4000`; `llm._send` clamps every request to it (`min(max_tokens, MAX_TOKENS_CAP)`, read at call time), so `complete()` and `stream()` are both capped. `llm.stream()` now returns a `ReplyStream` (an iterator of text pieces with `close()`) whose `usage` (`llm.Usage`: prompt, completion, total, reasoning or None) and `finish_reason` are filled in once the stream ends; streaming requests send `stream_options={"include_usage": True}`. Both calls log the counts at INFO on logger `src.llm` (model and numbers, never text); `complete()` also logs a WARNING when the reply it returns was cut off by `max_tokens`, since it returns only text and T3.3's scripts could not tell otherwise. A reply without text and `finish_reason="length"` raises "The model used up its token limit before writing an answer. Please try again." instead of "empty answer". `app.py`: each assistant turn also keeps `"usage"` and `"cut_off"`; under a reply with usage a "Token usage" expander shows e.g. "Prompt 1,234 · Completion 567 (reasoning 320) · Total 1,801 tokens", and a reply cut off by the limit is kept with a ✂️ warning under it ("The answer was cut off because it reached the token limit."). `FakeLLM.stream` returns a real `ReplyStream` that reports `fake.usage` / `fake.finish_reason` after the last piece, and fails a blank reply with the same message `llm.stream` would give for its `finish_reason`. Tests in `tests/test_llm.py`, `tests/test_config.py` and the new `tests/test_app_usage.py`.
