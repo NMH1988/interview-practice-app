@@ -14,6 +14,7 @@ from src.config import (
     ALLOWED_MODELS,
     API_KEY_NAME,
     MAX_TOKENS_CAP,
+    REASONING_EFFORTS,
     MissingAPIKeyError,
     SecretsFileError,
     get_api_key,
@@ -46,6 +47,10 @@ class LLMError(RuntimeError):
 
 class InvalidModelError(LLMError, ValueError):
     """Raised when a model outside `ALLOWED_MODELS` is requested."""
+
+
+class InvalidEffortError(LLMError, ValueError):
+    """Raised when a reasoning effort outside `REASONING_EFFORTS` is requested."""
 
 
 class LLMTimeoutError(LLMError):
@@ -209,11 +214,19 @@ def _check_model(model: str) -> None:
         raise InvalidModelError(f"Model {model!r} is not allowed. Choose one of the listed models.")
 
 
+def _check_effort(reasoning_effort: str) -> None:
+    """Raise InvalidEffortError if `reasoning_effort` is not in REASONING_EFFORTS."""
+    if reasoning_effort not in REASONING_EFFORTS:
+        raise InvalidEffortError(
+            f"Reasoning effort {reasoning_effort!r} is not allowed. Choose one of the listed ones."
+        )
+
+
 def _send(
     client: OpenAI,
     messages: list[dict],
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     max_tokens: int,
     *,
     stream: bool = False,
@@ -227,7 +240,9 @@ def _send(
             return client.chat.completions.create(
                 model=model,
                 messages=messages,
-                temperature=temperature,
+                # OpenRouter's documented shape; the SDK has no `reasoning` argument of its own.
+                # gpt-5 models ignore temperature, so it is not sent (T2.4).
+                extra_body={"reasoning": {"effort": reasoning_effort}},
                 max_tokens=max_tokens,
                 # Left out unless streaming, so complete() sends the same body as before.
                 stream=True if stream else openai.omit,
@@ -242,8 +257,8 @@ def _send(
             raise _translate(exc) from exc
         except ValueError as exc:
             # Mostly a 200 body that does not parse (json.JSONDecodeError is not an APIError).
-            # Request-side ValueErrors, e.g. a NaN temperature, also land here; a non-ASCII
-            # key never does, because make_client() rejects it first.
+            # Request-side ValueErrors would land here too; a non-ASCII key never does,
+            # because make_client() rejects it first.
             raise LLMError(_UNREADABLE) from exc
     raise AssertionError("unreachable: the last attempt returns or raises")
 
@@ -251,15 +266,16 @@ def _send(
 def complete(
     messages: list[dict],
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     max_tokens: int,
     *,
     client: OpenAI | None = None,
 ) -> str:
     """Send a chat request to OpenRouter and return the assistant's reply text."""
     _check_model(model)
+    _check_effort(reasoning_effort)
     client = client or make_client()
-    response = _send(client, messages, model, temperature, max_tokens)
+    response = _send(client, messages, model, reasoning_effort, max_tokens)
     text = _reply_text(response)
     usage = _read_usage(response)
     if usage is not None:
@@ -306,30 +322,33 @@ class ReplyStream(Iterator[str]):
 def stream(
     messages: list[dict],
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     max_tokens: int,
     *,
     client: OpenAI | None = None,
 ) -> ReplyStream:
-    """Check the model and key now, and return the reply as a stream of text pieces."""
-    # Not a generator itself, so a bad model or key fails here rather than on the first next().
+    """Check the model, effort and key now, and return the reply as a stream of text pieces."""
+    # Not a generator itself, so a bad model, effort or key fails here rather than on the first
+    # next().
     _check_model(model)
+    _check_effort(reasoning_effort)
     client = client or make_client()
     end = _StreamEnd()
-    return ReplyStream(_stream_pieces(client, messages, model, temperature, max_tokens, end), end)
+    pieces = _stream_pieces(client, messages, model, reasoning_effort, max_tokens, end)
+    return ReplyStream(pieces, end)
 
 
 def _stream_pieces(
     client: OpenAI,
     messages: list[dict],
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     max_tokens: int,
     end: _StreamEnd,
 ) -> Generator[str]:
     """Send the streaming request on the first next() and yield each piece of text as it comes."""
     # Only the request is retried: once text is shown, a retry would repeat it.
-    response = _send(client, messages, model, temperature, max_tokens, stream=True)
+    response = _send(client, messages, model, reasoning_effort, max_tokens, stream=True)
     if not isinstance(response, Stream):
         raise LLMError(_UNREADABLE)
     has_text = False
