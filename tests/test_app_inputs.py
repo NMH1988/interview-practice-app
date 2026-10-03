@@ -142,6 +142,8 @@ def test_message_queued_before_an_injected_role_is_refused_and_logged_once(fake_
     # The refusal shows in the chat area (from the send step) and in the sidebar.
     assert [w.value for w in at.main.warning] == [INJECTION_REFUSAL]
     assert [w.value for w in at.sidebar.warning] == [INJECTION_REFUSAL]
+    # The message was fine, so it is kept for copying once the role is fixed.
+    assert [code.value for code in at.code] == ["Tell me about yourself."]
     # Logged by the send step only: the sidebar check runs with log=False.
     guard_logs = [r.getMessage() for r in caplog.records if r.name == "src.guard"]
     assert guard_logs == [f"Blocked role: patterns=mode_override length={len(ROLE_ATTACK)}"]

@@ -19,6 +19,15 @@ class RateLimitError(GuardError):
     """Raised when a session has sent too many requests; `str(exc)` says how long to wait."""
 
 
+def session_cap_reached(
+    times: Sequence[float], *, per_session: int = RATE_LIMIT_PER_SESSION
+) -> str | None:
+    """Return the message saying the session has used all its requests, or None if it has not."""
+    if len(times) >= per_session:
+        return f"You have used all {per_session} messages for this session."
+    return None
+
+
 def check_rate_limit(
     times: Sequence[float],
     now: float,
@@ -28,9 +37,10 @@ def check_rate_limit(
     window: float = RATE_LIMIT_WINDOW_SECONDS,
 ) -> None:
     """Raise `RateLimitError` if one more request now would go over a limit, given past `times`."""
-    if len(times) >= per_session:
+    used_up = session_cap_reached(times, per_session=per_session)
+    if used_up is not None:
         logger.warning("Rate limited: per_session (%d requests)", len(times))
-        raise RateLimitError(f"You have used all {per_session} messages for this session.")
+        raise RateLimitError(used_up)
     # Rolling window: a request stops counting exactly `window` seconds after it was sent.
     recent = sorted(t for t in times if now - t < window)
     if len(recent) >= per_minute:

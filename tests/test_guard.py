@@ -5,6 +5,7 @@ from src.guard import (
     GuardError,
     InvalidInputError,
     clean_input,
+    is_blank,
     max_input_chars,
     validate_input,
     validate_role,
@@ -82,6 +83,22 @@ def test_each_blank_looking_filler_is_rejected(code_point):
     """Each filler that renders as empty space is rejected; listed here so guard typos fail."""
     with pytest.raises(InvalidInputError, match="type a message"):
         validate_input(chr(code_point) * 3)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["", "   ", f"{ZWSP} {BOM}", f"{HANGUL_FILLER}{BRAILLE_BLANK}", COMBINING_GRAPHEME_JOINER],
+    ids=["empty", "spaces", "zero-width", "fillers", "only-mark"],
+)
+def test_is_blank_is_true_for_text_that_shows_nothing(text):
+    """Text that shows as nothing on screen counts as blank, the same as validate_input sees it."""
+    assert is_blank(text)
+
+
+@pytest.mark.parametrize("text", ["a", f"{ZWSP}a{ZWSP}", f"e{COMBINING_ACUTE}", "  ."])
+def test_is_blank_is_false_once_anything_shows(text):
+    """One visible character, even among invisible ones, makes the text not blank."""
+    assert not is_blank(text)
 
 
 def test_combining_marks_inside_words_are_kept():

@@ -343,7 +343,7 @@ def test_rerun_just_after_the_interrupted_notice_is_set_resends_once(monkeypatch
     """A rerun between saving the notice and clearing pending resends the message, just once."""
     at = start()
     interrupted = {
-        "kind": "error",
+        "kind": "interrupted",
         "text": "The answer was interrupted before it finished.",
         "unsent": "First answer.",
     }

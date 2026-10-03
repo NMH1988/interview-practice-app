@@ -3,9 +3,13 @@ import re
 
 import pytest
 
+from src.config import DEFAULT_ROLE, DEFAULT_SENIORITY
+from src.guard import matching_patterns, validate_input
 from src.prompts import (
     CHAT_PLACEHOLDERS,
     DEFAULT_MESSAGE_KIND,
+    EXAMPLE_CAPTIONS,
+    EXAMPLE_PROMPTS,
     FEW_SHOT_EXAMPLES,
     IGNORE_EMBEDDED_RULE,
     INTERVIEW_TYPES,
@@ -20,6 +24,7 @@ from src.prompts import (
     USER_INPUT_OPEN,
     build_messages,
     build_user_prompt,
+    example_prompts,
     few_shot,
 )
 
@@ -429,3 +434,140 @@ def test_build_messages_sends_earlier_turns_in_order_as_sent():
         {"role": "assistant", "content": "reply 2"},
         {"role": "user", "content": "NEW"},
     ]
+
+
+# Roles from several fields: any role works (our design choice, not a brief rule).
+SAMPLE_ROLES = ["Software Engineer", "SAP Developer", "Marketing Manager", "HR Business Partner"]
+EVERY_EXAMPLE = [
+    example
+    for interview_type in INTERVIEW_TYPES
+    for example in example_prompts(interview_type, DEFAULT_ROLE, DEFAULT_SENIORITY)
+]
+# The owner's sentence for the job-description mode, kept verbatim.
+SAMPLE_JD_RULE = (
+    "If the candidate asks for a sample job description, create a concise, realistic one using "
+    "the role and seniority provided in the candidate message. Clearly state that it is a "
+    "sample job description, then analyze it in the same way as a job description provided by "
+    "the candidate."
+)
+
+
+def test_every_mode_has_its_own_example_prompts_and_caption():
+    """Each interview mode, and only those, has a caption and one to three distinct starters."""
+    assert list(EXAMPLE_CAPTIONS) == list(INTERVIEW_TYPES)
+    for interview_type in INTERVIEW_TYPES:
+        examples = example_prompts(interview_type, DEFAULT_ROLE, DEFAULT_SENIORITY)
+        assert 1 <= len(examples) <= 3
+        assert len({example.label for example in examples}) == len(examples)
+    assert len({example.text for example in EVERY_EXAMPLE}) == len(EVERY_EXAMPLE)
+    assert all(caption.strip() for caption in EXAMPLE_CAPTIONS.values())
+
+
+@pytest.mark.parametrize("interview_type", ["Behavioural", "Technical"])
+def test_interview_mode_starters_ask_the_coach_to_start(interview_type):
+    """In the interview modes the coach asks and the user answers, so the starters invite it."""
+    examples = EXAMPLE_PROMPTS[interview_type]
+    assert len(examples) == 3
+    for example in examples:
+        assert example.label == example.text
+        assert example.text.startswith(("Ask me", "Give me"))
+
+
+def test_interviewer_question_starters_ask_the_coach_to_rate_a_question():
+    """Each starter offers a question for the user's interviewer and asks the coach to rate it."""
+    examples = EXAMPLE_PROMPTS["Questions to ask the interviewer"]
+    assert len(examples) == 3
+    for example in examples:
+        question = example.label.strip('"')
+        assert example.label == f'"{question}"'
+        assert question.endswith("?")
+        assert example.text == (
+            f'I plan to ask my interviewer: "{question}" Is this a good question to ask?'
+        )
+    assert "interviewer" in EXAMPLE_CAPTIONS["Questions to ask the interviewer"]
+
+
+@pytest.mark.parametrize("seniority", SENIORITY_LEVELS)
+@pytest.mark.parametrize("role", SAMPLE_ROLES)
+def test_job_description_starter_asks_for_a_sample_for_the_chosen_role(role, seniority):
+    """The one job-description starter asks the coach to write and analyze a JD for the role."""
+    (example,) = example_prompts("Job-description analysis", role, seniority)
+    assert example.label == f"Analyze a sample job description for a {seniority} {role}"
+    assert example.text == (
+        f"Please write a short sample job description for a {seniority} {role} role, "
+        "then analyze it."
+    )
+    # No "I don't have a job description yet": it would echo the mode's "ask them to paste" rule.
+    assert "don't have" not in example.text
+    assert validate_input(example.text) == example.text
+    assert matching_patterns(example.text) == set()
+    assert "Paste a job description" in EXAMPLE_CAPTIONS["Job-description analysis"]
+
+
+@pytest.mark.parametrize(("seniority", "article"), [("Entry-level", "an"), ("Senior", "a")])
+def test_job_description_starter_picks_a_or_an(seniority, article):
+    """The article follows the seniority's first letter, so a new level still reads right."""
+    (example,) = example_prompts("Job-description analysis", "Engineer", seniority)
+    assert f" for {article} {seniority} Engineer" in example.label
+    assert f" for {article} {seniority} Engineer role" in example.text
+
+
+@pytest.mark.parametrize("role", ["Marketing role", "role", "Sales ROLE"])
+def test_job_description_starter_does_not_repeat_role(role):
+    """A role that already ends in "role" is not followed by a second "role"."""
+    (example,) = example_prompts("Job-description analysis", role, "Senior")
+    assert example.text == (
+        f"Please write a short sample job description for a Senior {role}, then analyze it."
+    )
+
+
+@pytest.mark.parametrize("role", ["Kwaliteitscontrole", "Patrole"])
+def test_job_description_starter_adds_role_after_a_word_merely_ending_in_role(role):
+    """Only a separate word "role" counts: a role that just ends in those letters still gets one."""
+    (example,) = example_prompts("Job-description analysis", role, "Senior")
+    assert example.text == (
+        f"Please write a short sample job description for a Senior {role} role, then analyze it."
+    )
+
+
+def test_job_description_mode_tells_the_coach_how_to_write_a_sample():
+    """When asked, the coach writes a sample JD for the role and seniority, then analyzes it."""
+    assert SAMPLE_JD_RULE in MODE_INSTRUCTIONS["Job-description analysis"]
+    # Placed after the "ask them to paste" rule, so the two cases sit side by side.
+    block = MODE_INSTRUCTIONS["Job-description analysis"]
+    assert block.index("ask them to paste") < block.index(SAMPLE_JD_RULE)
+
+
+@pytest.mark.parametrize("name", sorted(STRATEGIES))
+def test_every_strategy_includes_the_sample_job_description_rule(name):
+    """Every strategy's job-description prompt carries the owner's sample-JD sentence."""
+    assert SAMPLE_JD_RULE in STRATEGIES[name](DEFAULT_ROLE, "Job-description analysis")
+
+
+def test_static_starters_cover_every_mode_but_job_description():
+    """The fixed starters cover the other modes; the job-description one is built per role."""
+    assert list(EXAMPLE_PROMPTS) == [t for t in INTERVIEW_TYPES if t != "Job-description analysis"]
+    for interview_type, examples in EXAMPLE_PROMPTS.items():
+        assert example_prompts(interview_type, "Any role", "Senior") == examples
+
+
+@pytest.mark.parametrize("example", EVERY_EXAMPLE, ids=[e.label[:30] for e in EVERY_EXAMPLE])
+def test_example_prompt_passes_the_guard_unchanged(example):
+    """A clicked example is never blocked or changed by the guard, so clicking always works."""
+    assert validate_input(example.text) == example.text
+    assert matching_patterns(example.text) == set()
+
+
+def test_example_prompts_and_captions_are_read_only():
+    """Changing the examples or captions at runtime raises TypeError."""
+    with pytest.raises(TypeError):
+        EXAMPLE_PROMPTS["Technical"] = ()  # type: ignore[index]
+    with pytest.raises(TypeError):
+        EXAMPLE_CAPTIONS["Technical"] = "replaced"  # type: ignore[index]
+
+
+def test_job_description_preface_covers_a_request_for_a_sample():
+    """The JD mode's user-prompt preface also treats the sample-JD starter as a valid message."""
+    (starter,) = example_prompts("Job-description analysis", "SAP Developer", "Senior")
+    prompt = build_user_prompt("SAP Developer", "Job-description analysis", "Senior", starter.text)
+    assert "a request for a sample one" in prompt
