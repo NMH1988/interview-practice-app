@@ -27,7 +27,7 @@ The brief gives the learner a free hand in **what** to practise: *"We don't want
 
 1. **Role-based Q&A generator.** Job title + seniority in, about 8–10 likely interview questions out.
 2. **Behavioural answer coach (STAR).** Paste a draft answer, get a critique against Situation/Task/Action/Result and a tighter rewrite.
-3. **"Questions to ask the interviewer" generator.** Company name + role in; out comes a short list (5–8) of good questions for the end of the interview, tailored to that company. Our current mode *rates* the user's own question instead; #62 turns it into the generator.
+3. **"Questions to ask the interviewer" generator.** Company name + role in; out comes a short list (5–8) of good closing questions, fitted to that particular company. Our current mode *rates* the user's own question instead; #62 turns it into the generator.
 4. **Job description analyser.** Paste a job description; the app pulls out the main skills and the topics an interviewer is likely to ask about, plus a short plan of what to study.
 5. **Self-introduction polisher.** Paste a 30-second pitch, get an interview-ready rewrite and what to keep or cut.
 
@@ -38,11 +38,11 @@ Do these **only after the core app works**. Anyone with software experience is i
 **Easy**
 1. Have ChatGPT review the app: how easy it is to use, how safe it is, and how good the prompts are.
 2. Improve prompts for your own domain (IT, finance, HR, communication, ...).
-3. More security constraints: input validation and system-prompt validation (possibly checked by an LLM). (*partly done:* input validation T4.1, injection checks T4.2, prompt-leak check T4.4; no LLM-based check yet)
-4. Difficulty levels for the questions (easy, medium, hard).
+3. More security constraints: input validation and system-prompt validation (possibly checked by an LLM). (*partly done:* input validation T4.1, injection checks T4.2, rate limiting T4.3, prompt-leak check T4.4; no LLM-based check yet)
+4. Difficulty levels for the questions (easy, medium, hard). (*partly done:* two strategies scale depth and difficulty to the chosen seniority, T3.2; no separate difficulty setting)
 5. Concise vs. detailed answers through prompting.
 6. Have the model draft interviewer guidelines: a structured scoring guide for technical and behavioural interviews.
-7. Mock interview with AI personas (strict, neutral, friendly).
+7. Mock interview with AI personas (strict, neutral, friendly). (*partly done:* the `persona` strategy is a strict senior interviewer, T3.2; no neutral or friendly persona)
 8. Pick a model setting (temperature, max tokens, reasoning effort, ...), try a few values and note how the answers change.
 
 **Medium**
@@ -61,7 +61,7 @@ Do these **only after the core app works**. Anyone with software experience is i
 2. LangChain chains or agents.
 3. A vector database to spot interview data seen before and prompt for new data.
 4. Open-source LLMs.
-5. Assess prompt or model performance, e.g. LLM-as-a-judge.
+5. Assess prompt or model performance, e.g. LLM-as-a-judge, or another method. (*planned:* T3.3, #10, compares the five strategies)
 
 ## How the project is evaluated
 
@@ -72,8 +72,8 @@ Do these **only after the core app works**. Anyone with software experience is i
 
 ## Using this file
 
-- At the start of every ticket, name the requirement, idea or optional task the ticket serves.
+- At the start of every ticket, name the requirement, idea or optional task the ticket serves. A ticket the brief does not cover (the owner's own idea) writes "beyond the brief (owner's request)" instead, and its PROGRESS entry records that decision.
 - When the exact wording matters, or this summary is unclear, read the full brief (ask the owner for it if it is not at hand). Don't guess from the summary.
-- If the ticket, our plan, prompts or mode instructions **contradict** the brief, or a choice changes **what the product does** (who speaks in a mode, what a mode produces, which users it serves), say so and ask the owner; never settle these with a default. Ordinary implementation choices the brief says nothing about follow the usual QRSPI rule: use a sensible default and state it.
+- If the ticket, our plan, prompts or mode instructions **contradict** the brief, or a choice changes **what the product does** (who speaks in a mode, what a mode produces, which users it serves), say so and ask the owner; never settle these with a default. This holds **at any time**, also when the owner asks for the change: warn first, then do what the owner decides. Ordinary implementation choices the brief says nothing about follow the usual QRSPI rule: use a sensible default and state it.
 - Submission and the project review go through the GitHub repository the course provides: this repo, `NMH1988/interview-practice-app` (confirmed by the owner). Reviewers read it as submitted, so keep `main`, the README and `docs/` in a state you would hand in.
-- This repo is also the owner's own long-term project. The brief sets the scope for the course submission. Work beyond it (new modes, fields, features) is welcome when the owner asks for it: record it as **our** decision, not a brief rule, and keep the mandatory requirements working.
+- This repo is also the owner's own long-term project. Work beyond the brief (new modes, fields, features) is welcome when the owner asks for it: say it is beyond the brief, record it as **our** decision, not a brief rule, and keep the mandatory requirements working. Anything that departs from the brief is always flagged first (see above), before and after the project review.
