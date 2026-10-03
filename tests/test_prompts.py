@@ -333,7 +333,7 @@ def test_build_messages_sends_earlier_turns_in_order_as_sent():
     ]
 
 
-# Roles from several fields: the brief says the app must not be boxed into one.
+# Roles from several fields: any role works (our design choice, not a brief rule).
 SAMPLE_ROLES = ["Software Engineer", "SAP Developer", "Marketing Manager", "HR Business Partner"]
 EVERY_EXAMPLE = [
     example
@@ -415,6 +415,15 @@ def test_job_description_starter_does_not_repeat_role(role):
     (example,) = example_prompts("Job-description analysis", role, "Senior")
     assert example.text == (
         f"Please write a short sample job description for a Senior {role}, then analyze it."
+    )
+
+
+@pytest.mark.parametrize("role", ["Kwaliteitscontrole", "Patrole"])
+def test_job_description_starter_adds_role_after_a_word_merely_ending_in_role(role):
+    """Only a separate word "role" counts: a role that just ends in those letters still gets one."""
+    (example,) = example_prompts("Job-description analysis", role, "Senior")
+    assert example.text == (
+        f"Please write a short sample job description for a Senior {role} role, then analyze it."
     )
 
 
