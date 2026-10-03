@@ -12,12 +12,11 @@ from src.config import (
     API_KEY_NAME,
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
+    DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
-    DEFAULT_TEMPERATURE,
     MAX_ROLE_CHARS,
-    MAX_TEMPERATURE,
-    MIN_TEMPERATURE,
+    REASONING_EFFORTS,
     MissingAPIKeyError,
     SecretsFileError,
     get_api_key,
@@ -179,7 +178,7 @@ def reply_pieces(
     messages: list[dict],
     system_prompt: str,
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     clean: str,
     user_prompt: str,
     request_times: list[float],
@@ -196,9 +195,9 @@ def reply_pieces(
     st.session_state.pending = None
     received = []
     try:
-        # Checks the model and the key now (a failure here sends nothing); the request itself
+        # Checks the model, effort and key now (a failure here sends nothing); the request itself
         # goes out on the stream's first next().
-        stream = llm.stream(messages, model, temperature, DEFAULT_MAX_TOKENS)
+        stream = llm.stream(messages, model, reasoning_effort, DEFAULT_MAX_TOKENS)
         # Counted here, just before the request goes out (a failed or cut-short one may still
         # have spent tokens). A plain list append, and nothing from llm.stream to the request
         # touches st.session_state, so no stop point falls between counting and sending: a
@@ -257,13 +256,18 @@ with st.sidebar:
         format_func=STRATEGY_LABELS.__getitem__,
         key="strategy",
     )
-    temperature = st.slider(
-        "Temperature",
-        MIN_TEMPERATURE,
-        MAX_TEMPERATURE,
-        DEFAULT_TEMPERATURE,
-        step=0.1,
-        key="temperature",
+    # Replaces the temperature slider: the allowed gpt-5 models ignore temperature (T2.4).
+    reasoning_effort = st.selectbox(
+        "Reasoning effort",
+        REASONING_EFFORTS,
+        index=REASONING_EFFORTS.index(DEFAULT_REASONING_EFFORT),
+        format_func=str.capitalize,
+        key="reasoning_effort",
+        help=(
+            "How long the model thinks before it answers. Higher effort can give deeper, more "
+            "careful feedback, but it is slower and uses more tokens. The thinking counts "
+            "against the token limit, so a long answer is more likely to be cut off."
+        ),
     )
     interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
     # Streamlit cuts the value to max_chars on the server too; validate_role checks it again.
@@ -412,7 +416,7 @@ if message is not None:
             system_prompt = STRATEGIES[strategy](clean_role, interview_type)
             messages = build_messages(system_prompt, st.session_state.history, user_prompt)
             pieces = reply_pieces(
-                messages, system_prompt, model, temperature, clean, user_prompt, request_times
+                messages, system_prompt, model, reasoning_effort, clean, user_prompt, request_times
             )
             try:
                 with st.chat_message("assistant"):
