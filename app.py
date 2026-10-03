@@ -32,13 +32,13 @@ from src.guard import (
 )
 from src.prompts import (
     EXAMPLE_CAPTIONS,
-    EXAMPLE_PROMPTS,
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
     STRATEGIES,
     STRATEGY_LABELS,
     build_messages,
     build_user_prompt,
+    example_prompts,
 )
 from src.rate_limit import RateLimitError, check_rate_limit, session_cap_reached
 
@@ -255,11 +255,14 @@ with st.sidebar:
     # Checked here, not on send, so the chat input is locked before anything is typed. Not
     # logged: this runs on every rerun, and only a message that is sent counts as a request.
     try:
-        validate_role(role, log=False)
+        # The cleaned role also names the job-description starter.
+        shown_role = validate_role(role, log=False)
         role_ok = True
     except GuardError as exc:
         st.warning(str(exc), icon="✋")
         role_ok = False
+        # Only labels the starters, which are locked while the role is not usable.
+        shown_role = " ".join(role.split()) or "role"
     seniority = st.selectbox(
         "Seniority",
         SENIORITY_LEVELS,
@@ -336,8 +339,9 @@ if notice is not None or used_up is not None or show_starters:
             # for their interviewer, or a job description).
             st.caption(EXAMPLE_CAPTIONS.get(interview_type, "Try one of these:"))
             mode = INTERVIEW_TYPES.index(interview_type)
-            for i, example in enumerate(EXAMPLE_PROMPTS.get(interview_type, ())):
-                # The label can be shorter than the text it sends (e.g. a sample job description).
+            starters = example_prompts(interview_type, shown_role, seniority)
+            for i, example in enumerate(starters):
+                # The label can differ from the text it sends (e.g. a framed interviewer question).
                 st.button(
                     example.label,
                     key=f"example_{mode}_{i}",

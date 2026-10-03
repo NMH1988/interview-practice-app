@@ -243,7 +243,7 @@ def kinds(node) -> list[str]:
 
 
 # The empty chat's caption and one button per example. Counted from the data so this layout
-# check does not repeat the number; the count itself (3 per mode) is pinned in test_prompts.py.
+# check does not repeat the number; each mode's count is pinned in test_prompts.py.
 STARTERS = ["Caption", *["Button"] * len(EXAMPLE_PROMPTS[INTERVIEW_TYPES[0]])]
 
 

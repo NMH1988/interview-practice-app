@@ -5,15 +5,22 @@ from streamlit.testing.v1 import AppTest
 
 from src import guard, rate_limit
 from src.config import API_KEY_NAME, DEFAULT_ROLE, DEFAULT_SENIORITY, RATE_LIMIT_PER_MINUTE
-from src.prompts import EXAMPLE_CAPTIONS, EXAMPLE_PROMPTS, INTERVIEW_TYPES, build_user_prompt
+from src.prompts import EXAMPLE_CAPTIONS, INTERVIEW_TYPES, build_user_prompt, example_prompts
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
 STARTER_CAPTION = EXAMPLE_CAPTIONS[INTERVIEW_TYPES[0]]
+
+
+def starters(interview_type: str) -> tuple:
+    """Return a mode's starters for the default role and seniority, as the app shows them."""
+    return example_prompts(interview_type, DEFAULT_ROLE, DEFAULT_SENIORITY)
+
+
 # Every (interview type, starter index) pair, so each starter is clicked once.
 EVERY_STARTER = [
     (interview_type, index)
-    for interview_type, examples in EXAMPLE_PROMPTS.items()
-    for index in range(len(examples))
+    for interview_type in INTERVIEW_TYPES
+    for index in range(len(starters(interview_type)))
 ]
 
 pytestmark = pytest.mark.usefixtures("no_env_key")
@@ -39,7 +46,7 @@ def test_empty_chat_offers_the_modes_examples(fake_llm):
     """With no history, the chosen mode's example prompts are shown as buttons, by label."""
     at = start()
     assert STARTER_CAPTION in [caption.value for caption in at.caption]
-    labels = [example.label for example in EXAMPLE_PROMPTS[INTERVIEW_TYPES[0]]]
+    labels = [example.label for example in starters(INTERVIEW_TYPES[0])]
     assert [button.label for button in examples(at)] == labels
     assert not any(button.disabled for button in examples(at))
     assert fake_llm.calls == []
@@ -50,7 +57,7 @@ def test_clicking_an_example_sends_its_text_like_a_typed_message(fake_llm, inter
     """A clicked starter sends its full text (not its label) through the built user prompt."""
     at = start()
     at.sidebar.selectbox(key="interview_type").set_value(interview_type).run(timeout=30)
-    example = EXAMPLE_PROMPTS[interview_type][index]
+    example = starters(interview_type)[index]
     examples(at)[index].click().run(timeout=30)
     assert not at.exception
     assert len(fake_llm.calls) == 1
@@ -70,7 +77,7 @@ def test_examples_follow_the_interview_type(fake_llm, interview_type):
     at = start()
     at.sidebar.selectbox(key="interview_type").set_value(interview_type).run(timeout=30)
     assert not at.exception
-    labels = [example.label for example in EXAMPLE_PROMPTS[interview_type]]
+    labels = [example.label for example in starters(interview_type)]
     assert [button.label for button in examples(at)] == labels
     assert EXAMPLE_CAPTIONS[interview_type] in [caption.value for caption in at.caption]
 
@@ -95,7 +102,7 @@ def test_clicked_example_still_meets_the_rate_limit(monkeypatch, fake_llm):
     """An example takes no shortcut: over the limit it is refused and kept, like a typed one."""
     monkeypatch.setattr(rate_limit, "clock", lambda: 1000.0)
     at = start([1000.0] * RATE_LIMIT_PER_MINUTE)
-    example = EXAMPLE_PROMPTS[INTERVIEW_TYPES[0]][0].text
+    example = starters(INTERVIEW_TYPES[0])[0].text
     examples(at)[0].click().run(timeout=30)
     assert not at.exception
     assert fake_llm.calls == []
@@ -117,4 +124,24 @@ def test_clicked_example_still_meets_the_guard(monkeypatch, fake_llm):
     assert not at.exception
     assert fake_llm.calls == []
     assert at.main.warning[0].proto.title == "Message not sent"
-    assert [code.value for code in at.code] == [EXAMPLE_PROMPTS[INTERVIEW_TYPES[0]][0].text]
+    assert [code.value for code in at.code] == [starters(INTERVIEW_TYPES[0])[0].text]
+
+
+@pytest.mark.parametrize(
+    ("role", "seniority"), [("SAP Developer", "Senior"), ("Marketing Manager", "Junior")]
+)
+def test_job_description_starter_follows_the_chosen_role_and_seniority(fake_llm, role, seniority):
+    """The sample-JD starter names the sidebar's role and seniority, and sends them to the coach."""
+    at = start()
+    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis")
+    at.sidebar.text_input(key="role").set_value(f"  {role} ")
+    at.sidebar.selectbox(key="seniority").set_value(seniority).run(timeout=30)
+    assert not at.exception
+    (button,) = examples(at)
+    assert button.label == f"Analyze a sample job description for a {seniority} {role}"
+    button.click().run(timeout=30)
+    assert not at.exception
+    (example,) = example_prompts("Job-description analysis", role, seniority)
+    assert fake_llm.calls[0]["messages"][-1]["content"] == build_user_prompt(
+        role, "Job-description analysis", seniority, example.text
+    )

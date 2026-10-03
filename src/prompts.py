@@ -38,28 +38,25 @@ def _question_for_the_interviewer(question: str) -> ExamplePrompt:
     )
 
 
-# A short, made-up job description that matches the default role (Software Engineer).
-_SAMPLE_JOB_DESCRIPTION = (
-    "Please analyze this sample job description:\n\n"
-    "Junior Software Engineer (sample company)\n"
-    "We are looking for a Junior Software Engineer to join a small product team.\n\n"
-    "Responsibilities:\n"
-    "- Build and maintain features in a Python web application\n"
-    "- Write automated tests and take part in code reviews\n"
-    "- Fix bugs reported by users and the support team\n"
-    "- Work with the product designer to turn ideas into working features\n\n"
-    "Requirements:\n"
-    "- Good knowledge of Python and Git\n"
-    "- Basic SQL and experience with REST APIs\n"
-    "- Clear written communication in English\n"
-    "- Nice to have: Docker or experience with a cloud platform"
-)
+def sample_job_description(role: str, seniority: str) -> ExamplePrompt:
+    """Return a starter asking the coach to write, then analyze, a sample JD for the role."""
+    # The coach writes the description (MODE_INSTRUCTIONS tells it how), so any field and level
+    # works without a fixed sample. The role and seniority are named in the text too, so a click
+    # works even where the coach only reads the tagged message.
+    position = f"{seniority} {role}"
+    return ExamplePrompt(
+        f"Analyze a sample job description for a {position}",
+        "I don't have a job description yet. Please write a short sample job description for a "
+        f"{position} role, then analyze it.",
+    )
+
 
 # Starters the empty chat offers for each interview mode; clicking one sends its text like a
 # typed message. Each mode's starters follow MODE_INSTRUCTIONS: in Behavioural and Technical the
-# user asks the coach to start the interview, in "Questions to ask the interviewer" the user
-# offers a question for the coach to rate, and in Job-description analysis the user sends a job
-# description. Not part of any prompt, so they are not secret.
+# user asks the coach to start the interview, and in "Questions to ask the interviewer" the user
+# offers a question for the coach to rate. Job-description analysis has none here: its one
+# starter depends on the role and seniority (see example_prompts). Not part of any prompt, so
+# they are not secret.
 EXAMPLE_PROMPTS: Mapping[str, tuple[ExamplePrompt, ...]] = MappingProxyType(
     {
         "Behavioural": (
@@ -80,11 +77,16 @@ EXAMPLE_PROMPTS: Mapping[str, tuple[ExamplePrompt, ...]] = MappingProxyType(
             # A weak question on purpose, so the user sees what the coach says about one.
             _question_for_the_interviewer("How many vacation days do I get?"),
         ),
-        "Job-description analysis": (
-            ExamplePrompt("Analyze a sample job description", _SAMPLE_JOB_DESCRIPTION),
-        ),
     }
 )
+
+
+def example_prompts(interview_type: str, role: str, seniority: str) -> tuple[ExamplePrompt, ...]:
+    """Return the empty chat's starters for a mode; the job-description one names the role."""
+    if interview_type == "Job-description analysis":
+        return (sample_job_description(role, seniority),)
+    return EXAMPLE_PROMPTS.get(interview_type, ())
+
 
 # The line above each mode's starters, saying what the user is expected to send in that mode.
 EXAMPLE_CAPTIONS: Mapping[str, str] = MappingProxyType(
@@ -194,6 +196,10 @@ MODE_INSTRUCTIONS: Mapping[str, str] = MappingProxyType(
             "Do not evaluate a job description using the candidate-answer review format.\n\n"
             "If the candidate has not yet provided a job description, ask them to paste or "
             "provide the job description they want to analyze.\n\n"
+            "If the candidate asks for a sample job description, create a concise, realistic "
+            "one using the role and seniority provided in the candidate message. Clearly state "
+            "that it is a sample job description, then analyze it in the same way as a job "
+            "description provided by the candidate.\n\n"
             "Once a job description is available, return the job-description analysis directly."
         ),
     }
