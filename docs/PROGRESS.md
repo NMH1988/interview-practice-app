@@ -31,6 +31,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - The effort is checked in `stream()` before the call returns, so a bad value fails before `reply_pieces` counts a request for the rate limit.
   - Reasoning text that OpenRouter may return alongside the answer is ignored: `_chunk_text` reads only `delta.content` and `_reply_text` only `message.content` (`test_stream_leaves_out_streamed_reasoning`, `test_complete_leaves_out_returned_reasoning`).
   - Manual check in the browser pane (sidebar only, no message sent): four levels, Medium preselected, the tooltip reads well, no slider left.
+  - PR review round 1 (code-reviewer, posted on #71, no bugs): added tests that the effort is checked before the API key is read (`test_disallowed_effort_does_not_need_api_key`) and that returned reasoning text never reaches the reply (the two tests above), both mutation-checked; comment and doc touch-ups. Round 2 (posted on #71, no bugs, nits only): this bullet, and the PR body's wording of the key-order claim.
 - **Follow-ups:**
   - T3.3 (#10): `scripts/prompt_eval.py` on the unpushed `feature/t3.3-prompt-eval` branch still passes a temperature to `complete()` and has `--temperatures`. When that branch merges `main`, it must switch to `--efforts` (and the R7 comparison to effort levels). It fails at the call until then.
   - Merged `main` after T5.3 (#61): no code conflicts (T5.3 does not touch the model settings); only this log needed both entries kept.
