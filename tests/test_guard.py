@@ -1,13 +1,15 @@
 import pytest
 
-from src.config import MAX_INPUT_CHARS, MAX_ROLE_CHARS
+from src.config import MAX_INPUT_CHARS, MAX_JD_CHARS, MAX_ROLE_CHARS
 from src.guard import (
     GuardError,
     InvalidInputError,
     clean_input,
+    max_input_chars,
     validate_input,
     validate_role,
 )
+from src.prompts import INTERVIEW_TYPES, JD_ANALYSIS
 
 # Invisible characters are built with chr() so they cannot be lost or mangled in the source.
 NUL, BEL, ESC, DEL, NEL = chr(0x00), chr(0x07), chr(0x1B), chr(0x7F), chr(0x85)
@@ -20,6 +22,22 @@ COMBINING_ACUTE = chr(0x0301)
 def test_default_limit_is_2000():
     """The ticket's default limit of 2000 characters lives in config.py."""
     assert MAX_INPUT_CHARS == 2000
+
+
+@pytest.mark.parametrize(
+    "interview_type", [JD_ANALYSIS, f"  {JD_ANALYSIS.upper()} ", "job-description  analysis"]
+)
+def test_job_description_mode_allows_longer_messages(interview_type):
+    """JD mode, however its name is spaced or cased, gets the longer JD limit."""
+    assert max_input_chars(interview_type) == MAX_JD_CHARS
+
+
+@pytest.mark.parametrize(
+    "interview_type", [*(t for t in INTERVIEW_TYPES if t != JD_ANALYSIS), "Case study", ""]
+)
+def test_other_modes_keep_the_normal_limit(interview_type):
+    """Every other mode, and an unknown or empty one, keeps the normal message limit."""
+    assert max_input_chars(interview_type) == MAX_INPUT_CHARS
 
 
 @pytest.mark.parametrize(

@@ -5,8 +5,8 @@ import logging
 import re
 import unicodedata
 
-from src.config import MAX_INPUT_CHARS, MAX_ROLE_CHARS, MIN_LEAK_CHARS
-from src.prompts import FEW_SHOT_EXAMPLES
+from src.config import MAX_INPUT_CHARS, MAX_JD_CHARS, MAX_ROLE_CHARS, MIN_LEAK_CHARS
+from src.prompts import FEW_SHOT_EXAMPLES, JD_ANALYSIS
 
 # Shown instead of a reply that repeats the system prompt.
 REFUSAL_MESSAGE = "Sorry, I can't share my instructions. Let's get back to your interview practice."
@@ -68,6 +68,14 @@ def _validated(text: str | None, max_chars: int, blank_msg: str, what: str) -> s
             f"Please shorten it to {max_chars:,} characters or fewer."
         )
     return cleaned
+
+
+def max_input_chars(interview_type: str) -> int:
+    """Return the longest message allowed in `interview_type`: more for a pasted job description."""
+    # Case and extra spaces ignored, like the prompts' mode lookup, so the two always agree.
+    if " ".join(interview_type.split()).casefold() == JD_ANALYSIS.casefold():
+        return MAX_JD_CHARS
+    return MAX_INPUT_CHARS
 
 
 def validate_input(text: str | None, max_chars: int = MAX_INPUT_CHARS) -> str:

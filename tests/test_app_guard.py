@@ -69,7 +69,7 @@ def test_any_guard_error_shows_warning_and_skips_llm(monkeypatch, fake_llm):
     class OtherBlock(guard.GuardError):
         """A guard block that is not an InvalidInputError."""
 
-    def blocking_validate(text):
+    def blocking_validate(text, max_chars=guard.MAX_INPUT_CHARS):
         """Block every message the way a future guard check would."""
         raise OtherBlock("That message was blocked.")
 

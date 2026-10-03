@@ -20,6 +20,9 @@ MAX_TOKENS_CAP = 4000
 
 # Longest user message (after cleaning) the guard lets through to the LLM.
 MAX_INPUT_CHARS = 2000
+# The same limit in job-description mode, where a pasted JD is often 2,000-5,000 characters.
+# About 1,500 tokens, re-sent with every later turn of the session.
+MAX_JD_CHARS = 6000
 # A system prompt (or one of its paragraphs) this long, repeated in a reply, counts as a leak.
 # Shorter text (headings, the 1-5 scale, a tiny test prompt) may appear in a normal reply.
 MIN_LEAK_CHARS = 80
