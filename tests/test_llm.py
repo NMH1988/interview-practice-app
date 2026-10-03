@@ -74,21 +74,23 @@ class FakeOpenRouter:
 def test_complete_returns_assistant_text():
     """A valid request returns the assistant's reply text."""
     fake = FakeOpenRouter(_reply("Tell me about a time you led a team."))
-    text = llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    text = llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert text == "Tell me about a time you led a team."
 
 
 def test_complete_sends_arguments_as_given():
-    """Model, messages, temperature and max_tokens reach OpenRouter unchanged."""
+    """Model, messages, reasoning effort and max_tokens reach OpenRouter unchanged."""
     fake = FakeOpenRouter(_reply("ok"))
-    llm.complete(MESSAGES, "openai/gpt-5-nano", 0.3, 128, client=fake.client())
+    llm.complete(MESSAGES, "openai/gpt-5-nano", "low", 128, client=fake.client())
     (request,) = fake.requests
     assert str(request.url) == f"{llm.OPENROUTER_BASE_URL}/chat/completions"
     assert request.headers["authorization"] == f"Bearer {FAKE_KEY}"
     body = json.loads(request.content)
     assert body["model"] == "openai/gpt-5-nano"
     assert body["messages"] == MESSAGES
-    assert body["temperature"] == 0.3
+    assert body["reasoning"] == {"effort": "low"}
+    # gpt-5 models ignore it, so it is not sent at all (T2.4).
+    assert "temperature" not in body
     assert body["max_tokens"] == 128
     assert "stream" not in body
     assert "stream_options" not in body
@@ -98,9 +100,9 @@ def _sent_max_tokens(call, requested):
     """Make one request asking for `requested` tokens and return the max_tokens actually sent."""
     fake = FakeOpenRouter(_reply("ok") if call == "complete" else _sse(_chunk("ok")))
     if call == "complete":
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, requested, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", requested, client=fake.client())
     else:
-        list(llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, requested, client=fake.client()))
+        list(llm.stream(MESSAGES, DEFAULT_MODEL, "medium", requested, client=fake.client()))
     (request,) = fake.requests
     return json.loads(request.content)["max_tokens"]
 
@@ -130,7 +132,7 @@ def test_disallowed_model_raises_before_http_call(model):
     """A model outside the allowed list raises before any request is sent."""
     fake = FakeOpenRouter(_reply("should not be sent"))
     with pytest.raises(llm.InvalidModelError):
-        llm.complete(MESSAGES, model, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, model, "medium", 256, client=fake.client())
     assert fake.requests == []
 
 
@@ -149,7 +151,7 @@ def test_failures_raise_their_own_readable_error(make_failure, error_class):
     """Timeout, 401, 429 and 5xx each raise a distinct error with a readable message."""
     fake = FakeOpenRouter(*[make_failure() for _ in range(3)])
     with pytest.raises(error_class) as excinfo:
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     message = str(excinfo.value)
     assert message.endswith(".") and len(message) > 20
     assert FAKE_KEY not in message
@@ -173,7 +175,7 @@ def test_other_failures_raise_generic_llm_error(failure):
     """Errors without their own class still raise a readable LLMError."""
     fake = FakeOpenRouter(failure)
     with pytest.raises(llm.LLMError) as excinfo:
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert type(excinfo.value) is llm.LLMError
     assert FAKE_KEY not in str(excinfo.value)
 
@@ -183,7 +185,7 @@ def test_empty_reply_raises_llm_error(text):
     """A reply with no text, or only whitespace, raises LLMError instead of returning it."""
     fake = FakeOpenRouter(_reply(text))
     with pytest.raises(llm.LLMError, match="empty answer"):
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
 
 
 @pytest.mark.parametrize(
@@ -212,7 +214,7 @@ def test_malformed_200_raises_llm_error(response, message):
     """A 200 reply that is not a usable chat completion raises a readable LLMError."""
     fake = FakeOpenRouter(response)
     with pytest.raises(llm.LLMError, match=message) as excinfo:
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert type(excinfo.value) is llm.LLMError
     assert FAKE_KEY not in str(excinfo.value)
     assert len(fake.requests) == 1
@@ -231,7 +233,7 @@ def test_retryable_errors_are_retried_twice_then_raise(status, error_class, slee
     """429 and 5xx are retried at most 2 times with growing backoff, then raise."""
     fake = FakeOpenRouter(*[_error(status) for _ in range(4)])
     with pytest.raises(error_class):
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert len(fake.requests) == 1 + llm.MAX_RETRIES == 3
     assert sleeps == [llm.BACKOFF_SECONDS, 2 * llm.BACKOFF_SECONDS]
 
@@ -240,7 +242,7 @@ def test_retryable_errors_are_retried_twice_then_raise(status, error_class, slee
 def test_retry_succeeds_after_transient_error(status, sleeps):
     """A transient 429/5xx followed by a good reply returns the reply text."""
     fake = FakeOpenRouter(_error(status), _reply("Second time lucky."))
-    text = llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    text = llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert text == "Second time lucky."
     assert len(fake.requests) == 2
     assert sleeps == [llm.BACKOFF_SECONDS]
@@ -255,7 +257,7 @@ def test_non_retryable_errors_are_not_retried(make_failure, sleeps):
     """401, timeouts and other client errors fail after a single request, with no wait."""
     fake = FakeOpenRouter(*[make_failure() for _ in range(3)])
     with pytest.raises(llm.LLMError):
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert len(fake.requests) == 1
     assert sleeps == []
 
@@ -290,7 +292,7 @@ def test_bad_header_key_from_secrets_fails_before_any_request(key, no_env_key, m
     monkeypatch.setattr(config.st, "secrets", {config.API_KEY_NAME: key})
     monkeypatch.setattr(llm, "OpenAI", lambda **kwargs: pytest.fail("client was built"))
     with pytest.raises(llm.LLMAuthError, match="invalid characters") as excinfo:
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256)
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256)
     assert key not in str(excinfo.value)
 
 
@@ -298,7 +300,7 @@ def test_missing_api_key_raises_llm_auth_error(no_env_key, monkeypatch):
     """With no key in st.secrets or the environment, complete() raises a readable LLMAuthError."""
     monkeypatch.setattr(config.st, "secrets", {})
     with pytest.raises(llm.LLMAuthError) as excinfo:
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256)
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256)
     assert config.API_KEY_NAME in str(excinfo.value)
     assert isinstance(excinfo.value.__cause__, config.MissingAPIKeyError)
 
@@ -312,14 +314,32 @@ def test_unparseable_secrets_raises_llm_auth_error(monkeypatch):
 
     monkeypatch.setattr(llm, "get_api_key", broken_secrets)
     with pytest.raises(llm.LLMAuthError, match="secrets.toml"):
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256)
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256)
+
+
+@pytest.mark.parametrize("effort", ["none", "xhigh", "Medium", "", "0.7"])
+def test_disallowed_effort_raises_before_http_call(effort):
+    """A reasoning effort outside the allowed list raises before any request is sent."""
+    fake = FakeOpenRouter(_reply("should not be sent"))
+    with pytest.raises(llm.InvalidEffortError, match="Reasoning effort"):
+        llm.complete(MESSAGES, DEFAULT_MODEL, effort, 256, client=fake.client())
+    assert fake.requests == []
+
+
+@pytest.mark.parametrize("effort", config.REASONING_EFFORTS)
+def test_every_allowed_effort_is_sent(effort):
+    """Each allowed level reaches OpenRouter as `reasoning.effort`."""
+    fake = FakeOpenRouter(_reply("ok"))
+    llm.complete(MESSAGES, DEFAULT_MODEL, effort, 256, client=fake.client())
+    (request,) = fake.requests
+    assert json.loads(request.content)["reasoning"] == {"effort": effort}
 
 
 def test_disallowed_model_does_not_need_api_key(no_env_key, monkeypatch):
     """The model check runs before the API key is looked up or a client is built."""
     monkeypatch.setattr(llm, "make_client", lambda: pytest.fail("client was built"))
     with pytest.raises(llm.InvalidModelError):
-        llm.complete(MESSAGES, "openai/gpt-4o", 0.7, 256)
+        llm.complete(MESSAGES, "openai/gpt-4o", "medium", 256)
 
 
 # --- stream() -------------------------------------------------------------------------------
@@ -371,7 +391,7 @@ def _sse_then_fail(error, *events):
 
 def _stream(fake, model=DEFAULT_MODEL):
     """Start a stream through `fake` and return its pieces as a list."""
-    return list(llm.stream(MESSAGES, model, 0.7, 256, client=fake.client()))
+    return list(llm.stream(MESSAGES, model, "medium", 256, client=fake.client()))
 
 
 def test_stream_yields_pieces_in_order():
@@ -390,22 +410,24 @@ def test_stream_yields_pieces_in_order():
 
 
 def test_stream_sends_arguments_and_asks_for_a_stream():
-    """Model, messages, temperature and max_tokens are sent unchanged, with stream on."""
+    """Model, messages, reasoning effort and max_tokens are sent unchanged, with stream on."""
     fake = FakeOpenRouter(_sse(_chunk("ok")))
-    list(llm.stream(MESSAGES, "openai/gpt-5-nano", 0.3, 128, client=fake.client()))
+    list(llm.stream(MESSAGES, "openai/gpt-5-nano", "low", 128, client=fake.client()))
     (request,) = fake.requests
     body = json.loads(request.content)
     assert body["stream"] is True
     assert body["model"] == "openai/gpt-5-nano"
     assert body["messages"] == MESSAGES
-    assert body["temperature"] == 0.3
+    assert body["reasoning"] == {"effort": "low"}
+    # gpt-5 models ignore it, so it is not sent at all (T2.4).
+    assert "temperature" not in body
     assert body["max_tokens"] == 128
 
 
 def test_stream_sends_nothing_until_first_piece_is_asked_for():
     """The request goes out on the first next(), not when stream() is called."""
     fake = FakeOpenRouter(_sse(_chunk("ok")))
-    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert fake.requests == []
     assert next(pieces) == "ok"
     assert len(fake.requests) == 1
@@ -415,7 +437,15 @@ def test_stream_disallowed_model_raises_at_call_time():
     """A model outside the allowed list raises when stream() is called, before any request."""
     fake = FakeOpenRouter(_sse(_chunk("should not be sent")))
     with pytest.raises(llm.InvalidModelError):
-        llm.stream(MESSAGES, "openai/gpt-4o", 0.7, 256, client=fake.client())
+        llm.stream(MESSAGES, "openai/gpt-4o", "medium", 256, client=fake.client())
+    assert fake.requests == []
+
+
+def test_stream_disallowed_effort_raises_at_call_time():
+    """An effort outside the allowed list raises when stream() is called, before any request."""
+    fake = FakeOpenRouter(_sse(_chunk("should not be sent")))
+    with pytest.raises(llm.InvalidEffortError):
+        llm.stream(MESSAGES, DEFAULT_MODEL, "xhigh", 256, client=fake.client())
     assert fake.requests == []
 
 
@@ -423,7 +453,7 @@ def test_stream_missing_key_raises_at_call_time(no_env_key, monkeypatch):
     """With no API key, stream() raises LLMAuthError at once, not on the first next()."""
     monkeypatch.setattr(config.st, "secrets", {})
     with pytest.raises(llm.LLMAuthError):
-        llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256)
+        llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256)
 
 
 def test_stream_error_event_mid_reply_raises_readable_llm_error():
@@ -431,7 +461,7 @@ def test_stream_error_event_mid_reply_raises_readable_llm_error():
     fake = FakeOpenRouter(
         _sse(_chunk("Partial "), {"error": {"message": f"boom for key {FAKE_KEY}"}}, done=False)
     )
-    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert next(pieces) == "Partial "
     with pytest.raises(llm.LLMError) as excinfo:
         next(pieces)
@@ -451,7 +481,7 @@ def test_stream_error_event_mid_reply_raises_readable_llm_error():
 def test_stream_transport_failure_mid_reply_raises_mapped_error(error, error_class):
     """A timeout or dropped connection after some text raises the mapped LLMError."""
     fake = FakeOpenRouter(_sse_then_fail(error, _chunk("Partial ")))
-    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert next(pieces) == "Partial "
     with pytest.raises(error_class) as excinfo:
         next(pieces)
@@ -510,7 +540,7 @@ def test_stream_closed_early_closes_the_response():
     body = iter([_sse_bytes(_chunk("One ")), _sse_bytes(_chunk("two."), "[DONE]")])
     response = httpx2.Response(200, content=body, headers={"content-type": "text/event-stream"})
     fake = FakeOpenRouter(response)
-    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    pieces = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert next(pieces) == "One "
     assert not response.is_closed
     pieces.close()
@@ -550,7 +580,7 @@ def test_stream_reads_usage_from_the_last_chunk():
     fake = FakeOpenRouter(
         _sse(_chunk("Hi "), _chunk("there.", finish_reason="stop"), _usage_chunk())
     )
-    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert stream.usage is None
     assert list(stream) == ["Hi ", "there."]
     assert stream.usage == llm.Usage(
@@ -562,7 +592,7 @@ def test_stream_reads_usage_from_the_last_chunk():
 def test_stream_without_usage_does_not_crash():
     """A stream that reports no usage still gives its text, and usage stays None."""
     fake = FakeOpenRouter(_sse(_chunk("Hi.")))
-    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert list(stream) == ["Hi."]
     assert stream.usage is None
     assert stream.finish_reason is None
@@ -584,7 +614,7 @@ def test_stream_without_usage_does_not_crash():
 def test_malformed_usage_is_ignored(usage):
     """Usage that is missing a count or holds a wrong type is treated as not reported."""
     fake = FakeOpenRouter(_sse(_chunk("Hi."), _usage_chunk(usage)))
-    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert list(stream) == ["Hi."]
     assert stream.usage is None
 
@@ -593,7 +623,7 @@ def test_usage_without_reasoning_details_has_no_reasoning_count():
     """Usage without completion_tokens_details gives the counts, with reasoning_tokens None."""
     usage = {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15}
     fake = FakeOpenRouter(_sse(_chunk("Hi."), _usage_chunk(usage)))
-    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     list(stream)
     assert stream.usage == llm.Usage(10, 5, 15, None)
 
@@ -629,7 +659,7 @@ def test_complete_logs_usage(caplog):
     """complete() logs the token counts from its response too."""
     fake = FakeOpenRouter(_reply("ok", usage=USAGE))
     with caplog.at_level("INFO", logger="src.llm"):
-        assert llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client()) == "ok"
+        assert llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client()) == "ok"
     (record,) = _llm_records(caplog)
     assert "total 165" in record.getMessage()
 
@@ -638,14 +668,14 @@ def test_complete_without_usage_logs_nothing(caplog):
     """A response without usage does not crash and logs no usage line."""
     fake = FakeOpenRouter(_reply("ok"))
     with caplog.at_level("INFO", logger="src.llm"):
-        assert llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client()) == "ok"
+        assert llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client()) == "ok"
     assert _llm_records(caplog) == []
 
 
 def test_stream_cut_off_by_the_token_limit_keeps_its_text():
     """A reply stopped by max_tokens still yields its text, with finish_reason "length"."""
     fake = FakeOpenRouter(_sse(_chunk("Half an "), _chunk("answer", finish_reason="length")))
-    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert list(stream) == ["Half an ", "answer"]
     assert stream.finish_reason == "length"
 
@@ -672,7 +702,7 @@ def test_complete_logs_a_reply_cut_off_with_text(caplog):
     """complete() returns a cut-off reply's text but logs a warning that it was cut off."""
     fake = FakeOpenRouter(_reply("Half an answer", finish_reason="length"))
     with caplog.at_level("INFO", logger="src.llm"):
-        text = llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        text = llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert text == "Half an answer"
     (record,) = _llm_records(caplog)
     assert record.levelname == "WARNING"
@@ -684,7 +714,7 @@ def test_complete_cut_off_before_any_text_says_so():
     """complete() gives the same token-limit message for an empty reply stopped by max_tokens."""
     fake = FakeOpenRouter(_reply(None, finish_reason="length"))
     with pytest.raises(llm.LLMError, match="used up its token limit"):
-        llm.complete(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
 
 
 def test_closed_stream_has_no_reference_cycle():
@@ -692,7 +722,7 @@ def test_closed_stream_has_no_reference_cycle():
     body = iter([_sse_bytes(_chunk("One ")), _sse_bytes(_chunk("two."), "[DONE]")])
     response = httpx2.Response(200, content=body, headers={"content-type": "text/event-stream"})
     fake = FakeOpenRouter(response)
-    stream = llm.stream(MESSAGES, DEFAULT_MODEL, 0.7, 256, client=fake.client())
+    stream = llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert next(stream) == "One "
     gc_was_on = gc.isenabled()
     gc.disable()

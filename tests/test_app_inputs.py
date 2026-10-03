@@ -8,12 +8,11 @@ from src.config import (
     ALLOWED_MODELS,
     API_KEY_NAME,
     DEFAULT_MODEL,
+    DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
-    DEFAULT_TEMPERATURE,
     MAX_ROLE_CHARS,
-    MAX_TEMPERATURE,
-    MIN_TEMPERATURE,
+    REASONING_EFFORTS,
 )
 from src.guard import INJECTION_REFUSAL
 from src.prompts import INTERVIEW_TYPES, SENIORITY_LEVELS
@@ -42,37 +41,45 @@ def test_model_select_lists_exactly_the_allowed_models(fake_llm):
     assert fake_llm.calls == []
 
 
-def test_temperature_slider_range_and_default(fake_llm):
-    """The sidebar temperature slider runs 0.0-1.5 in 0.1 steps and starts at 0.7."""
-    slider = start().sidebar.slider(key="temperature")
-    assert slider.label == "Temperature"
-    assert (slider.min, slider.max) == (MIN_TEMPERATURE, MAX_TEMPERATURE) == (0.0, 1.5)
-    assert slider.step == pytest.approx(0.1)
-    assert slider.value == DEFAULT_TEMPERATURE == 0.7
+def test_reasoning_effort_select_levels_and_default(fake_llm):
+    """The sidebar reasoning effort select offers the four levels and starts at medium."""
+    select = start().sidebar.selectbox(key="reasoning_effort")
+    assert select.label == "Reasoning effort"
+    assert select.options == ["Minimal", "Low", "Medium", "High"]
+    assert select.value == DEFAULT_REASONING_EFFORT == "medium"
+    assert select.help and "token limit" in select.help
     assert fake_llm.calls == []
 
 
-def test_default_model_and_temperature_reach_the_llm(fake_llm):
-    """Without changes, the LLM call gets the default model and temperature."""
+def test_no_temperature_slider_remains(fake_llm):
+    """The temperature slider is gone: the allowed gpt-5 models ignore temperature (T2.4)."""
+    at = start()
+    assert len(at.sidebar.slider) == 0
+    assert "temperature" not in at.session_state
+
+
+def test_default_model_and_reasoning_effort_reach_the_llm(fake_llm):
+    """Without changes, the LLM call gets the default model and reasoning effort."""
     at = start()
     at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
     assert not at.exception
     assert len(fake_llm.calls) == 1
     assert fake_llm.calls[0]["model"] == DEFAULT_MODEL
-    assert fake_llm.calls[0]["temperature"] == DEFAULT_TEMPERATURE
+    assert fake_llm.calls[0]["reasoning_effort"] == DEFAULT_REASONING_EFFORT
 
 
-def test_changed_model_and_temperature_reach_the_llm(fake_llm):
-    """A model and temperature picked in the sidebar are the ones sent to the LLM."""
+@pytest.mark.parametrize("effort", REASONING_EFFORTS)
+def test_changed_model_and_reasoning_effort_reach_the_llm(fake_llm, effort):
+    """A model and reasoning effort picked in the sidebar are the ones sent to the LLM."""
     at = start()
     at.sidebar.selectbox(key="model").set_value("openai/gpt-5-nano")
-    at.sidebar.slider(key="temperature").set_value(1.2)
+    at.sidebar.selectbox(key="reasoning_effort").set_value(effort)
     at.run(timeout=30)
     at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
     assert not at.exception
     assert len(fake_llm.calls) == 1
     assert fake_llm.calls[0]["model"] == "openai/gpt-5-nano"
-    assert fake_llm.calls[0]["temperature"] == pytest.approx(1.2)
+    assert fake_llm.calls[0]["reasoning_effort"] == effort
 
 
 def test_interview_type_role_and_seniority_inputs(fake_llm):

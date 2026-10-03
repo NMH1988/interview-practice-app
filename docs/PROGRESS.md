@@ -16,6 +16,25 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-03 · T2.4 Replace temperature with reasoning effort · #<PR> (closes #68)
+- **What:**
+  - `config.py` drops `MIN_TEMPERATURE` / `MAX_TEMPERATURE` / `DEFAULT_TEMPERATURE` and gets `REASONING_EFFORTS = ("minimal", "low", "medium", "high")` and `DEFAULT_REASONING_EFFORT = "medium"`.
+  - `llm.complete()`, `llm.stream()` and `_send()` take `reasoning_effort` in the third place, where `temperature` was. `_send` sends it as `extra_body={"reasoning": {"effort": ...}}` and no longer sends `temperature`. A level outside the list raises `InvalidEffortError` (an `LLMError`) before the key is read or any request goes out.
+  - `app.py`: the sidebar's Temperature slider is replaced by a "Reasoning effort" select (shown capitalised, key `reasoning_effort`) with a help text on the trade-off; its value goes through `reply_pieces` to `llm.stream`.
+  - `FakeLLM` records `reasoning_effort`. Tests in `tests/test_llm.py`, `tests/test_config.py` and `tests/test_app_inputs.py`.
+  - Docs: `PLAN.md` gets the T2.4 entry and notes on T2.1, T3.3 and T5.1; `BRIEF.md` and the code-reviewer agent no longer mention a temperature range.
+- **Why:** OpenRouter's model list (`/api/v1/models`) gives no `temperature` in `supported_parameters` for any of the three allowed gpt-5 models, and `default_parameters.temperature` is `null`, so the slider did nothing. That undercut the brief's "understand how LLM settings change the output" and would have made T3.3's temperature comparison compare identical settings. The brief's Easy #8 names reasoning effort, and the owner chose it. The owner chose the four levels from the ticket and `medium` as the default: it is OpenAI's own default for gpt-5, so the default answers, speed and cost stay as they were.
+- **Live check (owner, real key):** _pending._
+- **Decisions & gotchas:**
+  - `reasoning={"effort": ...}` is the shape OpenRouter's reasoning docs give. The SDK (openai 3.22) has a typed `reasoning_effort` argument but no `reasoning`, so it goes in `extra_body`: one named argument, still no `**kwargs`. OpenRouter also lists `reasoning_effort`; if `reasoning` ever stops working, swapping to it is a one-line change in `_send`.
+  - `none` and `xhigh` exist in OpenRouter's docs and the SDK's types, but are for newer models than gpt-5, so they are refused.
+  - The effort is checked in `stream()` before the call returns, so a bad value fails before `reply_pieces` counts a request for the rate limit.
+  - Reasoning text that OpenRouter may stream alongside the answer is ignored: `_chunk_text` reads only `delta.content`.
+  - Manual check in the browser pane (sidebar only, no message sent): four levels, Medium preselected, the tooltip reads well, no slider left.
+- **Follow-ups:**
+  - T3.3 (#10): `scripts/prompt_eval.py` on the unpushed `feature/t3.3-prompt-eval` branch still passes a temperature to `complete()` and has `--temperatures`. When that branch merges `main`, it must switch to `--efforts` (and the R7 comparison to effort levels). It fails at the call until then.
+  - PR #61 (T5.3) also edits `app.py` and `config.py`: expect small conflicts next to the changed lines.
+
 ## 2026-10-02 · T5.4 Error & empty states · #60 (closes #21)
 - **What:**
   - Each notice in `app.py` has a `kind` (`"guard"`, `"rate_limit"`, `"llm"`, `"interrupted"`). `NOTICE_STYLES` maps the kind to its element, icon, title and copy-box caption:

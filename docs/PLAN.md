@@ -8,7 +8,7 @@
 ```
 Streamlit UI ──► Security Guard ──► Prompt Builder (system + user) ──► OpenRouter client ──► LLM
      ▲                                                                       ▲                 │
-     └──────────────────── Generated interview answer ◄──────────────────────┴── Model settings (temperature)
+     └──────────────────── Generated interview answer ◄──────────────────────┴── Model settings (reasoning effort)
 ```
 
 Proposed module layout:
@@ -76,7 +76,7 @@ Goal: a clean, runnable repo skeleton that other epics build on.
 Goal: reliable LLM calls behind one small interface.
 
 ### T2.1 OpenRouter client wrapper (M)
-- `llm.complete(messages, model, temperature, max_tokens)` using OpenRouter's OpenAI-compatible endpoint.
+- `llm.complete(messages, model, temperature, max_tokens)` using OpenRouter's OpenAI-compatible endpoint. (T2.4 replaced `temperature` with `reasoning_effort`.)
 **Acceptance criteria**
 - [x] Returns the assistant text for a valid request (verified with a mocked HTTP layer in tests).
 - [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff.
@@ -108,6 +108,19 @@ Goal: reliable LLM calls behind one small interface.
 - [x] Unit: token usage is read from the response; a response without usage does not crash.
 - [x] UI flow: after a reply, the usage expander shows the token counts.
 
+### T2.4 Replace temperature with reasoning effort (S)
+OpenRouter lists no `temperature` support for the three allowed gpt-5 models, so the slider had no effect. Reasoning effort (named in the brief's Easy #8) takes its place.
+**Acceptance criteria**
+- [ ] One live call by the owner confirms what OpenRouter does with `temperature` for gpt-5-mini; the result is in `docs/PROGRESS.md`.
+- [ ] A "Reasoning effort" select (`minimal` / `low` / `medium` / `high`, default `medium` from `config.py`) replaces the slider and is sent as `reasoning={"effort": ...}`.
+- [ ] `temperature` is no longer sent; `config.py` drops its temperature settings.
+- [ ] A help text explains the trade-off: thinking time and tokens versus answer depth.
+- [ ] T3.3 (#10) compares reasoning effort instead of temperature.
+
+**Tests**
+- [ ] Unit: `stream()` / `complete()` send the chosen effort and no `temperature`; an effort outside the list raises before any request.
+- [ ] UI flow: the select's value reaches the fake LLM call; no Temperature widget remains.
+
 ## Epic 3 — Prompt Engineering (≥ 5 strategies)
 Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evidence.
 
@@ -132,7 +145,7 @@ Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (rea
 - [x] UI flow: the strategy select lists every registered strategy by its label.
 
 ### T3.3 Prompt evaluation (M)
-- Run the same 3–5 fixed test inputs through all strategies at the default temperature; score on a rubric (relevance, actionability, structure, tone, 1–5).
+- Run the same 3–5 fixed test inputs through all strategies at the default reasoning effort (temperature until T2.4); score on a rubric (relevance, actionability, structure, tone, 1–5).
 **Acceptance criteria**
 - [ ] `docs/PROMPT_EVALUATION.md` contains the test inputs, a results table, and a justified winner.
 - [ ] The winning strategy is the app default.
@@ -198,7 +211,7 @@ Goal: prevent misuse before any tokens are spent.
 Goal: a polished single-page app matching the diagram.
 
 ### T5.1 Layout & inputs (M)
-Sidebar: model select, strategy select, temperature slider, interview type, role. Main: chat.
+Sidebar: model select, strategy select, temperature slider (replaced by a reasoning effort select in T2.4), interview type, role. Main: chat.
 **Acceptance criteria**
 - [x] Single page, works at desktop and mobile widths.
 - [x] Temperature slider 0.0–1.5 (default 0.7) is passed to the API call.

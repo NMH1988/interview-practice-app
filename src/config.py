@@ -8,9 +8,11 @@ import streamlit as st
 ALLOWED_MODELS: tuple[str, ...] = ("openai/gpt-5-mini", "openai/gpt-5-nano", "openai/gpt-5")
 DEFAULT_MODEL = "openai/gpt-5-mini"
 
-MIN_TEMPERATURE = 0.0
-MAX_TEMPERATURE = 1.5
-DEFAULT_TEMPERATURE = 0.7
+# How long a gpt-5 model thinks before it answers (OpenRouter's `reasoning.effort`). These models
+# ignore `temperature`, so this is the setting the app offers. Higher effort spends more of
+# max_tokens on thinking. "medium" is OpenAI's own default, so it changes nothing by itself.
+REASONING_EFFORTS: tuple[str, ...] = ("minimal", "low", "medium", "high")
+DEFAULT_REASONING_EFFORT = "medium"
 
 # gpt-5 models spend reasoning tokens from this budget too, so keep it generous: a low budget
 # can be used up by thinking alone and return no text.
