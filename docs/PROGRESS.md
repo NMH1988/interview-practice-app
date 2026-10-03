@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-03 · T2.4 Replace temperature with reasoning effort · #<PR> (closes #68)
+## 2026-10-03 · T2.4 Replace temperature with reasoning effort · #71 (closes #68)
 - **What:**
   - `config.py` drops `MIN_TEMPERATURE` / `MAX_TEMPERATURE` / `DEFAULT_TEMPERATURE` and gets `REASONING_EFFORTS = ("minimal", "low", "medium", "high")` and `DEFAULT_REASONING_EFFORT = "medium"`.
   - `llm.complete()`, `llm.stream()` and `_send()` take `reasoning_effort` in the third place, where `temperature` was. `_send` sends it as `extra_body={"reasoning": {"effort": ...}}` and no longer sends `temperature`. A level outside the list raises `InvalidEffortError` (an `LLMError`) before the key is read or any request goes out.
