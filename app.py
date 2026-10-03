@@ -137,14 +137,20 @@ def queue_message() -> None:
 
 def use_example(interview_type: str, index: int) -> None:
     """Queue a clicked starter, built from the role and seniority as they are at the click."""
-    # A callback gets the args of the run that drew the button, so a starter built then would
-    # name the old role if the role was edited in the same rerun as the click. The widgets'
-    # values in session state are already the new ones here. The send step checks the role again.
+    # A callback gets the args of the run that drew the button, but the widgets' values in
+    # session state are already the new ones here. So a starter built when it was drawn would
+    # name the old role if the role was edited in the same rerun as the click, and one from a
+    # mode the user just left would go out under the new mode. The first is rebuilt; the second
+    # is dropped, and this run shows the new mode's starters to click instead.
+    if st.session_state.interview_type != interview_type:
+        return
     role_now = st.session_state.role
     try:
         role_now = validate_role(role_now, log=False)
     except GuardError:
-        pass
+        # The send step checks the role again and refuses the message with its reason; this only
+        # keeps the text tidy for the copy box, the same way the sidebar labels the starters.
+        role_now = " ".join(role_now.split()) or "role"
     starters = example_prompts(interview_type, role_now, st.session_state.seniority)
     st.session_state.pending = starters[index].text
 

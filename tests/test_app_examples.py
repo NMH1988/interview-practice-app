@@ -159,3 +159,32 @@ def test_role_edited_in_the_same_run_as_the_click_is_the_one_sent(fake_llm):
     assert fake_llm.calls[0]["messages"][-1]["content"] == build_user_prompt(
         "Data Analyst", "Job-description analysis", DEFAULT_SENIORITY, example.text
     )
+
+
+def test_starter_clicked_as_the_mode_changes_is_dropped(fake_llm):
+    """A starter from the mode the user just left is not sent under the new mode."""
+    at = start()
+    # Both land in one rerun: the Behavioural starter on screen is clicked as the mode changes.
+    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis")
+    examples(at)[0].click().run(timeout=30)
+    assert not at.exception
+    assert fake_llm.calls == []
+    assert at.session_state.pending is None
+    # The new mode's starter is offered instead.
+    labels = [button.label for button in examples(at)]
+    assert labels == [example.label for example in starters("Job-description analysis")]
+
+
+def test_starter_clicked_as_the_role_is_blanked_is_refused_not_crashed(fake_llm):
+    """Blanking the role in the same rerun as a click refuses the message with the role's reason."""
+    at = start()
+    at.sidebar.text_input(key="role").set_value("   ")
+    examples(at)[0].click().run(timeout=30)
+    assert not at.exception
+    assert fake_llm.calls == []
+    (warning,) = at.main.warning
+    assert warning.proto.title == "Message not sent"
+    assert "enter the role" in warning.value
+    assert "enter the role" in at.sidebar.warning[0].value
+    # The starter is kept for copying, like any refused message.
+    assert [code.value for code in at.code] == [starters(INTERVIEW_TYPES[0])[0].text]
