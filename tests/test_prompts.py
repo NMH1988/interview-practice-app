@@ -409,6 +409,15 @@ def test_job_description_starter_picks_a_or_an(seniority, article):
     assert f" for {article} {seniority} Engineer role" in example.text
 
 
+@pytest.mark.parametrize("role", ["Marketing role", "role", "Sales ROLE"])
+def test_job_description_starter_does_not_repeat_role(role):
+    """A role that already ends in "role" is not followed by a second "role"."""
+    (example,) = example_prompts("Job-description analysis", role, "Senior")
+    assert example.text == (
+        f"Please write a short sample job description for a Senior {role}, then analyze it."
+    )
+
+
 def test_job_description_mode_tells_the_coach_how_to_write_a_sample():
     """When asked, the coach writes a sample JD for the role and seniority, then analyzes it."""
     assert SAMPLE_JD_RULE in MODE_INSTRUCTIONS["Job-description analysis"]

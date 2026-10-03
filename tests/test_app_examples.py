@@ -188,3 +188,19 @@ def test_starter_clicked_as_the_role_is_blanked_is_refused_not_crashed(fake_llm)
     assert "enter the role" in at.sidebar.warning[0].value
     # The starter is kept for copying, like any refused message.
     assert [code.value for code in at.code] == [starters(INTERVIEW_TYPES[0])[0].text]
+
+
+def test_job_description_starter_clicked_as_the_role_is_blanked_keeps_tidy_text(fake_llm):
+    """With the role blanked at the click, the refused starter is kept as tidy text to copy."""
+    at = start()
+    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis").run(timeout=30)
+    at.sidebar.text_input(key="role").set_value("   ")
+    examples(at)[0].click().run(timeout=30)
+    assert not at.exception
+    assert fake_llm.calls == []
+    assert at.main.warning[0].proto.title == "Message not sent"
+    # The blank role is normalised to the "role" placeholder, with no stray spaces or "role role".
+    assert [code.value for code in at.code] == [
+        f"Please write a short sample job description for a {DEFAULT_SENIORITY} role, "
+        "then analyze it."
+    ]

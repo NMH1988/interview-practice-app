@@ -47,9 +47,12 @@ def sample_job_description(role: str, seniority: str) -> ExamplePrompt:
     # the sample rule (PR #60 review round 5).
     article = "an" if seniority[:1].lower() in {"a", "e", "i", "o", "u"} else "a"
     position = f"{article} {seniority} {role}"
+    # A role that already ends in "role" (e.g. "Marketing role", or the app's "role" placeholder
+    # for a blank one) gets no second "role".
+    job = position if position.lower().endswith(" role") else f"{position} role"
     return ExamplePrompt(
         f"Analyze a sample job description for {position}",
-        f"Please write a short sample job description for {position} role, then analyze it.",
+        f"Please write a short sample job description for {job}, then analyze it.",
     )
 
 
