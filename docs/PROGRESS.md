@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-03 · T5.8 Job-description analysis adds a short study plan · #TBD (closes #70)
+## 2026-10-03 · T5.8 Job-description analysis adds a short study plan · #72 (closes #70)
 - **Brief:** serves starter idea #4 (job description analyser: key skills, likely topics "plus a short plan of what to study") and `PLAN.md` T5.3's "paste JD → prep strategy". In line with the brief, so done without a second question.
 - **What:** `MODE_INSTRUCTIONS[JD_ANALYSIS]` in `src/prompts.py` gets the owner's sentence as its own paragraph, right after the bulleted list: "End the analysis by prioritizing these areas by relevance to the role and creating a short, practical study plan with focused review topics and interview practice tasks." Tests in `tests/test_prompts.py` (`STUDY_PLAN_RULE`): it follows the list directly and comes before the pasted-JD rules, and every strategy's JD prompt carries it verbatim.
 - **Why:** the JD block listed skills, topics, gaps and likely questions but never asked for a study plan. The owner wrote the sentence; Claude reviewed two drafts. The first drafts re-asked for skills, tools and responsibilities, which the list already covers (risk: two skills sections in one reply) and asked for a long plan where the brief says short; the owner chose the one-sentence version that only adds the plan.
