@@ -6,7 +6,7 @@ Interview Practice App: Streamlit + OpenRouter. Brief: `docs/BRIEF.md`. Plan and
 
 For **every coding task** in this repository (features, bug fixes, refactors, issue tickets), invoke the `qrspi` skill (`.claude/skills/qrspi/SKILL.md`) first and follow its phases in order: Question -> Research -> Structure -> Plan -> Implement. Do not edit code before the Implement phase.
 
-**Before starting any ticket**, read `docs/BRIEF.md` (the project brief: what the course asks for; the full brief wins if they differ) and check the ticket against it, then read `docs/PROGRESS.md` (what earlier PRs did, decisions, follow-ups) and run `gh pr list --state open`. If the ticket's idea, our plan or the prompts differ from the brief, say so and ask; don't infer what the brief probably means. **Every PR adds its own entry** at the top of `docs/PROGRESS.md` (Dependabot exempt).
+**Before starting any ticket**, read `docs/BRIEF.md` (our summary of the course brief) and check the ticket against it, then read `docs/PROGRESS.md` (what earlier PRs did, decisions, follow-ups) and run `gh pr list --state open`. Read the full brief too when the exact wording matters or the summary is unclear; it is not in the repo, so ask the user for it if it is not at hand. The full brief wins over the summary. If the ticket, our plan or the prompts contradict the brief, or a choice changes what the product does, say so and ask; don't infer what the brief probably means. **Every PR adds its own entry** at the top of `docs/PROGRESS.md` (Dependabot exempt).
 
 ## Code conventions
 

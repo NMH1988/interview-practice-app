@@ -13,7 +13,7 @@ Trivial edits (typo, comment, formatting, a one-line config change) may collapse
 First read `docs/BRIEF.md` (the project brief), then `docs/PROGRESS.md`, and run `gh pr list --state open`, so the brief, earlier decisions, open work and follow-ups shape the questions. If `gh` is not installed or not logged in, say so and go on with only the log. Then break the task into clarifying questions.
 - List every unknown that affects the solution: scope, inputs/outputs, edge cases, acceptance criteria, constraints, affected files.
 - If the task comes from a GitHub issue, read it (`gh issue view <n>`) and turn each acceptance criterion into at least one question.
-- Name the brief's requirement, starter idea or optional task the ticket serves. If the ticket, `docs/PLAN.md` or the prompts (e.g. `MODE_INSTRUCTIONS`) differ from the brief, or the brief does not cover a design choice, list it as a **needs the user** question instead of inferring an answer.
+- Name the brief's requirement, starter idea or optional task the ticket serves (read the full brief when the exact wording matters; ask the user for it if it is not at hand). If the ticket, `docs/PLAN.md` or the prompts (e.g. `MODE_INSTRUCTIONS`) **contradict** the brief, or a choice changes **what the product does** (who speaks in a mode, what a mode produces, which users it serves), list it as a **needs the user** question instead of inferring an answer. Implementation details the brief does not mention follow the normal default rule below.
 - Mark each question as **answerable from the code/docs** or **needs the user**.
 - Ask the user the "needs the user" questions and wait for answers before moving on, unless a sensible default exists; if so, state the default explicitly.
 
