@@ -75,4 +75,4 @@ Do these **only after the core app works**. Anyone with software experience is i
 - At the start of every ticket, name the requirement, idea or optional task the ticket serves.
 - When the exact wording matters, or this summary is unclear, read the full brief (ask the owner for it if it is not at hand). Don't guess from the summary.
 - If our plan, prompts or mode instructions **contradict** the brief, or a choice changes **what the product does** (who speaks in a mode, what a mode produces, which users it serves), say so and ask the owner. Ordinary implementation choices the brief says nothing about follow the usual QRSPI rule: use a sensible default and state it.
-- Submission and the project review go through the GitHub repository the course provides.
+- Submission and the project review go through the GitHub repository the course provides: this repo, `NMH1988/interview-practice-app` (confirmed by the owner). Reviewers read it as submitted, so keep `main`, the README and `docs/` in a state you would hand in.
