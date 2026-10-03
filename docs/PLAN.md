@@ -111,15 +111,15 @@ Goal: reliable LLM calls behind one small interface.
 ### T2.4 Replace temperature with reasoning effort (S)
 OpenRouter lists no `temperature` support for the three allowed gpt-5 models, so the slider had no effect. Reasoning effort (named in the brief's Easy #8) takes its place.
 **Acceptance criteria**
-- [ ] One live call by the owner confirms what OpenRouter does with `temperature` for gpt-5-mini; the result is in `docs/PROGRESS.md`.
-- [ ] A "Reasoning effort" select (`minimal` / `low` / `medium` / `high`, default `medium` from `config.py`) replaces the slider and is sent as `reasoning={"effort": ...}`.
-- [ ] `temperature` is no longer sent; `config.py` drops its temperature settings.
-- [ ] A help text explains the trade-off: thinking time and tokens versus answer depth.
-- [ ] T3.3 (#10) compares reasoning effort instead of temperature.
+- [x] One live call by the owner confirms what OpenRouter does with `temperature` for gpt-5-mini; the result is in `docs/PROGRESS.md` (accepted but ignored).
+- [x] A "Reasoning effort" select (`minimal` / `low` / `medium` / `high`, default `medium` from `config.py`) replaces the slider and is sent as `reasoning={"effort": ...}`.
+- [x] `temperature` is no longer sent; `config.py` drops its temperature settings.
+- [x] A help text explains the trade-off: thinking time and tokens versus answer depth.
+- [x] T3.3 (#10) compares reasoning effort instead of temperature.
 
 **Tests**
-- [ ] Unit: `stream()` / `complete()` send the chosen effort and no `temperature`; an effort outside the list raises before any request.
-- [ ] UI flow: the select's value reaches the fake LLM call; no Temperature widget remains.
+- [x] Unit: `stream()` / `complete()` send the chosen effort and no `temperature`; an effort outside the list raises before any request.
+- [x] UI flow: the select's value reaches the fake LLM call; no Temperature widget remains.
 
 ## Epic 3 — Prompt Engineering (≥ 5 strategies)
 Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evidence.
