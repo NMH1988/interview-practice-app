@@ -5,7 +5,13 @@ from streamlit.testing.v1 import AppTest
 
 from src import guard, rate_limit
 from src.config import API_KEY_NAME, DEFAULT_ROLE, DEFAULT_SENIORITY, RATE_LIMIT_PER_MINUTE
-from src.prompts import EXAMPLE_CAPTIONS, INTERVIEW_TYPES, build_user_prompt, example_prompts
+from src.prompts import (
+    EXAMPLE_CAPTIONS,
+    INTERVIEW_TYPES,
+    JD_ANALYSIS,
+    build_user_prompt,
+    example_prompts,
+)
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
 STARTER_CAPTION = EXAMPLE_CAPTIONS[INTERVIEW_TYPES[0]]
@@ -133,7 +139,7 @@ def test_clicked_example_still_meets_the_guard(monkeypatch, fake_llm):
 def test_job_description_starter_follows_the_chosen_role_and_seniority(fake_llm, role, seniority):
     """The sample-JD starter names the sidebar's role and seniority, and sends them to the coach."""
     at = start()
-    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis")
+    at.sidebar.selectbox(key="interview_type").set_value(JD_ANALYSIS)
     at.sidebar.text_input(key="role").set_value(f"  {role} ")
     at.sidebar.selectbox(key="seniority").set_value(seniority).run(timeout=30)
     assert not at.exception
@@ -141,23 +147,23 @@ def test_job_description_starter_follows_the_chosen_role_and_seniority(fake_llm,
     assert button.label == f"Analyze a sample job description for a {seniority} {role}"
     button.click().run(timeout=30)
     assert not at.exception
-    (example,) = example_prompts("Job-description analysis", role, seniority)
+    (example,) = example_prompts(JD_ANALYSIS, role, seniority)
     assert fake_llm.calls[0]["messages"][-1]["content"] == build_user_prompt(
-        role, "Job-description analysis", seniority, example.text
+        role, JD_ANALYSIS, seniority, example.text
     )
 
 
 def test_role_edited_in_the_same_run_as_the_click_is_the_one_sent(fake_llm):
     """A starter clicked together with a role edit asks for the new role, matching Role: line."""
     at = start()
-    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis").run(timeout=30)
+    at.sidebar.selectbox(key="interview_type").set_value(JD_ANALYSIS).run(timeout=30)
     # Both land in one rerun: the callback must not use the role from when the button was drawn.
     at.sidebar.text_input(key="role").set_value("Data Analyst")
     examples(at)[0].click().run(timeout=30)
     assert not at.exception
-    (example,) = example_prompts("Job-description analysis", "Data Analyst", DEFAULT_SENIORITY)
+    (example,) = example_prompts(JD_ANALYSIS, "Data Analyst", DEFAULT_SENIORITY)
     assert fake_llm.calls[0]["messages"][-1]["content"] == build_user_prompt(
-        "Data Analyst", "Job-description analysis", DEFAULT_SENIORITY, example.text
+        "Data Analyst", JD_ANALYSIS, DEFAULT_SENIORITY, example.text
     )
 
 
@@ -165,14 +171,14 @@ def test_starter_clicked_as_the_mode_changes_is_dropped(fake_llm):
     """A starter from the mode the user just left is not sent under the new mode."""
     at = start()
     # Both land in one rerun: the Behavioural starter on screen is clicked as the mode changes.
-    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis")
+    at.sidebar.selectbox(key="interview_type").set_value(JD_ANALYSIS)
     examples(at)[0].click().run(timeout=30)
     assert not at.exception
     assert fake_llm.calls == []
     assert at.session_state.pending is None
     # The new mode's starter is offered instead.
     labels = [button.label for button in examples(at)]
-    assert labels == [example.label for example in starters("Job-description analysis")]
+    assert labels == [example.label for example in starters(JD_ANALYSIS)]
 
 
 def test_starter_clicked_as_the_role_is_blanked_is_refused_not_crashed(fake_llm):
@@ -193,7 +199,7 @@ def test_starter_clicked_as_the_role_is_blanked_is_refused_not_crashed(fake_llm)
 def test_job_description_starter_clicked_as_the_role_is_blanked_keeps_tidy_text(fake_llm):
     """With the role blanked at the click, the refused starter is kept as tidy text to copy."""
     at = start()
-    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis").run(timeout=30)
+    at.sidebar.selectbox(key="interview_type").set_value(JD_ANALYSIS).run(timeout=30)
     at.sidebar.text_input(key="role").set_value("   ")
     examples(at)[0].click().run(timeout=30)
     assert not at.exception
