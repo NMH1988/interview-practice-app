@@ -6,7 +6,7 @@
 
 Build a **single-page interview-preparation web app** in Streamlit (or Next.js). It calls the OpenRouter API with a system prompt and a user prompt that **we write** to carry the interview-prep instructions (in this repo: `prompts.STRATEGIES` and `build_user_prompt`). It also has security guards. The app should bring together the whole sprint: calling OpenRouter, prompt techniques, LLM settings and security guards. Estimated time: about 5 hours.
 
-Diagram: Streamlit UI → security guard → system prompt + user prompt → OpenRouter API → LLM (model settings such as temperature) → generated interview answer back to the UI.
+Diagram (from the image the owner shared; the brief's text only gives its caption): Streamlit UI → security guard → system prompt + user prompt → OpenRouter API → LLM (model settings such as temperature) → generated interview answer back to the UI. Note: the three allowed gpt-5 models do not accept `temperature` (OpenRouter's model list), so the app replaces it with reasoning effort (*planned:* T2.4, #68).
 
 ### Freedom, and what we chose with it
 
@@ -39,14 +39,14 @@ Do these **only after the core app works**. Anyone with software experience is i
 1. Have ChatGPT review the app: how easy it is to use, how safe it is, and how good the prompts are.
 2. Improve prompts for your own domain (IT, finance, HR, communication, ...).
 3. More security constraints: input validation and system-prompt validation (possibly checked by an LLM). (*partly done:* input validation T4.1, injection checks T4.2, rate limiting T4.3, prompt-leak check T4.4; no LLM-based check yet)
-4. Difficulty levels for the questions (easy, medium, hard). (*partly done:* two strategies scale depth and difficulty to the chosen seniority, T3.2; no separate difficulty setting)
+4. Difficulty levels for the questions (easy, medium, hard). Not started: two strategies scale depth and difficulty to the chosen seniority (T3.2), but there is no difficulty setting.
 5. Concise vs. detailed answers through prompting.
 6. Have the model draft interviewer guidelines: a structured scoring guide for technical and behavioural interviews.
 7. Mock interview with AI personas (strict, neutral, friendly). (*partly done:* the `persona` strategy is a strict senior interviewer, T3.2; no neutral or friendly persona)
-8. Pick a model setting (temperature, max tokens, reasoning effort, ...), try a few values and note how the answers change.
+8. Pick a model setting (temperature, max tokens, reasoning effort, ...), try a few values and note how the answers change. (*planned:* reasoning effort, T2.4 #68, compared in T3.3 #10)
 
 **Medium**
-1. Let the user set every model setting (model, temperature, max tokens, ...) through sliders or fields. (*partly done:* model and temperature since T5.1; *planned:* max tokens, #64)
+1. Let the user set every model setting (model, temperature, max tokens, ...) through sliders or fields. (*partly done:* model since T5.1; the temperature slider has no effect on gpt-5 and is replaced by reasoning effort, *planned:* T2.4 #68; max tokens *planned:* #64)
 2. Two or more structured JSON output formats.
 3. Show the price of the prompt (pricing from OpenRouter's models endpoint).
 4. Read the OpenRouter docs and implement your own improvement.
