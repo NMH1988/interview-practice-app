@@ -16,6 +16,60 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-02 · T5.4 Error & empty states · #60 (closes #21)
+- **What:**
+  - Each notice in `app.py` has a `kind` (`"guard"`, `"rate_limit"`, `"llm"`, `"interrupted"`). `NOTICE_STYLES` maps the kind to its element, icon, title and copy-box caption:
+    - ✋ warning "Message not sent"
+    - ⏳ warning "Message limit reached"
+    - ⚠️ error "AI service problem"
+    - ⏹️ error "Answer interrupted"
+  - The title uses Streamlit 1.64's `title=` argument, so the body stays exactly `str(exc)`. The caption is "was not sent" for blocks and "got no answer" for LLM errors and interruptions (the request may have gone out). A notice of an unknown kind falls back to the error style.
+  - A guard block keeps the message in the copy box unless it is blank (new `guard.is_blank()`).
+  - Empty chat: starter buttons with a caption per mode (`EXAMPLE_CAPTIONS`). `prompts.example_prompts(interview_type, role, seniority)` returns `ExamplePrompt(label, text)` items: the button shows the label and a click sends the text.
+    - Behavioural / Technical: three kick-offs each that ask the coach to start ("Ask me ...", "Give me a short problem ...").
+    - "Questions to ask the interviewer": three questions for a real interviewer, one weak on purpose ("How many vacation days do I get?"). Each is sent framed as `I plan to ask my interviewer: "..." Is this a good question to ask?`.
+    - Job-description analysis: one button built from the role and seniority ("Please write a short sample job description for a <seniority> <role> role, then analyze it.", with a/an, and no second "role").
+  - `use_example(interview_type, index)` rebuilds the starter from session state at the click and puts it in `pending`, so it takes the normal guard → rate limit → LLM path.
+  - `rate_limit.session_cap_reached()`: once a session has used its 50 requests, an ⏳ `st.info` "Session limit reached" shows and the input and starters lock.
+  - Tests: `tests/test_app_errors.py`, `tests/test_app_examples.py`, plus additions in `test_prompts.py`, `test_guard.py`, `test_rate_limit.py`, `test_app_rate_limit.py` and `test_app_inputs.py`.
+- **Why:**
+  - The user chose an icon and a title per kind, and a copy box for every block except a blank message. This closes the T4.2/T5.2/T4.3 follow-ups: a false positive or a too-long answer no longer has to be retyped. The cap lock came from the T4.3 review.
+  - The starters follow `MODE_INSTRUCTIONS`. The user caught a first draft that reversed who speaks in two modes, because it asked the coach for answers.
+  - A fixed "Junior Software Engineer" sample job description clashed with other roles and with the default seniority. "Any role and level" is our own design (free-text role since T5.1). The brief leaves that choice to the learner (`docs/BRIEF.md`, added by T6.11, #67).
+  - So the coach writes the sample. The project owner wrote the matching sentence in the job-description block of `MODE_INSTRUCTIONS`, and it is pinned verbatim in every strategy (`SAMPLE_JD_RULE` in `tests/test_prompts.py`). A typed request for another role gets that role, by the owner's choice.
+  - This also settles T2.3's follow-up that the copy box said "was not sent" after the token-limit error: that error is an `LLMError`, so it now says "got no answer".
+  - The 402/403 messages were not done: they need `src/llm.py`, which T2.3 was rewriting at the time.
+- **Decisions:**
+  - The rate-limit title is "Message limit reached", because the same notice also reports the session cap.
+  - The notice, its copy box, the cap info and the starters sit in **one** `st.container()`, created only when one of them is shown. The run that sends a message shows none of them, so its chat message replaces the whole block at once. With loose elements, an old copy box and the starters stayed on screen while the reply streamed, and a stale starter was still clickable: in a browser test it cut the reply short and sent a second request. The layout tests check that everything between the chat and the input is one block, and they do not depend on the placeholder dashboard.
+  - A starter is rebuilt at the click, because a callback gets the args of the run that drew the button. A role edited in the same rerun is used as edited. A click from a mode that changed in the same rerun is dropped, and that run shows the new mode's starters. If the role became invalid in that rerun, the message is refused with the role's reason and a tidy copy box.
+  - The starter text does not open with "I don't have a job description yet": that echoes the mode's "ask them to paste" rule.
+- **Gotchas:**
+  - Keep T2.2's order: write the notice first, then `pending = None`. The guard notice is built as a local dict (`blocked`) and written once. In `reply_pieces` the `LLMError` path changes `saved_notice` in place (plain dict writes, no new stop point).
+  - Never bind the name `text` anywhere in `app.py`: it is a theme colour in the CSS block, and T4.4's source scan fails if it is bound twice.
+  - Once the cap locks the input, `AppTest` cannot type into it, so the defensive "queued before the cap" path is tested by setting `pending` directly.
+  - `loose_in_main` in the layout tests must list every element type the block draws.
+  - Starter button keys are `example_<mode index>_<i>`, so switching mode gives new widgets.
+  - The empty-chat caption also shows under a notice on an empty chat (e.g. after a failed first turn), so a test that wants "no copy box" checks for the copy-box caption, not for no caption at all.
+  - Merged `main` after T2.3 (#59); the only conflict was the chat-state comment.
+  - Manual check in the browser pane (fake key, no secrets file): the starters showed; a click got OpenRouter's real 401 shown as "AI service problem" with the copy box and no key; an injection message showed "Message not sent" with the copy box, and the server logged only the pattern names and length.
+  - Review history: several code-reviewer rounds; every finding and reply is in the PR #60 threads.
+- **Left as is:**
+  - No test pins the `pending is None` part of the starters condition, because AppTest only shows the final run.
+  - Two narrow cases can still leave a stale starter during a stream; closing them would change T2.2's notice/pending order.
+  - The cap sentence shows twice in the defensive path.
+  - A role that already names a level reads oddly ("a Mid-level Junior Data Analyst").
+  - The unreachable caption fallback is kept.
+  - T2.3's idea of a "Continue" action for a cut-off reply is not part of this ticket; it stays open.
+- **Follow-ups:**
+  - **Merge order: #67 (T6.11) → #60 → #61 (T5.3).** #61 changes the job-description mode's preface to "the job description they want analysed, or a question about it", which does not cover this PR's "write a sample" starter, and the two merge without a conflict there. When #61 merges `main` in, widen it, e.g. "..., a request for a sample one, or a question about it". #61 also conflicts with this PR in `app.py` and two test files; its description says which lines to keep.
+  - **Live check by the owner after #60 and #61 are both merged** (needs a real key), with the default strategy:
+    - the job-description starter for two roles from different fields (e.g. SAP Developer, Marketing Manager): the coach writes a sample, marks it as one and analyses it, without asking you to paste one;
+    - one click on "vacation days": the coach rates the question rather than answering it.
+  - Friendlier OpenRouter 402/403 messages in `src/llm.py`.
+  - A title for T2.3's cut-off warning (✂️).
+  - T5.5 removes the dashboard that pushes the starters below the fold.
+  - Gaps found against the brief: T5.6 (#62, turn "Questions to ask the interviewer" into a generator and widen the user-prompt preface), T5.7 (#63, separate developer settings), T7.5 (#64, max tokens setting), T6.10 (#65, tick PLAN boxes and fix stale PROGRESS text), T2.4 (#68, reasoning effort instead of temperature), T6.12 (#69, README), T5.8 (#70, study plan in job-description analysis).
 ## 2026-10-03 · T6.11 Read the project brief before every ticket · #67 (closes #66)
 - **What:** new `docs/BRIEF.md` summarises the course brief (Sprint 1, Part 5) in our own words: what the app is, the six mandatory requirements, the "don't put it in a box" freedom, the five starter ideas, the optional tasks (Easy/Medium/Hard, numbered as in the brief so tickets can cite e.g. "Medium #9"), the evaluation criteria and the bonus rule (2 medium + 1 hard). `CLAUDE.md` (intro and Workflow) and the `qrspi` skill's Question phase now say to read it before every ticket, before `docs/PROGRESS.md`; to name the brief item the ticket serves; and to ask the user, never settling it with a default, when the ticket, our plan or the prompts contradict the brief or a choice changes what the product does, instead of inferring. `docs/PLAN.md` gets the T6.11 entry and lists `BRIEF.md` in the layout.
 - **Why:** during T5.4 (PR #60) the work drifted from the brief twice: starters reversed who speaks in two modes, and a fixed sample job description boxed the app into one field and level. Re-reading the brief also showed that its "questions to ask the interviewer" idea is a generator, while our mode rates questions (#62). The project owner asked for this rule. The user chose a summary in our own words over a verbatim copy: the repo is public, and the course text is Turing College's.

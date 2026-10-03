@@ -3,6 +3,7 @@
 import html
 from collections.abc import Callable, Mapping
 from types import MappingProxyType
+from typing import NamedTuple
 
 # The interview modes from docs/PLAN.md; T5.3 shows them in the UI.
 INTERVIEW_TYPES: tuple[str, ...] = (
@@ -14,6 +15,96 @@ INTERVIEW_TYPES: tuple[str, ...] = (
 
 # Candidate levels for the user prompt; T5.1 shows them in the UI.
 SENIORITY_LEVELS: tuple[str, ...] = ("Junior", "Mid-level", "Senior", "Lead")
+
+
+class ExamplePrompt(NamedTuple):
+    """A starter for the empty chat: the button's label and the message a click sends."""
+
+    label: str
+    text: str
+
+
+def _same(text: str) -> ExamplePrompt:
+    """Return a starter whose button shows exactly the message it sends."""
+    return ExamplePrompt(text, text)
+
+
+def _question_for_the_interviewer(question: str) -> ExamplePrompt:
+    """Return a starter that asks the coach to rate `question`, not to answer it."""
+    # Framed, so neither the user nor the model takes it as a question for the coach itself.
+    return ExamplePrompt(
+        f'"{question}"',
+        f'I plan to ask my interviewer: "{question}" Is this a good question to ask?',
+    )
+
+
+def sample_job_description(role: str, seniority: str) -> ExamplePrompt:
+    """Return a starter asking the coach to write, then analyze, a sample JD for the role."""
+    # The coach writes the description (MODE_INSTRUCTIONS tells it how), so any field and level
+    # works without a fixed sample. The role and seniority are named in the text too, so a click
+    # works even where the coach only reads the tagged message. It does not say "I don't have a
+    # job description yet": that echoes the mode's "ask them to paste" rule and could win over
+    # the sample rule (PR #60 review round 5).
+    article = "an" if seniority[:1].lower() in {"a", "e", "i", "o", "u"} else "a"
+    position = f"{article} {seniority} {role}"
+    # A role that already ends in "role" (e.g. "Marketing role", or the app's "role" placeholder
+    # for a blank one) gets no second "role".
+    job = position if position.lower().endswith(" role") else f"{position} role"
+    return ExamplePrompt(
+        f"Analyze a sample job description for {position}",
+        f"Please write a short sample job description for {job}, then analyze it.",
+    )
+
+
+# Starters the empty chat offers for each interview mode; clicking one sends its text like a
+# typed message. Each mode's starters follow MODE_INSTRUCTIONS: in Behavioural and Technical the
+# user asks the coach to start the interview, and in "Questions to ask the interviewer" the user
+# offers a question for the coach to rate. Job-description analysis has none here: its one
+# starter depends on the role and seniority (see example_prompts). Not part of any prompt, so
+# they are not secret.
+EXAMPLE_PROMPTS: Mapping[str, tuple[ExamplePrompt, ...]] = MappingProxyType(
+    {
+        "Behavioural": (
+            _same("Ask me a behavioural question to get started."),
+            _same("Ask me about a time I disagreed with a teammate."),
+            _same("Ask me about a project that did not go as planned."),
+        ),
+        "Technical": (
+            _same("Ask me a technical question for this role."),
+            _same("Ask me to explain a core concept from this role in simple words."),
+            _same("Give me a short problem to solve, then review my approach."),
+        ),
+        "Questions to ask the interviewer": (
+            _question_for_the_interviewer(
+                "What does success look like in this role after the first 90 days?"
+            ),
+            _question_for_the_interviewer("How does the team give feedback on someone's work?"),
+            # A weak question on purpose, so the user sees what the coach says about one.
+            _question_for_the_interviewer("How many vacation days do I get?"),
+        ),
+    }
+)
+
+
+def example_prompts(interview_type: str, role: str, seniority: str) -> tuple[ExamplePrompt, ...]:
+    """Return the empty chat's starters for a mode; the job-description one names the role."""
+    if interview_type == "Job-description analysis":
+        return (sample_job_description(role, seniority),)
+    return EXAMPLE_PROMPTS.get(interview_type, ())
+
+
+# The line above each mode's starters, saying what the user is expected to send in that mode.
+EXAMPLE_CAPTIONS: Mapping[str, str] = MappingProxyType(
+    {
+        "Behavioural": "Not sure where to start? Try one of these:",
+        "Technical": "Not sure where to start? Try one of these:",
+        "Questions to ask the interviewer": (
+            "Practise the questions you'll ask your interviewer at the end of a real interview. "
+            "Type one and the coach will rate it, or try one of these:"
+        ),
+        "Job-description analysis": "Paste a job description into the box below, or try a sample:",
+    }
+)
 
 # Tags around the user's own text, so the guard and system prompts can refer to it.
 USER_INPUT_OPEN = "<user_input>"
@@ -110,6 +201,10 @@ MODE_INSTRUCTIONS: Mapping[str, str] = MappingProxyType(
             "Do not evaluate a job description using the candidate-answer review format.\n\n"
             "If the candidate has not yet provided a job description, ask them to paste or "
             "provide the job description they want to analyze.\n\n"
+            "If the candidate asks for a sample job description, create a concise, realistic "
+            "one using the role and seniority provided in the candidate message. Clearly state "
+            "that it is a sample job description, then analyze it in the same way as a job "
+            "description provided by the candidate.\n\n"
             "Once a job description is available, return the job-description analysis directly."
         ),
     }

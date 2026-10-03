@@ -57,10 +57,15 @@ def _looks_blank(ch: str) -> bool:
     return ch.isspace() or ch in _BLANK_LOOKING or unicodedata.category(ch) in _INVISIBLE_CATEGORIES
 
 
+def is_blank(text: str) -> bool:
+    """Return True if `text` shows as nothing on screen (empty, spaces, invisible characters)."""
+    return all(_looks_blank(ch) for ch in text)
+
+
 def _validated(text: str | None, max_chars: int, blank_msg: str, what: str) -> str:
     """Return `text` cleaned and trimmed, or raise `InvalidInputError` if blank or too long."""
     cleaned = clean_input(text or "").strip()
-    if all(_looks_blank(ch) for ch in cleaned):
+    if is_blank(cleaned):
         raise InvalidInputError(blank_msg)
     if len(cleaned) > max_chars:
         raise InvalidInputError(

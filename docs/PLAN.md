@@ -19,7 +19,7 @@ src/
   config.py             # model names, defaults, secrets loading
   guard.py              # input validation / injection / output safety
   rate_limit.py         # per-session request limits
-  prompts.py            # 5+ system prompt strategies + user prompt builder
+  prompts.py            # 5+ system prompt strategies + user prompt builder + example prompts
   llm.py                # OpenRouter client wrapper (retries, errors, streaming)
 tests/                  # all LLM calls mocked
 docs/BRIEF.md  docs/PLAN.md  docs/PROMPT_EVALUATION.md
@@ -233,12 +233,12 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 
 ### T5.4 Error & empty states (S)
 **Acceptance criteria**
-- [ ] Guard blocks, rate limits, and API errors each show a distinct `st.error`/`st.warning` message.
-- [ ] Empty state shows example prompts the user can click.
+- [x] Guard blocks, rate limits, and API errors each show a distinct `st.error`/`st.warning` message.
+- [x] Empty state shows example prompts the user can click.
 
 **Tests**
-- [ ] UI flow: a guard block, a rate limit, and each LLM error (the fake LLM raises it) show their own distinct `st.error`/`st.warning` text and no exception; the shown text never contains the fake API key or the raw response body (only `str(exc)`).
-- [ ] UI flow: with no history, example prompts are shown; clicking one sends it (the fake LLM receives that text).
+- [x] UI flow: a guard block, a rate limit, and each LLM error (the fake LLM raises it) show their own distinct `st.error`/`st.warning` text and no exception; the shown text never contains the fake API key or the raw response body (only `str(exc)`).
+- [x] UI flow: with no history, example prompts are shown; clicking one sends it (the fake LLM receives that text).
 
 ### T5.5 Remove placeholder dashboard (S)
 **Acceptance criteria**
