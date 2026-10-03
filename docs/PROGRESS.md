@@ -21,7 +21,12 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 - **What:** `MODE_INSTRUCTIONS[JD_ANALYSIS]` in `src/prompts.py` gets the owner's sentence as its own paragraph, right after the bulleted list: "End the analysis by prioritizing these areas by relevance to the role and creating a short, practical study plan with focused review topics and interview practice tasks." Tests in `tests/test_prompts.py` (`STUDY_PLAN_RULE`): it follows the list directly and comes before the pasted-JD rules, and every strategy's JD prompt carries it verbatim. `docs/PLAN.md` gets a ticked T5.8 entry, and its T5.3 line no longer says the JD mode lacks a study plan.
 - **Why:** the JD block listed skills, topics, gaps and likely questions but never asked for a study plan. The owner wrote the sentence; Claude reviewed two drafts. The first drafts re-asked for skills, tools and responsibilities, which the list already covers (risk: two skills sections in one reply) and asked for a long plan where the brief says short; the owner chose the one-sentence version that only adds the plan.
 - **Decisions & gotchas:** "these areas" refers to the list above it, so the sentence must stay directly after the list (tested). A sample JD written on request (T5.4) gets the plan too, since the sample rule says to analyze it "in the same way". The plan makes JD replies longer; T2.3's token cap and its ✂️ cut-off warning still apply.
-- **Follow-ups:** live check by the owner (needs a real key): paste a JD and click the sample-JD starter, and confirm the reply ends with a short, prioritized study plan and lists skills only once. The T3.3 worktree's copy of `prompts.py` predates this sentence; merge `main` there before scoring the strategies.
+- **Follow-ups:** live check by the owner (needs a real key); it also covers T5.3's open check that JD mode returns a prep strategy. Paste a JD and click the sample-JD starter, and confirm:
+  - the reply ends with a short, prioritized study plan and lists skills only once;
+  - the plan lists practice tasks rather than starting to quiz you (strategies say "ask one question at a time" in modes with interview questions);
+  - with a pasted JD for another job than the sidebar role (e.g. Data Analyst JD, role "Software Engineer"), the priorities follow the JD ("relevance to the role" can mean either);
+  - at "high" reasoning effort the reply is not cut off (✂️) by the 4,000-token cap.
+  - Separately: the T3.3 worktree's copy of `prompts.py` predates this sentence; merge `main` there before scoring the strategies.
 
 ## 2026-10-03 · T2.4 Replace temperature with reasoning effort · #71 (closes #68)
 - **What:**
