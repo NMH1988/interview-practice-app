@@ -237,7 +237,7 @@ Sidebar: model select, strategy select, temperature slider (replaced by a reason
 
 ### T5.3 Interview modes (M)
 **Acceptance criteria**
-- [x] Modes: Behavioural Q&A, Technical questions, Questions to ask the interviewer, Job-description analysis (paste JD → prep strategy). The modes exist; the JD mode does not yet ask for a prep strategy or study plan, which is T5.8 (#70).
+- [x] Modes: Behavioural Q&A, Technical questions, Questions to ask the interviewer, Job-description analysis (paste JD → prep strategy). The modes exist; T5.8 (#70) added the JD mode's study plan.
 - [x] Each mode changes the system/user prompt and the placeholder text.
 
 **Tests**
@@ -259,6 +259,15 @@ Sidebar: model select, strategy select, temperature slider (replaced by a reason
 
 **Tests**
 - [ ] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (today it asserts 3 metrics).
+
+### T5.8 Job-description analysis adds a short study plan (S)
+The brief's job description analyser ends with "a short plan of what to study", and T5.3 promises "paste JD → prep strategy", but the JD mode's instructions never asked for one.
+**Acceptance criteria**
+- [x] The owner's one sentence (English) is added verbatim to the job-description block of `MODE_INSTRUCTIONS`, asking for a short study plan.
+- [x] It also applies to a sample job description written on request (T5.4).
+
+**Tests**
+- [x] Unit: every strategy's job-description prompt contains the owner's sentence verbatim; it follows the list it refers to.
 
 ## Epic 6 — Quality, CI/CD & Deployment
 Goal: every PR is linted, tested, scanned; `main` auto-deploys.
