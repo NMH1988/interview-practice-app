@@ -29,6 +29,12 @@ def test_default_role_limit_is_60():
     assert config.MAX_ROLE_CHARS == 60
 
 
+def test_jd_limit_is_6000_and_above_the_message_limit():
+    """Job-description mode allows 6,000 characters, more than a normal message (T5.3)."""
+    assert config.MAX_JD_CHARS == 6000
+    assert config.MAX_JD_CHARS > config.MAX_INPUT_CHARS
+
+
 def test_default_role_fits_the_role_limit():
     """The default role is not blank and passes the role length limit."""
     assert config.DEFAULT_ROLE.strip()
