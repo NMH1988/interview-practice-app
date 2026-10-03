@@ -261,9 +261,9 @@ Sidebar: model select, strategy select, temperature slider (replaced by a reason
 - [ ] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (today it asserts 3 metrics).
 
 ### T5.8 Job-description analysis adds a short study plan (S)
-The brief's job description analyser ends with "a short plan of what to study", and T5.3 promises "paste JD → prep strategy", but the JD mode's instructions never asked for one.
+The brief's job description analyser "extracts the key skills, likely interview topics, and a short study plan" (quoted in #70), and T5.3 promises "paste JD → prep strategy", but the JD mode's instructions never asked for one.
 **Acceptance criteria**
-- [x] The owner's one sentence (English) is added verbatim to the job-description block of `MODE_INSTRUCTIONS`, asking for a short study plan.
+- [x] The owner's one sentence (English) is added verbatim to the job-description block of `MODE_INSTRUCTIONS`, asking for a short study plan (at most five items, after the owner's live check).
 - [x] It also applies to a sample job description written on request (T5.4).
 
 **Tests**

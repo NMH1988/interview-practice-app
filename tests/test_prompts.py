@@ -453,7 +453,8 @@ SAMPLE_JD_RULE = (
 # The owner's study-plan sentence for the job-description mode (T5.8), kept verbatim.
 STUDY_PLAN_RULE = (
     "End the analysis by prioritizing these areas by relevance to the role and creating a short, "
-    "practical study plan with focused review topics and interview practice tasks."
+    "practical study plan of at most five items, each with a focused review topic and one "
+    "interview practice task."
 )
 
 
