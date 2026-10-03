@@ -83,7 +83,7 @@ Goal: reliable LLM calls behind one small interface.
 - [x] Rejects models outside the allowed list.
 
 **Tests**
-- [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given.
+- [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given. (T2.4: reasoning effort instead of temperature.)
 - [x] Unit: timeout, 401, 429 and 5xx each raise their own exception with a readable message.
 - [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast.
 - [x] Unit: a model outside the allowed list raises before any HTTP call is made.
@@ -218,8 +218,8 @@ Sidebar: model select, strategy select, temperature slider (replaced by a reason
 - [x] Theme colours still come from `.streamlit/config.toml`.
 
 **Tests**
-- [x] UI flow: the sidebar shows model (exactly the allowed models, default `gpt-5-mini`), strategy, temperature (0.0–1.5, default 0.7), interview type and role.
-- [x] UI flow: a changed model and temperature reach the fake LLM call.
+- [x] UI flow: the sidebar shows model (exactly the allowed models, default `gpt-5-mini`), strategy, temperature (0.0–1.5, default 0.7), interview type and role. (T2.4: a reasoning effort select replaced the temperature slider.)
+- [x] UI flow: a changed model and temperature reach the fake LLM call. (T2.4: reasoning effort.)
 - [x] Manual: check desktop and mobile widths in a browser (`AppTest` cannot measure layout).
 
 ### T5.2 Chat flow (M)

@@ -19,7 +19,7 @@ def sleeps(monkeypatch):
     return delays
 
 
-def _reply(text, *, finish_reason="stop", usage=None):
+def _reply(text, *, finish_reason="stop", usage=None, reasoning=None):
     """Return a minimal OpenAI-style chat completion response with the given text."""
     body = {
         "id": "gen-test",
@@ -36,6 +36,9 @@ def _reply(text, *, finish_reason="stop", usage=None):
     }
     if usage is not None:
         body["usage"] = usage
+    if reasoning is not None:
+        # OpenRouter may return the model's thinking next to the answer once reasoning is asked for.
+        body["choices"][0]["message"]["reasoning"] = reasoning
     return httpx2.Response(200, json=body)
 
 
@@ -335,6 +338,21 @@ def test_every_allowed_effort_is_sent(effort):
     assert json.loads(request.content)["reasoning"] == {"effort": effort}
 
 
+@pytest.mark.parametrize("call", [llm.complete, llm.stream], ids=["complete", "stream"])
+def test_disallowed_effort_does_not_need_api_key(call, no_env_key, monkeypatch):
+    """The effort check runs before the API key is looked up or a client is built."""
+    monkeypatch.setattr(llm, "make_client", lambda: pytest.fail("client was built"))
+    with pytest.raises(llm.InvalidEffortError):
+        call(MESSAGES, DEFAULT_MODEL, "xhigh", 256)
+
+
+def test_complete_leaves_out_returned_reasoning():
+    """Reasoning text OpenRouter returns next to the answer never ends up in the reply."""
+    fake = FakeOpenRouter(_reply("Use the STAR method.", reasoning="thinking about STAR..."))
+    text = llm.complete(MESSAGES, DEFAULT_MODEL, "high", 256, client=fake.client())
+    assert text == "Use the STAR method."
+
+
 def test_disallowed_model_does_not_need_api_key(no_env_key, monkeypatch):
     """The model check runs before the API key is looked up or a client is built."""
     monkeypatch.setattr(llm, "make_client", lambda: pytest.fail("client was built"))
@@ -454,6 +472,14 @@ def test_stream_missing_key_raises_at_call_time(no_env_key, monkeypatch):
     monkeypatch.setattr(config.st, "secrets", {})
     with pytest.raises(llm.LLMAuthError):
         llm.stream(MESSAGES, DEFAULT_MODEL, "medium", 256)
+
+
+def test_stream_leaves_out_streamed_reasoning():
+    """Chunks carrying only the model's thinking yield nothing; the pieces are the answer alone."""
+    thinking = _chunk()
+    thinking["choices"][0]["delta"] = {"reasoning": "thinking about STAR...", "content": None}
+    fake = FakeOpenRouter(_sse(_chunk(role="assistant"), thinking, _chunk("Use the STAR method.")))
+    assert _stream(fake) == ["Use the STAR method."]
 
 
 def test_stream_error_event_mid_reply_raises_readable_llm_error():

@@ -195,7 +195,7 @@ def reply_pieces(
     st.session_state.pending = None
     received = []
     try:
-        # Checks the model and the key now (a failure here sends nothing); the request itself
+        # Checks the model, effort and key now (a failure here sends nothing); the request itself
         # goes out on the stream's first next().
         stream = llm.stream(messages, model, reasoning_effort, DEFAULT_MAX_TOKENS)
         # Counted here, just before the request goes out (a failed or cut-short one may still
