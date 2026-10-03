@@ -391,12 +391,22 @@ def test_job_description_starter_asks_for_a_sample_for_the_chosen_role(role, sen
     (example,) = example_prompts("Job-description analysis", role, seniority)
     assert example.label == f"Analyze a sample job description for a {seniority} {role}"
     assert example.text == (
-        "I don't have a job description yet. Please write a short sample job description for a "
-        f"{seniority} {role} role, then analyze it."
+        f"Please write a short sample job description for a {seniority} {role} role, "
+        "then analyze it."
     )
+    # No "I don't have a job description yet": it would echo the mode's "ask them to paste" rule.
+    assert "don't have" not in example.text
     assert validate_input(example.text) == example.text
     assert matching_patterns(example.text) == set()
     assert "Paste a job description" in EXAMPLE_CAPTIONS["Job-description analysis"]
+
+
+@pytest.mark.parametrize(("seniority", "article"), [("Entry-level", "an"), ("Senior", "a")])
+def test_job_description_starter_picks_a_or_an(seniority, article):
+    """The article follows the seniority's first letter, so a new level still reads right."""
+    (example,) = example_prompts("Job-description analysis", "Engineer", seniority)
+    assert f" for {article} {seniority} Engineer" in example.label
+    assert f" for {article} {seniority} Engineer role" in example.text
 
 
 def test_job_description_mode_tells_the_coach_how_to_write_a_sample():

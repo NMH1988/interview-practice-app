@@ -145,3 +145,17 @@ def test_job_description_starter_follows_the_chosen_role_and_seniority(fake_llm,
     assert fake_llm.calls[0]["messages"][-1]["content"] == build_user_prompt(
         role, "Job-description analysis", seniority, example.text
     )
+
+
+def test_role_edited_in_the_same_run_as_the_click_is_the_one_sent(fake_llm):
+    """A starter clicked together with a role edit asks for the new role, matching Role: line."""
+    at = start()
+    at.sidebar.selectbox(key="interview_type").set_value("Job-description analysis").run(timeout=30)
+    # Both land in one rerun: the callback must not use the role from when the button was drawn.
+    at.sidebar.text_input(key="role").set_value("Data Analyst")
+    examples(at)[0].click().run(timeout=30)
+    assert not at.exception
+    (example,) = example_prompts("Job-description analysis", "Data Analyst", DEFAULT_SENIORITY)
+    assert fake_llm.calls[0]["messages"][-1]["content"] == build_user_prompt(
+        "Data Analyst", "Job-description analysis", DEFAULT_SENIORITY, example.text
+    )

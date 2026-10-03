@@ -135,10 +135,18 @@ def queue_message() -> None:
     st.session_state.pending = st.session_state.chat_box
 
 
-def use_example(example: str) -> None:
-    """Queue a clicked example prompt, so it is sent exactly like a typed message."""
-    # Not named "text": that name is a theme colour in the CSS block, which T4.4's scan guards.
-    st.session_state.pending = example
+def use_example(interview_type: str, index: int) -> None:
+    """Queue a clicked starter, built from the role and seniority as they are at the click."""
+    # A callback gets the args of the run that drew the button, so a starter built then would
+    # name the old role if the role was edited in the same rerun as the click. The widgets'
+    # values in session state are already the new ones here. The send step checks the role again.
+    role_now = st.session_state.role
+    try:
+        role_now = validate_role(role_now, log=False)
+    except GuardError:
+        pass
+    starters = example_prompts(interview_type, role_now, st.session_state.seniority)
+    st.session_state.pending = starters[index].text
 
 
 def new_session() -> None:
@@ -346,7 +354,7 @@ if notice is not None or used_up is not None or show_starters:
                     example.label,
                     key=f"example_{mode}_{i}",
                     on_click=use_example,
-                    args=(example.text,),
+                    args=(interview_type, i),
                     icon="💬",
                     disabled=not can_send,
                 )

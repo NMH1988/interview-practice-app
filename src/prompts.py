@@ -42,12 +42,14 @@ def sample_job_description(role: str, seniority: str) -> ExamplePrompt:
     """Return a starter asking the coach to write, then analyze, a sample JD for the role."""
     # The coach writes the description (MODE_INSTRUCTIONS tells it how), so any field and level
     # works without a fixed sample. The role and seniority are named in the text too, so a click
-    # works even where the coach only reads the tagged message.
-    position = f"{seniority} {role}"
+    # works even where the coach only reads the tagged message. It does not say "I don't have a
+    # job description yet": that echoes the mode's "ask them to paste" rule and could win over
+    # the sample rule (PR #60 review round 5).
+    article = "an" if seniority[:1].lower() in {"a", "e", "i", "o", "u"} else "a"
+    position = f"{article} {seniority} {role}"
     return ExamplePrompt(
-        f"Analyze a sample job description for a {position}",
-        "I don't have a job description yet. Please write a short sample job description for a "
-        f"{position} role, then analyze it.",
+        f"Analyze a sample job description for {position}",
+        f"Please write a short sample job description for {position} role, then analyze it.",
     )
 
 
