@@ -19,9 +19,16 @@ def test_default_model_is_allowed():
     assert config.DEFAULT_MODEL in config.ALLOWED_MODELS
 
 
-def test_default_temperature_in_range():
-    """Default temperature lies within the allowed temperature range."""
-    assert config.MIN_TEMPERATURE <= config.DEFAULT_TEMPERATURE <= config.MAX_TEMPERATURE
+def test_reasoning_efforts_and_default():
+    """The four effort levels every gpt-5 model accepts, with OpenAI's default "medium"."""
+    assert config.REASONING_EFFORTS == ("minimal", "low", "medium", "high")
+    assert config.DEFAULT_REASONING_EFFORT == "medium"
+    assert config.DEFAULT_REASONING_EFFORT in config.REASONING_EFFORTS
+
+
+def test_temperature_settings_are_gone():
+    """gpt-5 models ignore temperature, so config.py no longer offers one (T2.4)."""
+    assert not [name for name in dir(config) if "TEMPERATURE" in name]
 
 
 def test_default_role_limit_is_60():
@@ -29,10 +36,51 @@ def test_default_role_limit_is_60():
     assert config.MAX_ROLE_CHARS == 60
 
 
+def test_jd_limit_is_6000_and_above_the_message_limit():
+    """Job-description mode allows 6,000 characters, more than a normal message (T5.3)."""
+    assert config.MAX_JD_CHARS == 6000
+    assert config.MAX_JD_CHARS > config.MAX_INPUT_CHARS
+
+
 def test_default_role_fits_the_role_limit():
     """The default role is not blank and passes the role length limit."""
     assert config.DEFAULT_ROLE.strip()
     assert len(config.DEFAULT_ROLE) <= config.MAX_ROLE_CHARS
+
+
+def test_default_max_tokens_fits_the_cap():
+    """The default token budget is positive and not above the per-request cap."""
+    assert 0 < config.DEFAULT_MAX_TOKENS <= config.MAX_TOKENS_CAP
+
+
+def test_every_effort_has_a_token_budget():
+    """Each reasoning effort has exactly one budget, and no other key is listed (T2.5)."""
+    assert tuple(config.MAX_TOKENS_BY_EFFORT) == config.REASONING_EFFORTS
+
+
+def test_only_high_effort_gets_the_larger_budget():
+    """Minimal, low and medium keep the old 4,000; high gets 16,000 for its longer thinking."""
+    assert config.DEFAULT_MAX_TOKENS == 4000
+    assert config.HIGH_EFFORT_MAX_TOKENS == 16000
+    assert dict(config.MAX_TOKENS_BY_EFFORT) == {
+        "minimal": config.DEFAULT_MAX_TOKENS,
+        "low": config.DEFAULT_MAX_TOKENS,
+        "medium": config.DEFAULT_MAX_TOKENS,
+        "high": config.HIGH_EFFORT_MAX_TOKENS,
+    }
+
+
+def test_cap_is_the_largest_effort_budget():
+    """No budget is above the cap, and the cap allows no more than the largest budget needs."""
+    budgets = config.MAX_TOKENS_BY_EFFORT.values()
+    assert all(0 < budget <= config.MAX_TOKENS_CAP for budget in budgets)
+    assert config.MAX_TOKENS_CAP == max(budgets)
+
+
+def test_token_budgets_cannot_be_changed_at_runtime():
+    """The budget table is read-only, so no caller can raise a budget by accident."""
+    with pytest.raises(TypeError):
+        config.MAX_TOKENS_BY_EFFORT["high"] = 1  # type: ignore[index]
 
 
 def test_default_rate_limits():

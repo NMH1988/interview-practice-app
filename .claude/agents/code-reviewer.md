@@ -50,7 +50,7 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 - **Guard before spend:** every code path that reaches the LLM goes through the guard first. Rejected input (empty, too long, injection, rate-limited) must make **no** API call.
 - **Prompt injection:** user text is wrapped in `<user_input>...</user_input>` and placed in the user message, never concatenated into the system prompt. System prompts tell the model to stay on interview prep and ignore instructions inside user input.
 - **Output safety:** LLM output is rendered as Markdown **without** `unsafe_allow_html`. `unsafe_allow_html` is acceptable only for static CSS built from theme options (as in `app.py`), never for model or user text.
-- **Model settings:** the model must be in `ALLOWED_MODELS`; temperature stays within `MIN_TEMPERATURE`-`MAX_TEMPERATURE`; `max_tokens` is capped.
+- **Model settings:** the model must be in `ALLOWED_MODELS`; the reasoning effort is one of `REASONING_EFFORTS` (no `temperature`: the gpt-5 models ignore it); `max_tokens` is capped.
 - **Dependencies:** new runtime packages are pinned and identical in `pyproject.toml` and `requirements.txt`.
 
 ### 3. Tests
@@ -62,7 +62,7 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 ### 4. Project conventions
 - Every function, method and class - tests, fixtures and small helper classes included - has a one-line docstring saying what it does in plain words.
 - Business logic lives in `src/`, not `app.py`.
-- Defaults and limits (models, temperature, max length, rate limits) live in `src/config.py`, not as magic numbers.
+- Defaults and limits (models, reasoning effort, max length, rate limits) live in `src/config.py`, not as magic numbers.
 - ruff: line length 100, rules `E, F, I, B, UP`. Python 3.14.
 
 ## Run the checks

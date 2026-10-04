@@ -1,7 +1,9 @@
 """OpenRouter client wrapper: `complete()` and `stream()` with model checks, errors and retries."""
 
+import logging
 import time
-from collections.abc import Iterator
+from collections.abc import Generator, Iterator
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import openai
@@ -11,6 +13,8 @@ from openai.types.chat import ChatCompletion, ChatCompletionChunk
 from src.config import (
     ALLOWED_MODELS,
     API_KEY_NAME,
+    MAX_TOKENS_CAP,
+    REASONING_EFFORTS,
     MissingAPIKeyError,
     SecretsFileError,
     get_api_key,
@@ -28,6 +32,10 @@ BACKOFF_SECONDS = 1.0
 _RETRYABLE = (openai.RateLimitError, openai.InternalServerError)
 _UNREADABLE = "The AI service sent an unreadable answer. Please try again."
 _EMPTY = "The AI service returned an empty answer. Please try again."
+# gpt-5 models think before they write, and that thinking is paid from the same max_tokens.
+_CUT_OFF_EMPTY = "The model used up its token limit before writing an answer. Please try again."
+
+logger = logging.getLogger(__name__)
 
 # Indirection so tests can patch out the backoff wait.
 _sleep = time.sleep
@@ -39,6 +47,10 @@ class LLMError(RuntimeError):
 
 class InvalidModelError(LLMError, ValueError):
     """Raised when a model outside `ALLOWED_MODELS` is requested."""
+
+
+class InvalidEffortError(LLMError, ValueError):
+    """Raised when a reasoning effort outside `REASONING_EFFORTS` is requested."""
 
 
 class LLMTimeoutError(LLMError):
@@ -74,6 +86,70 @@ def _translate(exc: openai.APIError) -> LLMError:
             "The AI service is having problems right now. Please try again later."
         )
     return LLMError("The request to the AI service failed. Please try again.")
+
+
+@dataclass(frozen=True)
+class Usage:
+    """Token counts OpenRouter reported for one request."""
+
+    prompt_tokens: int
+    completion_tokens: int
+    total_tokens: int
+    # Part of completion_tokens that gpt-5 spent thinking; None when not reported.
+    reasoning_tokens: int | None = None
+
+
+@dataclass
+class _StreamEnd:
+    """What a stream reported by the time it ended: token usage and why the model stopped."""
+
+    usage: Usage | None = None
+    finish_reason: str | None = None
+
+
+def _count(value: object) -> int | None:
+    """Return `value` if it is a whole, non-negative token count, else None."""
+    return value if isinstance(value, int) and value >= 0 else None
+
+
+def _read_usage(source: object) -> Usage | None:
+    """Return the token usage on a response or chunk, or None if it has none or it is malformed."""
+    # Not validated by the SDK either: any field may be missing or of the wrong type.
+    usage = getattr(source, "usage", None)
+    prompt = _count(getattr(usage, "prompt_tokens", None))
+    completion = _count(getattr(usage, "completion_tokens", None))
+    total = _count(getattr(usage, "total_tokens", None))
+    if prompt is None or completion is None or total is None:
+        return None
+    details = getattr(usage, "completion_tokens_details", None)
+    return Usage(prompt, completion, total, _count(getattr(details, "reasoning_tokens", None)))
+
+
+def _log_usage(model: str, usage: Usage) -> None:
+    """Log one request's token counts (never the text) on this module's logger."""
+    reasoning = "" if usage.reasoning_tokens is None else f" (reasoning {usage.reasoning_tokens})"
+    logger.info(
+        "Token usage (%s): prompt %d, completion %d%s, total %d",
+        model,
+        usage.prompt_tokens,
+        usage.completion_tokens,
+        reasoning,
+        usage.total_tokens,
+    )
+
+
+def _finish_reason(source: object) -> str | None:
+    """Return why the first choice stopped ("length" = hit max_tokens), or None if not given."""
+    choices = getattr(source, "choices", None)
+    if not isinstance(choices, list) or not choices:
+        return None
+    reason = getattr(choices[0], "finish_reason", None)
+    return reason if isinstance(reason, str) else None
+
+
+def _no_text_error(finish_reason: str | None) -> LLMError:
+    """Return the error for a reply without text, saying so when the token limit caused it."""
+    return LLMError(_CUT_OFF_EMPTY if finish_reason == "length" else _EMPTY)
 
 
 def _reply_text(response: object) -> str | None:
@@ -138,26 +214,41 @@ def _check_model(model: str) -> None:
         raise InvalidModelError(f"Model {model!r} is not allowed. Choose one of the listed models.")
 
 
+def _check_effort(reasoning_effort: str) -> None:
+    """Raise InvalidEffortError if `reasoning_effort` is not in REASONING_EFFORTS."""
+    if reasoning_effort not in REASONING_EFFORTS:
+        raise InvalidEffortError(
+            f"Reasoning effort {reasoning_effort!r} is not allowed. Choose one of the listed ones."
+        )
+
+
 def _send(
     client: OpenAI,
     messages: list[dict],
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     max_tokens: int,
     *,
     stream: bool = False,
 ) -> object:
     """Send one chat request, retrying 429/5xx with backoff, and return the SDK's response."""
+    # Whatever the caller asks for, one reply never costs more than the cap. The cap is the
+    # "high" effort budget (config.MAX_TOKENS_BY_EFFORT), sized for its long thinking (T2.5).
+    max_tokens = min(max_tokens, MAX_TOKENS_CAP)
     for attempt in range(MAX_RETRIES + 1):
         try:
             # Arguments spelled out (no **kwargs), as T4.4's source scan requires.
             return client.chat.completions.create(
                 model=model,
                 messages=messages,
-                temperature=temperature,
+                # OpenRouter's documented shape; the SDK has no `reasoning` argument of its own.
+                # gpt-5 models ignore temperature, so it is not sent (T2.4).
+                extra_body={"reasoning": {"effort": reasoning_effort}},
                 max_tokens=max_tokens,
                 # Left out unless streaming, so complete() sends the same body as before.
                 stream=True if stream else openai.omit,
+                # Without this a stream reports no token usage (it comes in a last, textless chunk).
+                stream_options={"include_usage": True} if stream else openai.omit,
             )
         except _RETRYABLE as exc:
             if attempt == MAX_RETRIES:
@@ -167,8 +258,8 @@ def _send(
             raise _translate(exc) from exc
         except ValueError as exc:
             # Mostly a 200 body that does not parse (json.JSONDecodeError is not an APIError).
-            # Request-side ValueErrors, e.g. a NaN temperature, also land here; a non-ASCII
-            # key never does, because make_client() rejects it first.
+            # Request-side ValueErrors would land here too; a non-ASCII key never does,
+            # because make_client() rejects it first.
             raise LLMError(_UNREADABLE) from exc
     raise AssertionError("unreachable: the last attempt returns or raises")
 
@@ -176,48 +267,98 @@ def _send(
 def complete(
     messages: list[dict],
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     max_tokens: int,
     *,
     client: OpenAI | None = None,
 ) -> str:
     """Send a chat request to OpenRouter and return the assistant's reply text."""
     _check_model(model)
+    _check_effort(reasoning_effort)
     client = client or make_client()
-    response = _send(client, messages, model, temperature, max_tokens)
+    response = _send(client, messages, model, reasoning_effort, max_tokens)
     text = _reply_text(response)
+    usage = _read_usage(response)
+    if usage is not None:
+        _log_usage(model, usage)
+    finish_reason = _finish_reason(response)
     if not text or not text.strip():
-        raise LLMError(_EMPTY)
+        raise _no_text_error(finish_reason)
+    if finish_reason == "length":
+        # complete() returns only text, so scripts (T3.3) can only see a cut-off reply here.
+        logger.warning("Reply from %s was cut off by max_tokens", model)
     return text
+
+
+class ReplyStream(Iterator[str]):
+    """The reply's text pieces; `usage` and `finish_reason` are set once all of them are read."""
+
+    def __init__(self, pieces: Generator[str], end: _StreamEnd):
+        """Wrap the piece generator and the record it fills in when the stream ends."""
+        # A generator, not any iterator: close() needs its close() to shut the HTTP response.
+        # The generator holds `end`, not this object, so there is no reference cycle and
+        # refcounting still closes it as soon as nobody holds the stream.
+        self._pieces = pieces
+        self._end = end
+
+    def __next__(self) -> str:
+        """Return the next piece of text; the request goes out on the first call."""
+        return next(self._pieces)
+
+    def close(self) -> None:
+        """Stop reading early and close the HTTP response."""
+        self._pieces.close()
+
+    @property
+    def usage(self) -> Usage | None:
+        """Token counts for the request, or None until the end or if OpenRouter sent none."""
+        return self._end.usage
+
+    @property
+    def finish_reason(self) -> str | None:
+        """Why the model stopped ("length" = cut off by max_tokens), or None if not given."""
+        return self._end.finish_reason
 
 
 def stream(
     messages: list[dict],
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     max_tokens: int,
     *,
     client: OpenAI | None = None,
-) -> Iterator[str]:
-    """Check the model and key now, and return a generator of the reply's text pieces."""
-    # Not a generator itself, so a bad model or key fails here rather than on the first next().
+) -> ReplyStream:
+    """Check the model, effort and key now, and return the reply as a stream of text pieces."""
+    # Not a generator itself, so a bad model, effort or key fails here rather than on the first
+    # next().
     _check_model(model)
+    _check_effort(reasoning_effort)
     client = client or make_client()
-    return _stream_pieces(client, messages, model, temperature, max_tokens)
+    end = _StreamEnd()
+    pieces = _stream_pieces(client, messages, model, reasoning_effort, max_tokens, end)
+    return ReplyStream(pieces, end)
 
 
 def _stream_pieces(
-    client: OpenAI, messages: list[dict], model: str, temperature: float, max_tokens: int
-) -> Iterator[str]:
+    client: OpenAI,
+    messages: list[dict],
+    model: str,
+    reasoning_effort: str,
+    max_tokens: int,
+    end: _StreamEnd,
+) -> Generator[str]:
     """Send the streaming request on the first next() and yield each piece of text as it comes."""
     # Only the request is retried: once text is shown, a retry would repeat it.
-    response = _send(client, messages, model, temperature, max_tokens, stream=True)
+    response = _send(client, messages, model, reasoning_effort, max_tokens, stream=True)
     if not isinstance(response, Stream):
         raise LLMError(_UNREADABLE)
     has_text = False
     try:
         for chunk in response:
             piece = _chunk_text(chunk)
+            # The reason comes with the last text chunk, the usage in a chunk of its own after it.
+            end.finish_reason = _finish_reason(chunk) or end.finish_reason
+            end.usage = _read_usage(chunk) or end.usage
             if piece:
                 has_text = has_text or bool(piece.strip())
                 yield piece
@@ -230,5 +371,7 @@ def _stream_pieces(
     finally:
         # Also runs when the caller stops early (close()), so the connection is not kept open.
         response.close()
+    if end.usage is not None:
+        _log_usage(model, end.usage)
     if not has_text:
-        raise LLMError(_EMPTY)
+        raise _no_text_error(end.finish_reason)

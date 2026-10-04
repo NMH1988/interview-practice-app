@@ -12,26 +12,37 @@ from src.config import (
     API_KEY_NAME,
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
+    DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
-    DEFAULT_TEMPERATURE,
     MAX_ROLE_CHARS,
-    MAX_TEMPERATURE,
-    MIN_TEMPERATURE,
+    MAX_TOKENS_BY_EFFORT,
+    REASONING_EFFORTS,
     MissingAPIKeyError,
     SecretsFileError,
     get_api_key,
 )
-from src.guard import GuardError, check_output, validate_input, validate_role
+from src.guard import (
+    GuardError,
+    check_output,
+    clean_input,
+    is_blank,
+    max_input_chars,
+    validate_input,
+    validate_role,
+)
 from src.prompts import (
+    CHAT_PLACEHOLDERS,
+    EXAMPLE_CAPTIONS,
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
     STRATEGIES,
     STRATEGY_LABELS,
     build_messages,
     build_user_prompt,
+    example_prompts,
 )
-from src.rate_limit import RateLimitError, check_rate_limit
+from src.rate_limit import RateLimitError, check_rate_limit, session_cap_reached
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
@@ -94,8 +105,11 @@ def load_sessions() -> pd.DataFrame:
 df = load_sessions()
 
 # Chat state. Each history turn is {"role", "content" (shown in the chat), "sent" (sent to the
-# LLM)}. "pending" holds a submitted message until its reply is in; "notice" is a warning or
-# error to show once, since the run that sets it ends with st.rerun().
+# LLM)}; assistant turns also keep "usage" (an llm.Usage, or None if not reported) and
+# "cut_off" (True if max_tokens stopped the reply). "pending" holds a submitted message until
+# its reply is in; "notice" is a warning or error to show once, since the run that sets it ends
+# with st.rerun(): {"kind" (a key of NOTICE_STYLES), "text", and "unsent" (the user's message,
+# for a copy box) when there is one}.
 st.session_state.setdefault("history", [])
 st.session_state.setdefault("pending", None)
 st.session_state.setdefault("notice", None)
@@ -104,11 +118,43 @@ st.session_state.setdefault("notice", None)
 st.session_state.setdefault("request_times", [])
 
 INTERRUPTED = "The answer was interrupted before it finished."
+CUT_OFF = "The answer was cut off because it reached the token limit."
+
+# How each kind of notice is shown: (st element, icon, title, copy-box caption), so the user can
+# tell at a glance whether to fix the message, wait, or try again.
+NOT_SENT = "Your message was not sent. Copy it from here to keep it:"
+NO_ANSWER = "Your message got no answer. Copy it from here to keep it:"
+NOTICE_STYLES = {
+    "guard": (st.warning, "✋", "Message not sent", NOT_SENT),
+    "rate_limit": (st.warning, "⏳", "Message limit reached", NOT_SENT),
+    "llm": (st.error, "⚠️", "AI service problem", NO_ANSWER),
+    "interrupted": (st.error, "⏹️", "Answer interrupted", NO_ANSWER),
+}
 
 
 def queue_message() -> None:
     """Keep the submitted chat message as pending, so this run can lock the input first."""
     st.session_state.pending = st.session_state.chat_box
+
+
+def use_example(interview_type: str, index: int) -> None:
+    """Queue a clicked starter, built from the role and seniority as they are at the click."""
+    # A callback gets the args of the run that drew the button, but the widgets' values in
+    # session state are already the new ones here. So a starter built when it was drawn would
+    # name the old role if the role was edited in the same rerun as the click, and one from a
+    # mode the user just left would go out under the new mode. The first is rebuilt; the second
+    # is dropped, and this run shows the new mode's starters to click instead.
+    if st.session_state.interview_type != interview_type:
+        return
+    role_now = st.session_state.role
+    try:
+        role_now = validate_role(role_now, log=False)
+    except GuardError:
+        # The send step checks the role again and refuses the message with its reason; this only
+        # keeps the text tidy for the copy box, the same way the sidebar labels the starters.
+        role_now = " ".join(role_now.split()) or "role"
+    starters = example_prompts(interview_type, role_now, st.session_state.seniority)
+    st.session_state.pending = starters[index].text
 
 
 def new_session() -> None:
@@ -118,11 +164,22 @@ def new_session() -> None:
     st.session_state.notice = None
 
 
+def usage_text(usage: llm.Usage) -> str:
+    """Return one reply's token counts as a short line for its usage expander."""
+    completion = f"{usage.completion_tokens:,}"
+    if usage.reasoning_tokens is not None:
+        completion += f" (reasoning {usage.reasoning_tokens:,})"
+    return (
+        f"Prompt {usage.prompt_tokens:,} · Completion {completion} · "
+        f"Total {usage.total_tokens:,} tokens"
+    )
+
+
 def reply_pieces(
     messages: list[dict],
     system_prompt: str,
     model: str,
-    temperature: float,
+    reasoning_effort: str,
     clean: str,
     user_prompt: str,
     request_times: list[float],
@@ -134,14 +191,17 @@ def reply_pieces(
     # a run stopped between the two writes resends the message under a stale notice rather than
     # dropping it silently.
     # Its own name, not "notice": the module-level notice below holds the previous run's one.
-    saved_notice = {"kind": "error", "text": INTERRUPTED, "unsent": clean}
+    saved_notice = {"kind": "interrupted", "text": INTERRUPTED, "unsent": clean}
     st.session_state.notice = saved_notice
     st.session_state.pending = None
     received = []
     try:
-        # Checks the model and the key now (a failure here sends nothing); the request itself
+        # Checks the model, effort and key now (a failure here sends nothing); the request itself
         # goes out on the stream's first next().
-        stream = llm.stream(messages, model, temperature, DEFAULT_MAX_TOKENS)
+        # Higher effort thinks longer, so it gets a larger token budget (T2.5). .get(), so an
+        # unknown effort still reaches llm.stream and fails there as an LLMError, not a KeyError.
+        budget = MAX_TOKENS_BY_EFFORT.get(reasoning_effort, DEFAULT_MAX_TOKENS)
+        stream = llm.stream(messages, model, reasoning_effort, budget)
         # Counted here, just before the request goes out (a failed or cut-short one may still
         # have spent tokens). A plain list append, and nothing from llm.stream to the request
         # touches st.session_state, so no stop point falls between counting and sending: a
@@ -158,12 +218,17 @@ def reply_pieces(
         # stays out of the history, so it alternates user/assistant. Changed in place (a plain
         # dict write, not a stop point), so a rerun already waiting cannot stop the run before
         # the real error replaces "interrupted".
+        saved_notice["kind"] = "llm"
         saved_notice["text"] = str(exc)
         raise
     # Saved before st.write_stream draws the final text, where a requested rerun could stop it.
     # The whole reply is checked before it is stored, so a leaked prompt never stays in the chat
     # or reaches the next request; the streamed text is replaced by the rerun that follows.
-    reply = check_output("".join(received), system_prompt)
+    streamed = "".join(received)
+    reply = check_output(streamed, system_prompt)
+    # Plain attributes, set once the stream ended, so reading them is not a stop point. A reply
+    # replaced by the refusal is complete, whatever happened to the text it replaced.
+    cut_off = stream.finish_reason == "length" and reply == streamed
     # Read before anything changes: a stop at this read leaves the "interrupted" notice in place.
     history = st.session_state.history
     # The last stop point: it checks before it clears, and the extend after it is a plain list
@@ -172,7 +237,13 @@ def reply_pieces(
     history.extend(
         [
             {"role": "user", "content": clean, "sent": user_prompt},
-            {"role": "assistant", "content": reply, "sent": reply},
+            {
+                "role": "assistant",
+                "content": reply,
+                "sent": reply,
+                "usage": stream.usage,
+                "cut_off": cut_off,
+            },
         ]
     )
 
@@ -189,13 +260,21 @@ with st.sidebar:
         format_func=STRATEGY_LABELS.__getitem__,
         key="strategy",
     )
-    temperature = st.slider(
-        "Temperature",
-        MIN_TEMPERATURE,
-        MAX_TEMPERATURE,
-        DEFAULT_TEMPERATURE,
-        step=0.1,
-        key="temperature",
+    # Replaces the temperature slider: the allowed gpt-5 models ignore temperature (T2.4).
+    reasoning_effort = st.selectbox(
+        "Reasoning effort",
+        REASONING_EFFORTS,
+        index=REASONING_EFFORTS.index(DEFAULT_REASONING_EFFORT),
+        format_func=str.capitalize,
+        key="reasoning_effort",
+        help=(
+            "How long the model thinks before it answers. Higher effort can give deeper, more "
+            "careful feedback, but it is slower and uses more tokens. The thinking counts "
+            "against the token limit, so High gets a larger limit "
+            f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
+            f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more per "
+            "reply."
+        ),
     )
     interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
     # Streamlit cuts the value to max_chars on the server too; validate_role checks it again.
@@ -203,11 +282,14 @@ with st.sidebar:
     # Checked here, not on send, so the chat input is locked before anything is typed. Not
     # logged: this runs on every rerun, and only a message that is sent counts as a request.
     try:
-        validate_role(role, log=False)
+        # The cleaned role also names the job-description starter.
+        shown_role = validate_role(role, log=False)
         role_ok = True
     except GuardError as exc:
         st.warning(str(exc), icon="✋")
         role_ok = False
+        # Only labels the starters, which are locked while the role is not usable.
+        shown_role = " ".join(role.split()) or "role"
     seniority = st.selectbox(
         "Seniority",
         SENIORITY_LEVELS,
@@ -238,28 +320,71 @@ c3.metric("Average score", f"{filtered['score'].mean():.0f}" if len(filtered) el
 st.line_chart(filtered.set_index("date")["score"])
 
 for turn in st.session_state.history:
-    st.chat_message(turn["role"]).markdown(turn["content"])
+    with st.chat_message(turn["role"]):
+        st.markdown(turn["content"])
+        # User turns have neither key.
+        if turn.get("cut_off"):
+            st.warning(CUT_OFF, icon="✂️")
+        if turn.get("usage") is not None:
+            with st.expander("Token usage"):
+                st.caption(usage_text(turn["usage"]))
 
 notice = st.session_state.notice
-if notice is not None:
-    if notice["kind"] == "warning":
-        st.warning(notice["text"], icon="✋")
-    else:
-        st.error(notice["text"])
-    # Errors, and warnings the user did nothing wrong for (the rate limit), keep the message.
-    if "unsent" in notice:
-        st.caption("Your message was not sent. Copy it from here to keep it:")
-        st.code(notice["unsent"], language=None, wrap_lines=True)
-    # Cleared only once drawn, so a run stopped mid-draw shows it on the next run instead.
-    st.session_state.notice = None
+# Once the session has used all its requests, say so and lock the input, rather than letting
+# the user type message after message only to have each one refused.
+used_up = session_cap_reached(st.session_state.request_times)
+can_send = role_ok and used_up is None
+# Empty chat: offer a few starters for the chosen mode.
+show_starters = not st.session_state.history and st.session_state.pending is None
+
+# Everything between the chat and the input sits in one container, made only when there is
+# something to show. The run that sends a message shows none of it, so its new chat message takes
+# the container's place at once. Loose elements are replaced one by one, so the rest (an old copy
+# box, starter buttons) stayed on screen while the reply streamed, and were still clickable: a
+# click cut the reply short and sent a second request (seen in a browser, PR #60 review).
+if notice is not None or used_up is not None or show_starters:
+    with st.container():
+        if notice is not None:
+            # An unknown kind (e.g. a notice saved by an older version before a hot reload) is
+            # shown as an error rather than crashing every run until "New session".
+            show, icon, title, caption = NOTICE_STYLES.get(notice["kind"], NOTICE_STYLES["llm"])
+            # Only str(exc) is shown, never the exception: a chained SDK error holds the raw
+            # response.
+            show(notice["text"], icon=icon, title=title)
+            # Every notice keeps the message the user typed, unless it was blank.
+            if "unsent" in notice:
+                st.caption(caption)
+                st.code(notice["unsent"], language=None, wrap_lines=True)
+            # Cleared only once drawn, so a run stopped mid-draw shows it on the next run instead.
+            st.session_state.notice = None
+        if used_up is not None:
+            st.info(used_up, icon="⏳", title="Session limit reached")
+        if show_starters:
+            # A click queues the text as pending, so it goes through the guard, the rate limit
+            # and the LLM like a typed message.
+            # The caption says what this mode expects the user to send (an answer, a company
+            # name or a question for their interviewer, or a job description).
+            st.caption(EXAMPLE_CAPTIONS.get(interview_type, "Try one of these:"))
+            mode = INTERVIEW_TYPES.index(interview_type)
+            starters = example_prompts(interview_type, shown_role, seniority)
+            for i, example in enumerate(starters):
+                # The label can differ from the text it sends (e.g. a framed interviewer question).
+                st.button(
+                    example.label,
+                    key=f"example_{mode}_{i}",
+                    on_click=use_example,
+                    args=(interview_type, i),
+                    icon="💬",
+                    disabled=not can_send,
+                )
 
 # Drawn before the LLM call and locked while a reply is pending, so a second message cannot
-# be sent (and cut this run short) while the first one is waiting.
+# be sent (and cut this run short) while the first one is waiting. The hint follows the mode.
 st.chat_input(
-    "Type your answer or question",
+    CHAT_PLACEHOLDERS[interview_type],
     key="chat_box",
     on_submit=queue_message,
-    disabled=not role_ok or st.session_state.pending is not None,
+    disabled=not can_send or st.session_state.pending is not None,
 )
 
 # Chat turn: guard -> prompts -> streamed LLM reply. Every path clears "pending" and ends in
@@ -271,7 +396,8 @@ message = st.session_state.pending
 if message is not None:
     try:
         try:
-            clean = validate_input(message)
+            # A pasted job description may be longer than a normal answer.
+            clean = validate_input(message, max_input_chars(interview_type))
             # Also gives the cleaned role, and blocks a message that was queued before the role
             # was blanked (locking the input does not stop it).
             clean_role = validate_role(role)
@@ -280,10 +406,16 @@ if message is not None:
             check_rate_limit(request_times, rate_limit.clock())
         except RateLimitError as exc:
             # The message was fine, so keep it in a copy box for when the wait is over.
-            st.session_state.notice = {"kind": "warning", "text": str(exc), "unsent": clean}
+            st.session_state.notice = {"kind": "rate_limit", "text": str(exc), "unsent": clean}
             st.session_state.pending = None
         except GuardError as exc:
-            st.session_state.notice = {"kind": "warning", "text": str(exc)}
+            # Kept in a copy box too (a block may be a false positive, or the message only too
+            # long), unless there is nothing to keep. Built first, so it is one write.
+            blocked = {"kind": "guard", "text": str(exc)}
+            kept = clean_input(message).strip()
+            if not is_blank(kept):
+                blocked["unsent"] = kept
+            st.session_state.notice = blocked
             st.session_state.pending = None
         else:
             st.chat_message("user").markdown(clean)
@@ -291,7 +423,7 @@ if message is not None:
             system_prompt = STRATEGIES[strategy](clean_role, interview_type)
             messages = build_messages(system_prompt, st.session_state.history, user_prompt)
             pieces = reply_pieces(
-                messages, system_prompt, model, temperature, clean, user_prompt, request_times
+                messages, system_prompt, model, reasoning_effort, clean, user_prompt, request_times
             )
             try:
                 with st.chat_message("assistant"):

@@ -1,13 +1,16 @@
 import pytest
 
-from src.config import MAX_INPUT_CHARS, MAX_ROLE_CHARS
+from src.config import MAX_INPUT_CHARS, MAX_JD_CHARS, MAX_ROLE_CHARS
 from src.guard import (
     GuardError,
     InvalidInputError,
     clean_input,
+    is_blank,
+    max_input_chars,
     validate_input,
     validate_role,
 )
+from src.prompts import INTERVIEW_TYPES, JD_ANALYSIS
 
 # Invisible characters are built with chr() so they cannot be lost or mangled in the source.
 NUL, BEL, ESC, DEL, NEL = chr(0x00), chr(0x07), chr(0x1B), chr(0x7F), chr(0x85)
@@ -20,6 +23,22 @@ COMBINING_ACUTE = chr(0x0301)
 def test_default_limit_is_2000():
     """The ticket's default limit of 2000 characters lives in config.py."""
     assert MAX_INPUT_CHARS == 2000
+
+
+@pytest.mark.parametrize(
+    "interview_type", [JD_ANALYSIS, f"  {JD_ANALYSIS.upper()} ", "job-description  analysis"]
+)
+def test_job_description_mode_allows_longer_messages(interview_type):
+    """JD mode, however its name is spaced or cased, gets the longer JD limit."""
+    assert max_input_chars(interview_type) == MAX_JD_CHARS
+
+
+@pytest.mark.parametrize(
+    "interview_type", [*(t for t in INTERVIEW_TYPES if t != JD_ANALYSIS), "Case study", ""]
+)
+def test_other_modes_keep_the_normal_limit(interview_type):
+    """Every other mode, and an unknown or empty one, keeps the normal message limit."""
+    assert max_input_chars(interview_type) == MAX_INPUT_CHARS
 
 
 @pytest.mark.parametrize(
@@ -64,6 +83,22 @@ def test_each_blank_looking_filler_is_rejected(code_point):
     """Each filler that renders as empty space is rejected; listed here so guard typos fail."""
     with pytest.raises(InvalidInputError, match="type a message"):
         validate_input(chr(code_point) * 3)
+
+
+@pytest.mark.parametrize(
+    "text",
+    ["", "   ", f"{ZWSP} {BOM}", f"{HANGUL_FILLER}{BRAILLE_BLANK}", COMBINING_GRAPHEME_JOINER],
+    ids=["empty", "spaces", "zero-width", "fillers", "only-mark"],
+)
+def test_is_blank_is_true_for_text_that_shows_nothing(text):
+    """Text that shows as nothing on screen counts as blank, the same as validate_input sees it."""
+    assert is_blank(text)
+
+
+@pytest.mark.parametrize("text", ["a", f"{ZWSP}a{ZWSP}", f"e{COMBINING_ACUTE}", "  ."])
+def test_is_blank_is_false_once_anything_shows(text):
+    """One visible character, even among invisible ones, makes the text not blank."""
+    assert not is_blank(text)
 
 
 def test_combining_marks_inside_words_are_kept():

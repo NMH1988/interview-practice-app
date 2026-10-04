@@ -8,7 +8,7 @@
 ```
 Streamlit UI ──► Security Guard ──► Prompt Builder (system + user) ──► OpenRouter client ──► LLM
      ▲                                                                       ▲                 │
-     └──────────────────── Generated interview answer ◄──────────────────────┴── Model settings (temperature)
+     └──────────────────── Generated interview answer ◄──────────────────────┴── Model settings (reasoning effort)
 ```
 
 Proposed module layout:
@@ -19,10 +19,10 @@ src/
   config.py             # model names, defaults, secrets loading
   guard.py              # input validation / injection / output safety
   rate_limit.py         # per-session request limits
-  prompts.py            # 5+ system prompt strategies + user prompt builder
+  prompts.py            # 5+ system prompt strategies + user prompt builder + example prompts
   llm.py                # OpenRouter client wrapper (retries, errors, streaming)
 tests/                  # all LLM calls mocked
-docs/PLAN.md  docs/PROMPT_EVALUATION.md
+docs/BRIEF.md  docs/PLAN.md  docs/PROMPT_EVALUATION.md
 ```
 
 **Product decision (default, change if you prefer):** *Mock interview coach* — the user picks a role + interview type (behavioural, technical, questions-to-ask, job-description analysis), the app asks a question, the user answers, and the app gives feedback.
@@ -76,14 +76,14 @@ Goal: a clean, runnable repo skeleton that other epics build on.
 Goal: reliable LLM calls behind one small interface.
 
 ### T2.1 OpenRouter client wrapper (M)
-- `llm.complete(messages, model, temperature, max_tokens)` using OpenRouter's OpenAI-compatible endpoint.
+- `llm.complete(messages, model, temperature, max_tokens)` using OpenRouter's OpenAI-compatible endpoint. (T2.4 replaced `temperature` with `reasoning_effort`.)
 **Acceptance criteria**
 - [x] Returns the assistant text for a valid request (verified with a mocked HTTP layer in tests).
 - [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff.
 - [x] Rejects models outside the allowed list.
 
 **Tests**
-- [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given.
+- [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given. (T2.4: reasoning effort instead of temperature.)
 - [x] Unit: timeout, 401, 429 and 5xx each raise their own exception with a readable message.
 - [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast.
 - [x] Unit: a model outside the allowed list raises before any HTTP call is made.
@@ -100,13 +100,38 @@ Goal: reliable LLM calls behind one small interface.
 
 ### T2.3 Cost & usage guardrails (S)
 **Acceptance criteria**
-- [ ] `max_tokens` capped per request (configurable).
-- [ ] Token usage from the response is shown in an expander (or logged).
+- [x] `max_tokens` capped per request (configurable).
+- [x] Token usage from the response is shown in an expander (or logged).
 
 **Tests**
-- [ ] Unit: a requested `max_tokens` above the cap is clamped to the value in `config.py`.
-- [ ] Unit: token usage is read from the response; a response without usage does not crash.
-- [ ] UI flow: after a reply, the usage expander shows the token counts.
+- [x] Unit: a requested `max_tokens` above the cap is clamped to the value in `config.py`.
+- [x] Unit: token usage is read from the response; a response without usage does not crash.
+- [x] UI flow: after a reply, the usage expander shows the token counts.
+
+### T2.4 Replace temperature with reasoning effort (S)
+OpenRouter lists no `temperature` support for the three allowed gpt-5 models, so the slider had no effect. Reasoning effort (named in the brief's Easy #8) takes its place.
+**Acceptance criteria**
+- [x] One live call by the owner confirms what OpenRouter does with `temperature` for gpt-5-mini; the result is in `docs/PROGRESS.md` (accepted but ignored).
+- [x] A "Reasoning effort" select (`minimal` / `low` / `medium` / `high`, default `medium` from `config.py`) replaces the slider and is sent as `reasoning={"effort": ...}`.
+- [x] `temperature` is no longer sent; `config.py` drops its temperature settings.
+- [x] A help text explains the trade-off: thinking time and tokens versus answer depth.
+- [x] T3.3 (#10) compares reasoning effort instead of temperature (PLAN T3.3 entry and a comment on #10; the script switches when its branch merges).
+
+**Tests**
+- [x] Unit: `stream()` / `complete()` send the chosen effort and no `temperature`; an effort outside the list raises before any request.
+- [x] UI flow: the select's value reaches the fake LLM call; no Temperature widget remains.
+
+### T2.5 Token budget large enough for high reasoning effort (S)
+At `high`, the sample-JD starter spent 3,648 of the 4,000 tokens thinking and was cut off (T5.8's live check, #73). Each effort now gets its own budget.
+**Acceptance criteria**
+- [x] The owner chose a budget per effort (not one larger budget for all): `minimal` / `low` / `medium` keep 4,000, `high` gets 16,000; the reason is in `docs/PROGRESS.md`.
+- [x] `config.py` holds the budgets (`MAX_TOKENS_BY_EFFORT`) and `MAX_TOKENS_CAP = 16000`; `_send` still clamps to the cap, and its comment says why.
+- [x] The reasoning-effort help text still says the thinking counts against the token limit, and names both limits.
+- [x] Live check by the owner (real key): the JD sample starter at `high` finishes without ✂️; the token counts go in `docs/PROGRESS.md`.
+
+**Tests**
+- [x] Unit: the budget sent for each effort equals the configured value and never exceeds the cap.
+- [x] Existing T2.3 tests (cap clamp, cut-off warning) still pass.
 
 ## Epic 3 — Prompt Engineering (≥ 5 strategies)
 Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evidence.
@@ -132,7 +157,7 @@ Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (rea
 - [x] UI flow: the strategy select lists every registered strategy by its label.
 
 ### T3.3 Prompt evaluation (M)
-- Run the same 3–5 fixed test inputs through all strategies at the default temperature; score on a rubric (relevance, actionability, structure, tone, 1–5).
+- Run the same 3–5 fixed test inputs through all strategies at the default reasoning effort (temperature until T2.4); score on a rubric (relevance, actionability, structure, tone, 1–5).
 **Acceptance criteria**
 - [ ] `docs/PROMPT_EVALUATION.md` contains the test inputs, a results table, and a justified winner.
 - [ ] The winning strategy is the app default.
@@ -198,15 +223,15 @@ Goal: prevent misuse before any tokens are spent.
 Goal: a polished single-page app matching the diagram.
 
 ### T5.1 Layout & inputs (M)
-Sidebar: model select, strategy select, temperature slider, interview type, role. Main: chat.
+Sidebar: model select, strategy select, temperature slider (replaced by a reasoning effort select in T2.4), interview type, role. Main: chat.
 **Acceptance criteria**
 - [x] Single page, works at desktop and mobile widths.
 - [x] Temperature slider 0.0–1.5 (default 0.7) is passed to the API call.
 - [x] Theme colours still come from `.streamlit/config.toml`.
 
 **Tests**
-- [x] UI flow: the sidebar shows model (exactly the allowed models, default `gpt-5-mini`), strategy, temperature (0.0–1.5, default 0.7), interview type and role.
-- [x] UI flow: a changed model and temperature reach the fake LLM call.
+- [x] UI flow: the sidebar shows model (exactly the allowed models, default `gpt-5-mini`), strategy, temperature (0.0–1.5, default 0.7), interview type and role. (T2.4: a reasoning effort select replaced the temperature slider.)
+- [x] UI flow: a changed model and temperature reach the fake LLM call. (T2.4: reasoning effort.)
 - [x] Manual: check desktop and mobile widths in a browser (`AppTest` cannot measure layout).
 
 ### T5.2 Chat flow (M)
@@ -224,21 +249,21 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 
 ### T5.3 Interview modes (M)
 **Acceptance criteria**
-- [ ] Modes: Behavioural Q&A, Technical questions, Questions to ask the interviewer, Job-description analysis (paste JD → prep strategy).
-- [ ] Each mode changes the system/user prompt and the placeholder text.
+- [x] Modes: Behavioural Q&A, Technical questions, Questions to ask the interviewer, Job-description analysis (paste JD → prep strategy). The modes exist; T5.8 (#70) added the JD mode's study plan.
+- [x] Each mode changes the system/user prompt and the placeholder text.
 
 **Tests**
-- [ ] Unit (parametrised over modes): each mode gives a different system/user prompt; job-description mode includes the pasted JD.
-- [ ] UI flow: switching mode changes the chat input placeholder.
+- [x] Unit (parametrised over modes): each mode gives a different system/user prompt; job-description mode includes the pasted JD.
+- [x] UI flow: switching mode changes the chat input placeholder.
 
 ### T5.4 Error & empty states (S)
 **Acceptance criteria**
-- [ ] Guard blocks, rate limits, and API errors each show a distinct `st.error`/`st.warning` message.
-- [ ] Empty state shows example prompts the user can click.
+- [x] Guard blocks, rate limits, and API errors each show a distinct `st.error`/`st.warning` message.
+- [x] Empty state shows example prompts the user can click.
 
 **Tests**
-- [ ] UI flow: a guard block, a rate limit, and each LLM error (the fake LLM raises it) show their own distinct `st.error`/`st.warning` text and no exception; the shown text never contains the fake API key or the raw response body (only `str(exc)`).
-- [ ] UI flow: with no history, example prompts are shown; clicking one sends it (the fake LLM receives that text).
+- [x] UI flow: a guard block, a rate limit, and each LLM error (the fake LLM raises it) show their own distinct `st.error`/`st.warning` text and no exception; the shown text never contains the fake API key or the raw response body (only `str(exc)`).
+- [x] UI flow: with no history, example prompts are shown; clicking one sends it (the fake LLM receives that text).
 
 ### T5.5 Remove placeholder dashboard (S)
 **Acceptance criteria**
@@ -246,6 +271,29 @@ Sidebar: model select, strategy select, temperature slider, interview type, role
 
 **Tests**
 - [ ] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (today it asserts 3 metrics).
+
+### T5.6 "Questions to ask the interviewer" generates questions (M)
+The brief's starter idea is a generator: company name and role in, 5–8 thoughtful questions to ask at the end of the interview out, tailored to that company (quoted in #62). The mode used to only rate the candidate's own question. The owner chose to do both: suggest questions, and still give feedback on the candidate's own.
+**Acceptance criteria**
+- [x] `MODE_INSTRUCTIONS["Questions to ask the interviewer"]` (written by the owner) suggests 5–8 questions for the role and seniority, tailored to a company the candidate names (typed in the chat, no new field), using only what the candidate says about it; each suggestion has one short reason naming a criterion; the candidate's own question is reviewed against four criteria.
+- [x] The empty-chat starters and caption for this mode match the new behaviour.
+- [x] Few-shot Example 3 suggests questions instead of rating one.
+- [x] The chat placeholder for this mode matches the new behaviour.
+- [x] The user-prompt preface covers a request for questions as well as an own question (the job-description part was done in T5.3).
+
+**Tests**
+- [x] Unit: every strategy's prompt for this mode contains the owner's suggestion sentences, after the criteria they refer to; Example 3 has 5–8 questions, each with one reason, and no review headings; the starters pass the guard unchanged and match the mode.
+- [x] UI flow: clicking a starter in this mode sends its text to the fake LLM (covered for every starter by `tests/test_app_examples.py`).
+- [x] Live check by the owner (real key, gpt-5-mini): results in `docs/PROGRESS.md`; one known limitation is followed up in T3.5 (#76).
+
+### T5.8 Job-description analysis adds a short study plan (S)
+The brief's job description analyser "extracts the key skills, likely interview topics, and a short study plan" (quoted in #70), and T5.3 promises "paste JD → prep strategy", but the JD mode's instructions never asked for one.
+**Acceptance criteria**
+- [x] The owner's one sentence (English) is added verbatim to the job-description block of `MODE_INSTRUCTIONS`, asking for a short study plan (at most five items, after the owner's live check).
+- [x] It also applies to a sample job description written on request (T5.4).
+
+**Tests**
+- [x] Unit: every strategy's job-description prompt contains the owner's sentence verbatim; it follows the list it refers to.
 
 ## Epic 6 — Quality, CI/CD & Deployment
 Goal: every PR is linted, tested, scanned; `main` auto-deploys.
@@ -325,6 +373,11 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function, an empty docstring and a multi-line docstring in a temporary file, and nothing for documented ones.
 - [ ] Unit: a UTF-8 BOM file is still checked, and a file that does not parse raises a SyntaxError naming it.
 - [ ] Unit: the repo-wide check fails if `src/` or `tests/` is missing, so a renamed folder cannot go unchecked.
+
+### T6.11 Read the project brief before every ticket (S)
+**Acceptance criteria**
+- [x] `docs/BRIEF.md` summarises the course brief in our own words (the repo is public): mandatory requirements, the "don't put it in a box" freedom, the five starter ideas, the optional tasks with the brief's numbering, the evaluation criteria and the bonus rule.
+- [x] `CLAUDE.md` and the `qrspi` skill's Question phase say to read it before every ticket (and the full brief when the exact wording matters), name the brief item the ticket serves (or label it "beyond the brief (owner's request)"), and ask (not infer) when our docs or prompts contradict the brief or a choice changes what the product does. A contradiction with the brief or work beyond it is always flagged, even when the owner asks for it.
 
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
