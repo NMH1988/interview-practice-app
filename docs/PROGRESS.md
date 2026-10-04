@@ -36,6 +36,9 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - A control test (`test_chart_element_type_is_still_vega_lite_chart`) checks that a line chart is still found as `vega_lite_chart`, so a Streamlit upgrade that renames the type cannot make the dashboard check pass quietly.
     - The raw-HTML scan names flagged files by their path from the repo root, not just the file name.
     - Nits: PLAN's T5.5 test line says "it used to assert 3 metrics"; the reviewer guide's widget and edge-case examples no longer mention `st.date_input` or DataFrames; this entry's Brief line names requirement 6.
+  - PR review round 2 (code-reviewer, posted on #77, no bugs, ready to merge), two nits:
+    - The reviewer guide said the scan stops any use of "components". It only flags `unsafe_allow_html`, calls named `html` and `from streamlit import html/components`; `import streamlit.components.v1` and `components.iframe` pass (checked). The guide now names what the scan covers and says to check the rest by hand. Widening the scan was left out of this ticket.
+    - The PR body's Brief line now matches this entry's.
 - **Follow-ups:** none for this ticket. T7.1 (session score tracker) remains an Epic 7 extra.
 
 ## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)
