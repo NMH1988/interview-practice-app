@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-04 · T5.5 Remove placeholder dashboard · #TBD (closes #22)
+## 2026-10-04 · T5.5 Remove placeholder dashboard · #77 (closes #22)
 - **Brief:** no brief item asks for a dashboard; it came with the starter template and showed made-up data. Removing it serves the "does what it promises" part of the evaluation, and keeps `main` in a state to hand in. In line with the brief.
 - **What:**
   - `app.py` loses `load_sessions` (60 days of fake sessions), the sidebar's "Filters" header and date range, the three metrics and the score line chart, and the `pandas` / `datetime` imports they needed.
