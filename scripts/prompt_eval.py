@@ -3,8 +3,8 @@
 Run from the repo root, after filling in scripts/eval_inputs.json:
 
     python -m scripts.prompt_eval --dry-run
-    python -m scripts.prompt_eval --blind
-    python -m scripts.prompt_eval --strategies few_shot --temperatures 0.2 0.7 1.2
+    python -m scripts.prompt_eval
+    python -m scripts.prompt_eval --strategies few_shot --efforts minimal low medium high --ids jd-1
 
 It calls the real OpenRouter API (the key comes from .streamlit/secrets.toml or the
 OPENROUTER_API_KEY environment variable), so it is run by hand and never in CI.
@@ -28,13 +28,13 @@ from openai import OpenAI
 from src import llm
 from src.config import (
     ALLOWED_MODELS,
-    DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
-    DEFAULT_TEMPERATURE,
-    MAX_TEMPERATURE,
-    MIN_TEMPERATURE,
+    DEFAULT_REASONING_EFFORT,
+    MAX_TOKENS_BY_EFFORT,
+    MAX_TOKENS_CAP,
+    REASONING_EFFORTS,
 )
-from src.guard import GuardError, check_output, validate_input, validate_role
+from src.guard import GuardError, check_output, max_input_chars, validate_input, validate_role
 from src.prompts import (
     INTERVIEW_TYPES,
     SENIORITY_LEVELS,
@@ -74,11 +74,11 @@ class EvalInput:
 
 @dataclass(frozen=True)
 class Job:
-    """One request to make: an input sent with one strategy at one temperature."""
+    """One request to make: an input sent with one strategy at one reasoning effort."""
 
     item: EvalInput
     strategy: str
-    temperature: float
+    effort: str
     run: int
 
 
@@ -94,6 +94,10 @@ class Result:
     # True when check_output() would have replaced the reply with its refusal.
     refused: bool = False
     error: str | None = None
+    # Token counts OpenRouter reported, or None if it sent none.
+    usage: llm.Usage | None = None
+    # True when max_tokens ended the reply, which the app marks with ✂️.
+    cut_off: bool = False
 
 
 @dataclass(frozen=True)
@@ -102,9 +106,10 @@ class RunSettings:
 
     model: str
     strategies: tuple[str, ...]
-    temperatures: tuple[float, ...]
+    efforts: tuple[str, ...]
     runs: int
-    max_tokens: int
+    # None: each effort gets the app's own budget (MAX_TOKENS_BY_EFFORT).
+    max_tokens: int | None
     commit: str
     started: datetime
     planned: int
@@ -171,26 +176,41 @@ def load_inputs(path: Path) -> list[EvalInput]:
     return items
 
 
+def select_inputs(inputs: Sequence[EvalInput], ids: Sequence[str] | None) -> list[EvalInput]:
+    """Return the inputs whose id is in `ids` (all if None), in file order; raise on unknown ids."""
+    if ids is None:
+        return list(inputs)
+    unknown = [i for i in ids if i not in {item.id for item in inputs}]
+    if unknown:
+        raise EvalInputError(f"no input with id(s): {', '.join(unknown)}.")
+    return [item for item in inputs if item.id in ids]
+
+
 def build_jobs(
     inputs: Sequence[EvalInput],
     strategies: Sequence[str],
-    temperatures: Sequence[float],
+    efforts: Sequence[str],
     runs: int,
 ) -> list[Job]:
-    """Return one job per input, temperature, run and strategy, grouped in that order."""
+    """Return one job per input, effort, run and strategy, grouped in that order."""
     return [
-        Job(item, strategy, temperature, run)
+        Job(item, strategy, effort, run)
         for item in inputs
-        for temperature in temperatures
+        for effort in efforts
         for run in range(1, runs + 1)
         for strategy in strategies
     ]
 
 
+def budget(effort: str, max_tokens: int | None) -> int:
+    """Return the max_tokens to send: `max_tokens` if set, else the app's budget for `effort`."""
+    return MAX_TOKENS_BY_EFFORT[effort] if max_tokens is None else max_tokens
+
+
 def _error_text(exc: llm.LLMError) -> str:
     """Return the error's message plus the HTTP status and reason OpenRouter gave, if any."""
     # LLMError's own message is the generic one the app shows; the cause says what went wrong,
-    # e.g. a 400 when a model does not accept the temperature.
+    # e.g. a 400 when OpenRouter rejects a parameter.
     # Only the body's error message: the rest of the body (and the SDK's `message`, which
     # repeats it all) may hold the account's user_id, and reports are committed.
     cause = exc.__cause__
@@ -217,17 +237,18 @@ def _history(item: EvalInput) -> list[dict]:
 def run_job(
     job: Job,
     model: str,
-    max_tokens: int,
+    max_tokens: int | None = None,
     *,
     client: OpenAI | None = None,
-    complete: Callable[..., str] | None = None,
+    stream: Callable[..., llm.ReplyStream] | None = None,
 ) -> Result:
     """Send one job the way the app does (guard, prompts, LLM, output check) and record it."""
-    # Looked up at call time, so tests that patch llm.complete are picked up.
-    complete = complete or llm.complete
+    # Looked up at call time, so tests that patch llm.stream are picked up.
+    stream = stream or llm.stream
     item = job.item
     try:
-        text = validate_input(item.text)
+        # The same limit as the app: longer for a pasted job description (app.py).
+        text = validate_input(item.text, max_input_chars(item.interview_type))
         role = validate_role(item.role)
     except GuardError as exc:
         return Result(job, blocked=str(exc))
@@ -236,19 +257,52 @@ def run_job(
     messages = build_messages(system_prompt, _history(item), user_prompt)
     start = time.perf_counter()
     try:
-        reply = complete(messages, model, job.temperature, max_tokens, client=client)
+        # A stream, like the app: it reports token usage and whether max_tokens cut the reply,
+        # and a long think at "high" keeps the connection reading instead of waiting for it all.
+        replies = stream(messages, model, job.effort, budget(job.effort, max_tokens), client=client)
+        # Read to the end (or to an error, which closes the response itself).
+        reply = "".join(replies)
     except llm.LLMAuthError:
         # Every other job would fail the same way, so stop the run.
         raise
     except llm.LLMError as exc:
+        # Like the app, a reply that fails part-way keeps none of its text.
         return Result(job, seconds=time.perf_counter() - start, error=_error_text(exc))
     seconds = time.perf_counter() - start
-    return Result(job, reply, seconds, refused=check_output(reply, system_prompt) != reply)
+    refused = check_output(reply, system_prompt) != reply
+    return Result(
+        job,
+        reply,
+        seconds,
+        refused=refused,
+        usage=replies.usage,
+        # As in the app: a reply the output check replaces is not shown as cut off.
+        cut_off=replies.finish_reason == "length" and not refused,
+    )
 
 
 def _quote(text: str) -> str:
     """Return `text` as a Markdown blockquote, so a reply's headings stay inside its block."""
     return "\n".join(f"> {line}" if line.strip() else ">" for line in text.splitlines())
+
+
+def _usage_text(usage: llm.Usage) -> str:
+    """Return the token counts in the app's format: "Prompt ... · Completion ... · Total ..."."""
+    # The same wording as app.usage_text, so a report reads like the app's "Token usage" line.
+    completion = f"{usage.completion_tokens:,}"
+    if usage.reasoning_tokens is not None:
+        completion += f" (reasoning {usage.reasoning_tokens:,})"
+    return (
+        f"Prompt {usage.prompt_tokens:,} · Completion {completion} · "
+        f"Total {usage.total_tokens:,} tokens"
+    )
+
+
+def _budget_text(settings: RunSettings) -> str:
+    """Return the max_tokens each effort in the run was sent with, for the report header."""
+    if settings.max_tokens is not None:
+        return f"{settings.max_tokens:,} for every effort (set with --max-tokens)"
+    return ", ".join(f"{e} {budget(e, None):,}" for e in settings.efforts) + " (the app's budgets)"
 
 
 def _status(result: Result, *, blind: bool = False) -> str:
@@ -261,7 +315,12 @@ def _status(result: Result, *, blind: bool = False) -> str:
         took = "" if blind else f" after {result.seconds:.1f} s"
         return f"**Error**{took}: {result.error}"
     took = "" if blind else f" · {result.seconds:.1f} s"
-    line = f"_{len(result.reply):,} characters{took}_"
+    tokens = "no token count reported" if result.usage is None else _usage_text(result.usage)
+    line = f"_{len(result.reply):,} characters{took} · {tokens}_"
+    if result.cut_off:
+        line += (
+            "\n\n**✂️ Cut off:** the reply used up its max_tokens; the app would mark it as cut off."
+        )
     if result.refused:
         line += (
             "\n\n**The output check would refuse this reply** (it repeats the system prompt); "
@@ -284,32 +343,33 @@ def render_report(
 ) -> tuple[str, str | None]:
     """Return the report as Markdown and, for a blind run, the key that names each letter."""
     rng = rng or random.Random()
-    groups: dict[tuple[str, float, int], list[Result]] = {}
+    groups: dict[tuple[str, str, int], list[Result]] = {}
     for result in results:
         job = result.job
-        groups.setdefault((job.item.id, job.temperature, job.run), []).append(result)
+        groups.setdefault((job.item.id, job.effort, job.run), []).append(result)
 
     blocked = sum(1 for r in results if r.blocked)
     errors = sum(1 for r in results if r.error)
     refused = sum(1 for r in results if r.refused)
+    cut_off = sum(1 for r in results if r.cut_off)
     shown = "hidden (blind run; see the key file)" if blind else ", ".join(settings.strategies)
     lines = [
         f"# Prompt evaluation run · {settings.started:%Y-%m-%d %H:%M}",
         "",
         f"- Model: `{settings.model}`",
         f"- Strategies: {shown}",
-        f"- Temperatures: {', '.join(str(t) for t in settings.temperatures)}",
+        f"- Reasoning effort: {', '.join(settings.efforts)}",
         f"- Runs per combination: {settings.runs}",
-        f"- max_tokens: {settings.max_tokens}",
+        f"- max_tokens: {_budget_text(settings)}",
         f"- Commit: `{settings.commit}`",
         f"- Requests: {len(results)} of {settings.planned} done; {blocked} blocked by the input "
-        f"guard, {refused} refused by the output check, {errors} errors",
+        f"guard, {refused} refused by the output check, {cut_off} cut off, {errors} errors",
     ]
     if len(results) < settings.planned:
         lines.append("- **Stopped early:** the run was interrupted before every request was sent.")
     key_rows: list[str] = []
     current_input = None
-    for (input_id, temperature, run), group in groups.items():
+    for (input_id, effort, run), group in groups.items():
         item = group[0].job.item
         if input_id != current_input:
             current_input = input_id
@@ -324,7 +384,7 @@ def render_report(
             group = rng.sample(group, len(group))
             names = list(string.ascii_uppercase[: len(group)])
             key_rows.append(
-                f"| `{input_id}` | {temperature} | {run} | "
+                f"| `{input_id}` | {effort} | {run} | "
                 + ", ".join(
                     f"{n}: `{r.job.strategy}` ({r.seconds:.1f} s)"
                     for n, r in zip(names, group, strict=True)
@@ -333,7 +393,7 @@ def render_report(
             )
         else:
             names = [_named(r.job.strategy) for r in group]
-        lines += ["", f"### Temperature {temperature} · run {run}"]
+        lines += ["", f"### Reasoning effort {effort} · run {run}"]
         for name, result in zip(names, group, strict=True):
             heading = f"Strategy {name}" if blind else name
             lines += ["", f"#### {heading}", "", _status(result, blind=blind)]
@@ -356,7 +416,7 @@ def render_report(
             "",
             "Open this only after scoring. Letters are shuffled again for every group.",
             "",
-            "| Input | Temperature | Run | Letters |",
+            "| Input | Effort | Run | Letters |",
             "|---|---|---|---|",
             *key_rows,
         ]
@@ -388,16 +448,6 @@ def _commit() -> str:
     return f"{head} (with uncommitted code changes)" if dirty else head
 
 
-def _temperature(value: str) -> float:
-    """Parse a --temperatures value and check it is in the slider's range."""
-    number = float(value)
-    if not MIN_TEMPERATURE <= number <= MAX_TEMPERATURE:
-        raise argparse.ArgumentTypeError(
-            f"must be between {MIN_TEMPERATURE} and {MAX_TEMPERATURE}, got {value}"
-        )
-    return number
-
-
 def _positive(value: str) -> int:
     """Parse a --runs value and check it is at least 1."""
     number = int(value)
@@ -407,10 +457,10 @@ def _positive(value: str) -> int:
 
 
 def _max_tokens(value: str) -> int:
-    """Parse a --max-tokens value and check it is between 1 and the app's own budget."""
+    """Parse a --max-tokens value and check it is between 1 and the app's cap."""
     number = _positive(value)
-    if number > DEFAULT_MAX_TOKENS:
-        raise argparse.ArgumentTypeError(f"must be at most {DEFAULT_MAX_TOKENS}, got {value}")
+    if number > MAX_TOKENS_CAP:
+        raise argparse.ArgumentTypeError(f"must be at most {MAX_TOKENS_CAP}, got {value}")
     return number
 
 
@@ -429,19 +479,22 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
         help="strategy keys to run (default: all)",
     )
     parser.add_argument(
-        "--temperatures",
+        "--efforts",
         nargs="+",
-        type=_temperature,
-        default=[DEFAULT_TEMPERATURE],
-        help=f"temperatures to try (default: {DEFAULT_TEMPERATURE})",
+        choices=REASONING_EFFORTS,
+        default=[DEFAULT_REASONING_EFFORT],
+        help=f"reasoning effort levels to try (default: {DEFAULT_REASONING_EFFORT})",
     )
+    parser.add_argument("--ids", nargs="+", help="only the inputs with these ids (default: all)")
     parser.add_argument("--runs", type=_positive, default=1, help="runs per combination")
     parser.add_argument("--model", choices=ALLOWED_MODELS, default=DEFAULT_MODEL)
     parser.add_argument(
         "--max-tokens",
         type=_max_tokens,
-        default=DEFAULT_MAX_TOKENS,
-        help=f"reply budget, at most the app's {DEFAULT_MAX_TOKENS}",
+        help=(
+            "one reply budget for every effort, at most the app's cap of "
+            f"{MAX_TOKENS_CAP} (default: the app's budget for each effort)"
+        ),
     )
     parser.add_argument("--blind", action="store_true", help="hide strategy names behind letters")
     parser.add_argument("--seed", type=int, help="seed for the blind shuffle (default: random)")
@@ -452,7 +505,9 @@ def parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     args = parser.parse_args(argv)
     # Repeats would only send the same requests twice.
     args.strategies = list(dict.fromkeys(args.strategies))
-    args.temperatures = list(dict.fromkeys(args.temperatures))
+    args.efforts = list(dict.fromkeys(args.efforts))
+    if args.ids is not None:
+        args.ids = list(dict.fromkeys(args.ids))
     return args
 
 
@@ -463,7 +518,7 @@ def _dry_run(inputs: Sequence[EvalInput], jobs: Sequence[Job]) -> None:
         if item.question is not None:
             print(f"Coach asked (sent as the previous turn): {item.question}\n")
         try:
-            text = validate_input(item.text)
+            text = validate_input(item.text, max_input_chars(item.interview_type))
             role = validate_role(item.role)
         except GuardError as exc:
             print(f"BLOCKED by the input guard: {exc}\n")
@@ -490,11 +545,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     logging.getLogger("src.guard").setLevel(logging.ERROR)
     args = parse_args(argv)
     try:
-        inputs = load_inputs(args.inputs)
+        inputs = select_inputs(load_inputs(args.inputs), args.ids)
     except EvalInputError as exc:
         print(f"Cannot start: {exc}", file=sys.stderr)
         return 2
-    jobs = build_jobs(inputs, args.strategies, args.temperatures, args.runs)
+    jobs = build_jobs(inputs, args.strategies, args.efforts, args.runs)
     if args.dry_run:
         _dry_run(inputs, jobs)
         return 0
@@ -508,7 +563,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     settings = RunSettings(
         model=args.model,
         strategies=tuple(args.strategies),
-        temperatures=tuple(args.temperatures),
+        efforts=tuple(args.efforts),
         runs=args.runs,
         max_tokens=args.max_tokens,
         commit=_commit(),
@@ -523,7 +578,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             strategy = "" if args.blind else f"{job.strategy} · "
             print(
                 f"[{number}/{len(jobs)}] {job.item.id} · {strategy}"
-                f"T={job.temperature} · run {job.run} ...",
+                f"effort={job.effort} · run {job.run} ...",
                 end=" ",
                 file=sys.stderr,
                 flush=True,
