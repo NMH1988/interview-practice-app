@@ -16,6 +16,62 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #PR (closes #62)
+- **Brief:** serves starter idea #3, the "questions to ask the interviewer" generator (company name and role in, 5–8 thoughtful questions to ask at the end of the interview, tailored to that company; quoted in #62). In line with the brief. Keeping feedback on the user's own question is the owner's "mix" choice (the starter ideas say "swap, mix, or extend").
+- **What:**
+  - `MODE_INSTRUCTIONS["Questions to ask the interviewer"]` in `src/prompts.py` is the owner's new block:
+    - the purpose, and topics to prioritise (not vacation or benefits);
+    - four criteria for reviewing the candidate's own question (preparation and interest, long-term perspective, cultural fit, desire for development), plus what makes one weak;
+    - the suggestion rules: on a request or a bare company name, suggest 5–8 questions for the role and seniority, each followed by one short sentence naming the criterion it shows, as a list rather than the answer-review format;
+    - tailor to a named company using only what the candidate said about it;
+    - on an unclear message, invite one of the three paths;
+    - "Do not ask the candidate an interview question in this mode" is kept.
+  - Few-shot Example 3 (owner's) now suggests five questions for a Senior Marketing Manager at the fictional ExampleCo Retail, each with a `Why:` line, and invites the candidate's own question. It no longer teaches rating only.
+  - `MESSAGE_KINDS` for the mode: "a request for questions to ask the interviewer, perhaps naming a company, or a question they plan to ask one".
+  - UI text (Claude's drafts, approved by the owner):
+    - placeholder "Type a company, or a question for feedback";
+    - caption "Get questions to ask at the end of your interview. Type a company name to fit them to it, or a question of your own for feedback. Or try one of these:";
+    - starters "Suggest questions I could ask at the end of my interview.", "Suggest questions about the team and how it works." and the framed weak "How many vacation days do I get?".
+  - Tests in `tests/test_prompts.py`:
+    - the suggestion and reason sentences are verbatim in every strategy, after the criteria;
+    - Example 3's shape: 5–8 questions, one `Why:` each, no review headings;
+    - the new preface, the starters and the hints.
+  - `MAX_PLACEHOLDER_CHARS` lowered from 60 to 46.
+  - `docs/PLAN.md` gets a ticked T5.6 entry; `docs/BRIEF.md`'s starter idea #3 line is updated.
+- **Why:**
+  - The owner chose two things: the company is typed in the chat (no sidebar field; the role and seniority already come from the sidebar), and the mode both suggests and reviews.
+  - The owner wrote the block and Example 3 over several review rounds. The main fixes:
+    - "interview questions" could be read as questions for the candidate; it is now "suggest … questions to ask the interviewer";
+    - the 5–8 count was missing;
+    - one rule asked for a role and seniority the app already sends;
+    - "verified information … through a trusted source" was asked of a model with no web access; it is now only what the candidate said.
+  - Format B (one reason line per question) was chosen for three reasons:
+    - it keeps replies short (T5.8's lesson: "short" alone does not bound length);
+    - it ties the suggestions to the same criteria the review uses;
+    - it gives the strategies a list format, so they do not borrow their answer-review headings.
+- **Decisions & gotchas:**
+  - "the criteria above" in the reason sentence refers to the numbered criteria, so the review criteria come before the suggestion rules (tested).
+  - Old paragraph 2 (topic list) and "After the candidate provides a question, evaluate it…" were dropped; the owner's purpose and criteria sentences replace them.
+  - The "meaningful conversation, not information found elsewhere" criterion became part of the "weak question" sentence (owner's choice).
+  - Only the candidate's own facts are allowed, so a well-known company gets its name in the questions but no facts from the model's general knowledge. Safer but less specific; the owner's choice.
+  - Placeholder, measured in the browser pane at 375 px:
+    - about 262 px of text fits;
+    - the approved "Type a company name, or a question for feedback" (47 characters, 289 px) was cut off, while the existing 46-character hints (258 px) fit;
+    - so "name" was dropped (253 px), and the length test now allows 46 characters instead of 60;
+    - the caption keeps "company name".
+  - Mutation-checked (each fails a test): a different count, a missing `Why:` line, a review heading in Example 3, the old placeholder, the old message kind.
+  - No live LLM call was made in this PR.
+- **Live check (owner, real key):** *pending.* Suggested runs:
+  - a starter with no company;
+  - a bare company name;
+  - a company with one fact;
+  - an own question (the weak starter);
+  - the Few-shot and Structured output strategies (the second has its own fixed review structure).
+  - Check that each reason is one short sentence and that nothing about the company is invented.
+- **Follow-ups:**
+  - `feature/t3.3-prompt-eval` (T3.3, #10) must merge `main` before scoring the strategies, since this mode and Example 3 changed. T5.3's open check that this mode does not quiz the candidate moves to the live check above.
+  - `_FEW_SHOT_INTRO` still says the examples show "how to evaluate candidate answers". The owner may add that Example 3 shows suggesting questions, if the live check shows Few-shot ignoring it.
+
 ## 2026-10-04 · T2.5 Token budget large enough for high reasoning effort · #74 (closes #73)
 - **Brief:** serves Easy #8 (a model setting whose effect on the answers the learner can show and explain) and the "does what it promises" part of the evaluation: the `high` option T2.4 added could not finish a long reply. In line with the brief.
 - **What:** `src/config.py` gets `HIGH_EFFORT_MAX_TOKENS = 16000` and `MAX_TOKENS_BY_EFFORT` (read-only, one budget per `REASONING_EFFORTS` level: `minimal` / `low` / `medium` keep `DEFAULT_MAX_TOKENS = 4000`, `high` gets 16,000); `MAX_TOKENS_CAP` goes from 4,000 to 16,000. `app.py`'s `reply_pieces` sends the chosen effort's budget instead of always `DEFAULT_MAX_TOKENS`, and the effort help text now says "High gets a larger limit (16,000 tokens instead of 4,000), which can also cost more per reply" (numbers read from `MAX_TOKENS_BY_EFFORT`). `_send` is unchanged apart from its comment. Tests in `tests/test_config.py`, `tests/test_llm.py` and `tests/test_app_inputs.py`.

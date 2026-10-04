@@ -34,8 +34,10 @@ EMAIL = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
 # A run of digits and phone separators; it counts as a phone number if it holds 9+ digits,
 # so years ("2019-2023") and scores ("1-5") do not.
 DIGIT_RUN = re.compile(r"\+?\d[\d\s().-]*\d")
-# Longest chat hint; a phone-width chat box cuts off longer ones.
-MAX_PLACEHOLDER_CHARS = 60
+# Longest chat hint; a phone-width chat box cuts off longer ones. Measured at 375 px (T5.6): the
+# box shows about 262 px of text, and a 47-character hint (289 px) was cut, while the 46-character
+# ones (258 px) fit.
+MAX_PLACEHOLDER_CHARS = 46
 
 
 def _block_body(prompt: str) -> str:
@@ -456,6 +458,18 @@ STUDY_PLAN_RULE = (
     "practical study plan of at most five items, each with a focused review topic and one "
     "interview practice task."
 )
+# The owner's sentences for "Questions to ask the interviewer" (T5.6), kept verbatim: when to
+# suggest questions and how many, then what follows each suggested question.
+SUGGESTION_RULE = (
+    "If the candidate asks for question suggestions, or provides only a company name, suggest "
+    "5–8 questions appropriate for the current role and seniority, and present them in a clear "
+    "and relevant order."
+)
+REASON_RULE = (
+    "Follow each suggested question with one short sentence explaining which of the criteria "
+    "above it demonstrates and why the question reflects that criterion."
+)
+INTERVIEWER_QUESTIONS = "Questions to ask the interviewer"
 
 
 def test_every_mode_has_its_own_example_prompts_and_caption():
@@ -479,18 +493,30 @@ def test_interview_mode_starters_ask_the_coach_to_start(interview_type):
         assert example.text.startswith(("Ask me", "Give me"))
 
 
-def test_interviewer_question_starters_ask_the_coach_to_rate_a_question():
-    """Each starter offers a question for the user's interviewer and asks the coach to rate it."""
-    examples = EXAMPLE_PROMPTS["Questions to ask the interviewer"]
-    assert len(examples) == 3
-    for example in examples:
-        question = example.label.strip('"')
-        assert example.label == f'"{question}"'
-        assert question.endswith("?")
-        assert example.text == (
-            f'I plan to ask my interviewer: "{question}" Is this a good question to ask?'
-        )
-    assert "interviewer" in EXAMPLE_CAPTIONS["Questions to ask the interviewer"]
+def test_interviewer_question_starters_ask_for_suggestions_then_feedback():
+    """Two starters ask the coach to suggest questions; the last offers a weak one for feedback."""
+    *suggest, own = EXAMPLE_PROMPTS[INTERVIEWER_QUESTIONS]
+    assert len(suggest) == 2
+    for example in suggest:
+        assert example.label == example.text
+        assert example.text.startswith("Suggest questions ")
+        # The mode block sets how many questions; a count here could contradict it.
+        assert not any(char.isdigit() for char in example.text)
+    # A question for a real interviewer, framed so the coach gives feedback instead of answering.
+    question = own.label.strip('"')
+    assert own.label == f'"{question}"'
+    assert own.text == f'I plan to ask my interviewer: "{question}" Is this a good question to ask?'
+
+
+def test_interviewer_mode_hints_name_both_paths():
+    """The caption and chat hint say a company name gets questions and a question gets feedback."""
+    caption = EXAMPLE_CAPTIONS[INTERVIEWER_QUESTIONS]
+    hint = CHAT_PLACEHOLDERS[INTERVIEWER_QUESTIONS]
+    assert "company name" in caption
+    assert "company" in hint
+    for text in (caption, hint):
+        assert "for feedback" in text
+    assert "rate" not in f"{caption} {hint}"
 
 
 @pytest.mark.parametrize("seniority", SENIORITY_LEVELS)
@@ -564,6 +590,38 @@ def test_every_strategy_includes_the_study_plan_rule(name):
     assert STUDY_PLAN_RULE in STRATEGIES[name](DEFAULT_ROLE, JD_ANALYSIS)
 
 
+def test_interviewer_mode_suggests_questions_after_its_criteria():
+    """The suggestion rule, then the reason rule, both come after the criteria they refer to."""
+    block = MODE_INSTRUCTIONS[INTERVIEWER_QUESTIONS]
+    # "the criteria above" means the numbered criteria, so they must come first.
+    assert SUGGESTION_RULE + "\n\n" + REASON_RULE in block
+    assert block.index("1. Preparation and interest") < block.index(SUGGESTION_RULE)
+    assert "Do not ask the candidate an interview question in this mode." in block
+
+
+@pytest.mark.parametrize("name", sorted(STRATEGIES))
+def test_every_strategy_includes_the_question_suggestion_rules(name):
+    """Every strategy's prompt for the mode asks for 5-8 suggested questions with reasons."""
+    prompt = STRATEGIES[name](DEFAULT_ROLE, INTERVIEWER_QUESTIONS)
+    assert SUGGESTION_RULE in prompt
+    assert REASON_RULE in prompt
+
+
+def test_interviewer_few_shot_example_suggests_questions_instead_of_rating():
+    """Example 3 shows 5-8 suggested questions, each with one reason, and no review headings."""
+    (example,) = [
+        e for e in FEW_SHOT_EXAMPLES if e.startswith("Example 3 — " + INTERVIEWER_QUESTIONS)
+    ]
+    lines = example.splitlines()
+    questions = [i for i, line in enumerate(lines) if re.match(r"\d\. ", line)]
+    assert 5 <= len(questions) <= 8
+    # Each suggested question is followed directly by its one-line reason.
+    assert all(lines[i + 1].startswith("Why: It shows ") for i in questions)
+    assert sum(line.startswith("Why:") for line in lines) == len(questions)
+    for heading in ("## Evaluation", "## Feedback", "## Score", "## Rubric"):
+        assert heading not in example
+
+
 def test_static_starters_cover_every_mode_but_job_description():
     """The fixed starters cover the other modes; the job-description one is built per role."""
     assert list(EXAMPLE_PROMPTS) == [t for t in INTERVIEW_TYPES if t != JD_ANALYSIS]
@@ -591,3 +649,13 @@ def test_job_description_preface_covers_a_request_for_a_sample():
     (starter,) = example_prompts(JD_ANALYSIS, "SAP Developer", "Senior")
     prompt = build_user_prompt("SAP Developer", JD_ANALYSIS, "Senior", starter.text)
     assert "a request for a sample one" in prompt
+
+
+def test_interviewer_preface_covers_a_request_and_an_own_question():
+    """The mode's user-prompt preface names both paths: asking for questions, or offering one."""
+    kind = MESSAGE_KINDS[INTERVIEWER_QUESTIONS]
+    assert "a request for questions to ask the interviewer" in kind
+    assert "perhaps naming a company" in kind
+    assert "a question they plan to ask" in kind
+    prompt = build_user_prompt("Marketing Manager", INTERVIEWER_QUESTIONS, "Senior", "ExampleCo")
+    assert kind in prompt[: prompt.index(USER_INPUT_OPEN)]

@@ -22,7 +22,7 @@ CHAT_PLACEHOLDERS: Mapping[str, str] = MappingProxyType(
     {
         "Behavioural": "Answer with a real example, or say hi to start",
         "Technical": "Type your technical answer, or say hi to start",
-        "Questions to ask the interviewer": "Type a question you'd ask the interviewer",
+        "Questions to ask the interviewer": "Type a company, or a question for feedback",
         JD_ANALYSIS: "Paste the job description here",
     }
 )
@@ -34,8 +34,10 @@ MESSAGE_KINDS: Mapping[str, str] = MappingProxyType(
     {
         "Behavioural": DEFAULT_MESSAGE_KIND,
         "Technical": DEFAULT_MESSAGE_KIND,
+        # Covers both paths of the mode (T5.6): asking for suggestions, or offering a question.
         "Questions to ask the interviewer": (
-            "a question they plan to ask the interviewer, or a remark about one"
+            "a request for questions to ask the interviewer, perhaps naming a company, "
+            "or a question they plan to ask one"
         ),
         # "A request for a sample one" covers the empty chat's sample-JD starter (T5.4).
         JD_ANALYSIS: (
@@ -62,7 +64,7 @@ def _same(text: str) -> ExamplePrompt:
 
 
 def _question_for_the_interviewer(question: str) -> ExamplePrompt:
-    """Return a starter that asks the coach to rate `question`, not to answer it."""
+    """Return a starter that asks for feedback on `question`, not for an answer to it."""
     # Framed, so neither the user nor the model takes it as a question for the coach itself.
     return ExamplePrompt(
         f'"{question}"',
@@ -91,9 +93,9 @@ def sample_job_description(role: str, seniority: str) -> ExamplePrompt:
 # Starters the empty chat offers for each interview mode; clicking one sends its text like a
 # typed message. Each mode's starters follow MODE_INSTRUCTIONS: in Behavioural and Technical the
 # user asks the coach to start the interview, and in "Questions to ask the interviewer" the user
-# offers a question for the coach to rate. Job-description analysis has none here: its one
-# starter depends on the role and seniority (see example_prompts). Not part of any prompt, so
-# they are not secret.
+# asks the coach to suggest questions, or offers one of their own for feedback (T5.6).
+# Job-description analysis has none here: its one starter depends on the role and seniority
+# (see example_prompts). Not part of any prompt, so they are not secret.
 EXAMPLE_PROMPTS: Mapping[str, tuple[ExamplePrompt, ...]] = MappingProxyType(
     {
         "Behavioural": (
@@ -107,11 +109,10 @@ EXAMPLE_PROMPTS: Mapping[str, tuple[ExamplePrompt, ...]] = MappingProxyType(
             _same("Give me a short problem to solve, then review my approach."),
         ),
         "Questions to ask the interviewer": (
-            _question_for_the_interviewer(
-                "What does success look like in this role after the first 90 days?"
-            ),
-            _question_for_the_interviewer("How does the team give feedback on someone's work?"),
-            # A weak question on purpose, so the user sees what the coach says about one.
+            # The mode block says how many questions to suggest, so the starters do not.
+            _same("Suggest questions I could ask at the end of my interview."),
+            _same("Suggest questions about the team and how it works."),
+            # A weak question on purpose, so the user sees what feedback on their own looks like.
             _question_for_the_interviewer("How many vacation days do I get?"),
         ),
     }
@@ -131,8 +132,8 @@ EXAMPLE_CAPTIONS: Mapping[str, str] = MappingProxyType(
         "Behavioural": "Not sure where to start? Try one of these:",
         "Technical": "Not sure where to start? Try one of these:",
         "Questions to ask the interviewer": (
-            "Practise the questions you'll ask your interviewer at the end of a real interview. "
-            "Type one and the coach will rate it, or try one of these:"
+            "Get questions to ask at the end of your interview. Type a company name to fit "
+            "them to it, or a question of your own for feedback. Or try one of these:"
         ),
         JD_ANALYSIS: "Paste a job description into the box below, or try a sample:",
     }
@@ -202,22 +203,51 @@ MODE_INSTRUCTIONS: Mapping[str, str] = MappingProxyType(
             "After each answer, continue with a relevant follow-up question based on what the "
             "candidate said."
         ),
+        # T5.6: the coach suggests questions (the brief's starter idea) and still reviews the
+        # candidate's own. The criteria come before the suggestion rules that refer to them.
         "Questions to ask the interviewer": (
-            "Help the candidate practice questions they may ask an interviewer.\n\n"
-            "Evaluate whether each candidate question is relevant, professional, thoughtful, "
-            "and useful for understanding areas such as:\n"
-            "- the role,\n"
-            "- team expectations,\n"
-            "- onboarding,\n"
-            "- collaboration,\n"
-            "- company culture,\n"
-            "- development opportunities,\n"
-            "- or success in the position.\n\n"
-            "If the candidate has not yet provided a question to evaluate, invite them to "
-            "share one question they are considering asking the interviewer.\n\n"
-            "Do not ask the candidate an interview question in this mode.\n\n"
-            "After the candidate provides a question, evaluate it and suggest improvements "
-            "when useful."
+            "Help the candidate prepare strong questions to ask the interviewer and give "
+            "feedback on questions the candidate writes themselves. Prioritize questions about "
+            "the role, responsibilities, day-to-day work, team expectations, onboarding, "
+            "collaboration, company culture, development opportunities, and what success in the "
+            "position looks like. Avoid focusing too much on vacation, benefits, or other "
+            "personal advantages.\n\n"
+            "After the candidate provides a question they plan to ask the interviewer, evaluate "
+            "whether it is a strong question based on the following criteria:\n"
+            "1. Preparation and interest in the company and role – Does the question show that "
+            "the candidate has thought seriously about the position and wants to understand it "
+            "better?\n"
+            "2. Long-term perspective – Does the question show that the candidate is thinking "
+            "beyond the immediate interview and considering future contribution, success, or "
+            "growth?\n"
+            "3. Cultural fit – Does the question help the candidate understand the team, working "
+            "environment, communication style, or company culture?\n"
+            "4. Desire for personal and professional development – Does the question show that "
+            "the candidate is interested in learning, improving, and growing within the role or "
+            "company?\n\n"
+            "Give concise and specific feedback. Explain clearly which of these criteria the "
+            "question demonstrates and why.\n\n"
+            "If the question is weak, too generic, focused mainly on personal benefits, or asks "
+            "for basic information that could easily be found elsewhere, explain how it could be "
+            "improved.\n\n"
+            "If the candidate asks for question suggestions, or provides only a company name, "
+            "suggest 5–8 questions appropriate for the current role and seniority, and present "
+            "them in a clear and relevant order.\n\n"
+            "Follow each suggested question with one short sentence explaining which of the "
+            "criteria above it demonstrates and why the question reflects that criterion. "
+            "Present the suggested questions as a clear list rather than using the "
+            "candidate-answer review format.\n\n"
+            "If the candidate provides a company name, tailor the suggested questions to the "
+            "current role and that company.\n\n"
+            "If the candidate provides a company name, use only company-specific information "
+            "that the candidate has provided in the conversation. Do not invent or assume facts "
+            "about the company. If no company-specific information is available, still use the "
+            "company name where appropriate and suggest role-specific but otherwise "
+            "company-neutral questions.\n\n"
+            "If the candidate's message is unclear or does not contain a clear request, invite "
+            "them to ask for suggested questions, provide a company name for more tailored "
+            "suggestions, or share one of their own questions for feedback.\n\n"
+            "Do not ask the candidate an interview question in this mode."
         ),
         JD_ANALYSIS: (
             "Analyze a job description and help the candidate prepare for the interview.\n\n"
@@ -283,18 +313,37 @@ FEW_SHOT_EXAMPLES: tuple[str, ...] = (
         "What was the main cause of the disagreement, and how did you help both sides move "
         "toward a solution?"
     ),
+    # T5.6: suggests questions for the candidate to ask, so few-shot no longer teaches rating
+    # only. The company is fictional and every fact about it comes from the candidate.
     (
         "Example 3 — Questions to ask the interviewer\n\n"
-        "Candidate Question:\n"
-        "What helps a new employee become productive and integrate quickly into this team?\n\n"
-        "## Evaluation\n"
-        "This is a strong and practical question.\n\n"
-        "## Feedback\n"
-        "You show interest in onboarding, team support, expectations, and becoming productive "
-        "quickly. The question can also help you understand how well the team supports new "
-        "employees.\n\n"
-        "## Follow-up Question\n"
-        "What would you want to learn from the interviewer's answer to this question?"
+        "Candidate Message:\n"
+        "I am preparing for a Senior Marketing Manager interview at ExampleCo Retail. The "
+        "company is planning to launch a new sustainable product line in several European "
+        "markets.\n\n"
+        "## Suggested Questions\n\n"
+        "1. What would be the main priorities for someone in this role during the first three "
+        "months?\n"
+        "Why: It shows preparation and interest because you want to understand expectations "
+        "and how you can contribute early.\n\n"
+        "2. What are the team's and company's main goals for the next one or two years?\n"
+        "Why: It shows a long-term perspective because you are interested in the future "
+        "direction of the team and company.\n\n"
+        "3. Could you tell me more about the company culture and how different teams work "
+        "together?\n"
+        "Why: It shows cultural fit because you want to understand how people collaborate and "
+        "how you could integrate into the organization.\n\n"
+        "4. Since ExampleCo Retail is planning to launch a sustainable product line in several "
+        "European markets, what would be the main marketing priorities or challenges for this "
+        "launch?\n"
+        "Why: It shows preparation and interest because you connect your question directly to "
+        "information you shared about the company.\n\n"
+        "5. What opportunities would I have to develop my skills and take on more "
+        "responsibility over time?\n"
+        "Why: It shows a desire for development because you are interested in learning, "
+        "improving, and growing within the role.\n\n"
+        "If you already have a question you would like to ask the interviewer, send it to me "
+        "and I can evaluate it and suggest how it could be improved."
     ),
 )
 

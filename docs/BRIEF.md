@@ -27,7 +27,7 @@ The brief gives the learner a free hand in **what** to practise: *"We don't want
 
 1. **Role-based Q&A generator.** Job title + seniority in, about 8–10 likely interview questions out.
 2. **Behavioural answer coach (STAR).** Paste a draft answer, get a critique against Situation/Task/Action/Result and a tighter rewrite.
-3. **"Questions to ask the interviewer" generator.** Company name + role in; out comes a short list (5–8) of good closing questions, fitted to that particular company. Our current mode *rates* the user's own question instead; #62 turns it into the generator.
+3. **"Questions to ask the interviewer" generator.** Company name + role in; out comes a short list (5–8) of good closing questions, fitted to that particular company. Our mode does this since T5.6 (#62): the company is typed in the chat, and the coach also gives feedback on a question the user writes themselves.
 4. **Job description analyser.** Paste a job description; the app pulls out the main skills and the topics an interviewer is likely to ask about, plus a short plan of what to study.
 5. **Self-introduction polisher.** Paste a 30-second pitch, get an interview-ready rewrite and what to keep or cut.
 
