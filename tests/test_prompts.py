@@ -505,7 +505,12 @@ def test_interviewer_question_starters_ask_for_suggestions_then_feedback():
     # A question for a real interviewer, framed so the coach gives feedback instead of answering.
     question = own.label.strip('"')
     assert own.label == f'"{question}"'
-    assert own.text == f'I plan to ask my interviewer: "{question}" Is this a good question to ask?'
+    assert question.endswith("?")
+    assert own.text.startswith("I plan to ask my interviewer: ")
+    assert f'"{question}"' in own.text
+    assert own.text.endswith(" Is this a good question to ask?")
+    # Weak on purpose: it is about a personal benefit, which the mode's criteria call weak.
+    assert re.search(r"\b(vacation|salary|benefits?|bonus)\b", question, re.IGNORECASE)
 
 
 def test_interviewer_mode_hints_name_both_paths():
@@ -516,7 +521,8 @@ def test_interviewer_mode_hints_name_both_paths():
     assert "company" in hint
     for text in (caption, hint):
         assert "for feedback" in text
-    assert "rate" not in f"{caption} {hint}"
+    # A whole word, so "generate" or "separate" in a future caption does not trip it.
+    assert not re.search(r"\brat(e|ed|ing)\b", f"{caption} {hint}", re.IGNORECASE)
 
 
 @pytest.mark.parametrize("seniority", SENIORITY_LEVELS)
@@ -618,7 +624,9 @@ def test_interviewer_few_shot_example_suggests_questions_instead_of_rating():
     # Each suggested question is followed directly by its one-line reason.
     assert all(lines[i + 1].startswith("Why: It shows ") for i in questions)
     assert sum(line.startswith("Why:") for line in lines) == len(questions)
-    for heading in ("## Evaluation", "## Feedback", "## Score", "## Rubric"):
+    review_headings = ("## Evaluation", "## Feedback", "## Score", "## Rubric")
+    # "## Follow-up Question" would teach quizzing the candidate, which the mode forbids.
+    for heading in (*review_headings, "## Expected Answer", "## Follow-up Question"):
         assert heading not in example
 
 

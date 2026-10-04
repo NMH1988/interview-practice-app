@@ -61,6 +61,13 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - the caption keeps "company name".
   - Mutation-checked (each fails a test): a different count, a missing `Why:` line, a review heading in Example 3, the old placeholder, the old message kind.
   - No live LLM call was made in this PR.
+  - PR review round 1 (code-reviewer, posted on #75, no bugs), test fixes:
+    - the Example 3 test also rejects `## Expected Answer` and `## Follow-up Question`;
+    - the "no rating wording" check matches whole words, so "generate" passes;
+    - the starter test checks that the framed question is about a personal benefit (weak on purpose) instead of repeating the helper's f-string;
+    - `NORMAL_REPLIES` in `tests/test_output_safety.py` has a reply in the suggestion format.
+    - Each fix was mutation-checked.
+    - The two prompt-wording points (what triggers suggestions; a format for feedback on the candidate's own question) wait for the owner's sentences.
 - **Live check (owner, real key):** *pending.* Suggested runs:
   - a starter with no company;
   - a bare company name;
