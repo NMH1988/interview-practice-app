@@ -24,7 +24,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - Four UI tests in `tests/test_app_inputs.py`:
     - the order (header, the three practice widgets, "New session", then the expander) and that no practice widget is inside the expander;
     - the expander's label, key, collapsed state, caption and its three selects in order;
-    - the expander keeps its key while the role warning shows;
+    - the role warning moves the expander down one place, and it keeps its key;
     - model, strategy and effort set inside the expander reach the fake LLM (model, effort, effort's token budget and the strategy's system prompt).
   - `docs/PLAN.md` gets a ticked T5.7 entry; `docs/BRIEF.md` marks Medium #9 done for keeping the settings apart, and points at T4.1–T4.4 for the guards.
 - **Why:**
@@ -43,6 +43,10 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - `BRIEF.md`'s Medium #9 line starts "A security guard, designed for usability", while #63 quotes only the usability sentence. The full brief's wording was not checked: the owner left the choice to Claude. The line is worded to hold either way: done for keeping the settings apart, with the guards under T4.1–T4.4 (Easy #3).
     - PLAN's manual check now says Claude did it with a fake key, matching this entry.
     - `.claude/worktrees/` is not git-ignored; that is outside this ticket and was offered to the owner as a separate task.
+  - PR review round 2 (code-reviewer, posted on #78, ready to merge, no bugs):
+    - From Streamlit 1.64's source: with `on_change="ignore"` (the default) the key only gives the expander a fixed block ID. Nothing goes into `st.session_state` and no callback runs. Without the key the browser tracks the expander by its position, which the role warning changes.
+    - The new test's docstring claimed "so the browser keeps it open", which the test cannot see. It now says only that the expander moves down one place (6th to 7th sidebar node, now asserted) and keeps its key; a comment says the open state was checked in the browser. Dropping the key still fails 2 tests.
+    - Questions left for the owner: whether "A security guard" in `BRIEF.md`'s Medium #9 line is a section heading in the full brief; and `BRIEF.md` calls T4.4 a "prompt-leak check" while `PLAN.md` titles it "Output safety" (both from before this PR).
 - **Follow-ups:**
   - T7.5 (#64): put the max tokens widget inside the "Developer settings" expander.
   - T5.5 (#22): resolve the sidebar conflict with this PR.

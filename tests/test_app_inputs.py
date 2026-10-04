@@ -135,11 +135,15 @@ def test_developer_settings_sit_in_a_collapsed_expander(fake_llm):
 
 
 def test_expander_keeps_its_key_when_the_role_warning_shows(fake_llm):
-    """The role warning moves the expander down, but its key stays, so the browser keeps it open."""
+    """The role warning moves the expander down one place, and the expander keeps its key."""
     at = start()
+    assert list(at.sidebar.children.values())[5].key == "developer_settings"
     at.sidebar.text_input(key="role").set_value("   ").run(timeout=30)
     assert not at.exception
     assert len(at.sidebar.warning) == 1
+    # The browser needs the key to keep the moved expander open; AppTest cannot see that state,
+    # so this checks only that the expander moved and still has its key.
+    assert list(at.sidebar.children.values())[6].key == "developer_settings"
     assert [e.key for e in at.sidebar.expander] == ["developer_settings"]
 
 
