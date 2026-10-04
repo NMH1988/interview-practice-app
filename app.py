@@ -210,33 +210,9 @@ def reply_pieces(
 
 
 with st.sidebar:
-    st.header("Session settings")
-    model = st.selectbox(
-        "Model", ALLOWED_MODELS, index=ALLOWED_MODELS.index(DEFAULT_MODEL), key="model"
-    )
-    # Shows each strategy by its technique label; the key picks the system prompt.
-    strategy = st.selectbox(
-        "Prompt strategy",
-        list(STRATEGIES),
-        format_func=STRATEGY_LABELS.__getitem__,
-        key="strategy",
-    )
-    # Replaces the temperature slider: the allowed gpt-5 models ignore temperature (T2.4).
-    reasoning_effort = st.selectbox(
-        "Reasoning effort",
-        REASONING_EFFORTS,
-        index=REASONING_EFFORTS.index(DEFAULT_REASONING_EFFORT),
-        format_func=str.capitalize,
-        key="reasoning_effort",
-        help=(
-            "How long the model thinks before it answers. Higher effort can give deeper, more "
-            "careful feedback, but it is slower and uses more tokens. The thinking counts "
-            "against the token limit, so High gets a larger limit "
-            f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
-            f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more per "
-            "reply."
-        ),
-    )
+    # What the user practises comes first; the model settings follow in a collapsed section, for
+    # users who are not familiar with LLMs (the brief's Medium #9, T5.7).
+    st.header("Practice settings")
     interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
     # Streamlit cuts the value to max_chars on the server too; validate_role checks it again.
     role = st.text_input("Role", DEFAULT_ROLE, max_chars=MAX_ROLE_CHARS, key="role")
@@ -258,6 +234,39 @@ with st.sidebar:
         key="seniority",
     )
     st.button("New session", on_click=new_session, icon="🔄")
+    # Collapsed by default. Keys and defaults are the same as before T5.7, so the chat flow reads
+    # these values exactly as it did. The expander's own key keeps it open when the role warning
+    # above it appears or goes away; without one, that shift closed it (seen in a browser).
+    with st.expander("Developer settings", key="developer_settings"):
+        st.caption(
+            "Model and prompt settings for comparing results. The defaults work well for practice."
+        )
+        model = st.selectbox(
+            "Model", ALLOWED_MODELS, index=ALLOWED_MODELS.index(DEFAULT_MODEL), key="model"
+        )
+        # Shows each strategy by its technique label; the key picks the system prompt.
+        strategy = st.selectbox(
+            "Prompt strategy",
+            list(STRATEGIES),
+            format_func=STRATEGY_LABELS.__getitem__,
+            key="strategy",
+        )
+        # Replaces the temperature slider: the allowed gpt-5 models ignore temperature (T2.4).
+        reasoning_effort = st.selectbox(
+            "Reasoning effort",
+            REASONING_EFFORTS,
+            index=REASONING_EFFORTS.index(DEFAULT_REASONING_EFFORT),
+            format_func=str.capitalize,
+            key="reasoning_effort",
+            help=(
+                "How long the model thinks before it answers. Higher effort can give deeper, "
+                "more careful feedback, but it is slower and uses more tokens. The thinking "
+                "counts against the token limit, so High gets a larger limit "
+                f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
+                f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more "
+                "per reply."
+            ),
+        )
 
 for turn in st.session_state.history:
     with st.chat_message(turn["role"]):
