@@ -97,7 +97,9 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - smaller wording fixes in the record.
 - **Live check (owner, real key, gpt-5-mini, `medium`, Senior Marketing Manager, "Questions to ask the interviewer", 2026-10-04).** The fictional "Northwind Logistics" was used, so an invented fact would be easy to spot. Below, "owner: OK" means the owner reported OK against the planned checks and gave no further detail. Anything else is attributed.
   1. Zero-shot, starter "Suggest questions I could ask at the end of my interview.": owner: OK (no token line).
-  2. Zero-shot, `Northwind Logistics` alone: owner: OK (no token line). Run before round 6; **re-run pending**, to confirm that a bare company name still gets suggestions under the new rule.
+  2. Zero-shot, `Northwind Logistics` alone: owner: OK (no token line), before round 6.
+     - Re-run after round 6 (`Prompt 1,071 · Completion 1,362 (reasoning 832) · Total 2,433 tokens`, about 60 more than before, matching the new sentence): 8 questions, each with one sentence naming a criterion, and nothing claimed about Northwind. So a bare company name still gets suggestions under the new rule.
+     - Owner agreed: OK.
   3. Zero-shot, the company plus one fact ("They are moving their warehouses to a new automated system."): owner: OK. `Prompt 1,030 · Completion 1,064 (reasoning 448) · Total 2,094 tokens`.
   4. Zero-shot, the weak "vacation days" starter: owner: OK. `Prompt 1,020 · Completion 2,100 (reasoning 1,536) · Total 3,120 tokens`.
   5. Structured output, a strong own question ("What would success look like in this role after 90 days?"):
@@ -107,7 +109,15 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
        - feedback rated each of the four criteria Strong or Moderate;
        - but it then added "Suggested questions for a Senior Marketing Manager (5–8, ordered)", eight new questions nobody asked for (the double reply raised in round 3);
        - one reason named "practicality", a Structured output rubric criterion.
-     - Owner agreed: partly met. Fixed in round 6 (below). **Re-run after the fix: pending.**
+     - Owner agreed: partly met. Fixed in round 6 (below).
+     - Re-run after round 6 (`Prompt 1,191 · Completion 1,087 (reasoning 640) · Total 2,278 tokens`, about 55 more than before):
+       - no rubric, no score and no `## Follow-up Question`;
+       - feedback against the four criteria (Moderate / Weak-to-moderate);
+       - **no new list of suggestions**, so the round-6 rule works;
+       - "practicality" did not appear;
+       - it gave two rewordings where the rule says "a better wording";
+       - it ended with an offer.
+     - Owner agreed: nearly met (two rewordings instead of one).
   6. Structured output, the suggestion starter:
      - The first run is discarded: Prompt 1,018 was Zero-shot-sized.
      - Re-run (`Prompt 1,119 · Completion 1,306 (reasoning 832) · Total 2,425 tokens`, about 100 more than Zero-shot): 8 questions, each with one sentence naming a criterion, and no rubric or score. Owner agreed: OK.
@@ -118,14 +128,22 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
      - feedback naming criteria, four rewordings and three follow-ups;
      - no new list of 5–8 suggestions;
      - it ended with an offer, not an interview question.
-     - Claude's reading: met the mode rules **as they were before round 6**. Round 6 now allows one better wording and no additional list, so **re-run pending**. `Prompt 1,583 · Completion 1,328 (reasoning 832) · Total 2,911 tokens`.
+     - Claude's reading: met the mode rules as they were before round 6. `Prompt 1,583 · Completion 1,328 (reasoning 832) · Total 2,911 tokens`.
+     - Re-run after round 6, Zero-shot, same two turns:
+       - turn 1 (`Prompt 1,071 · Completion 1,322 (reasoning 832) · Total 2,393 tokens`): 7 questions, each with one sentence naming a criterion;
+       - turn 2 (`Prompt 1,618 · Completion 1,735 (reasoning 1,344) · Total 3,353 tokens`): no new list of suggestions, but it used the answer-review headings `Evaluation` / `Feedback` / `Follow-up question`, ended with a clarifying question under that heading, and gave three rewordings.
+     - Owner agreed: turn 1 OK, turn 2 partly met. Recorded as a known limitation (the owner chose to merge and follow up in T3.5, #76).
   9. Zero-shot, third turn of run 8's chat (owner confirmed), an own question naming a real company ("I plan to ask Spotify: …"), reply pasted by the owner: feedback only, and no Spotify facts beyond the "squads" the candidate wrote. Claude's reading: met the mode rules as they were before round 6. `Prompt 2,168 · Completion 1,651 (reasoning 1,152) · Total 3,819 tokens`.
   - A second attempt at re-running 5–7 came back with the default sidebar (replies about engineers, and a Behavioural question; Software Engineer and Mid-level are inferred from them and the config defaults; prompts of 718, 701 and 1,143). It is discarded.
+  - Two more attempts were discarded:
+    - one on the Behavioural mode (prompts of 717, 597 and 746);
+    - one on a server still running the code from before round 6. Its prompts of 1,136 and 1,016 equalled the earlier runs, about 60 short of the new block. Restarting the server fixed it.
+  - Known limitation (T3.5, #76): even with the round-6 block, Zero-shot once treated an own question as an interview answer (review headings, a closing question, three rewordings). Replies vary between runs, so whether a wording change fixes this needs several runs per strategy.
   - Not checked: Role / persona and Chain-of-thought. T5.3's (#20) open check that this mode does not quiz the candidate is closed for Zero-shot, Structured output and Few-shot. The other two are left for T3.3.
 - **Follow-ups:**
   - `feature/t3.3-prompt-eval` (T3.3, #10) must merge `main` before scoring the strategies, since this mode and Example 3 changed. T3.3 should also check Role / persona and Chain-of-thought in this mode, which the live check did not run.
   - `_FEW_SHOT_INTRO` still says the examples show "how to evaluate candidate answers". Optional: in the one confirmed Few-shot run (7), the model wrote "Shows <criterion>:" instead of Example 3's `Why:`. Adding Example 3's purpose to the intro may make the label stick.
-  - Run 5's Structured output re-run named "practicality" (a Structured rubric criterion) as a reason. Check it in the pending re-run, and in T3.3.
+  - T3.5 (#76): measure, over several runs per strategy, how often own-question feedback uses the answer-review headings, ends with a question or gives more than one rewording; adjust the wording if needed. It also covers the "practicality" reason (seen once with Structured output, not in its re-run) and Few-shot's `Why:` label. It can be folded into T3.3.
 
 ## 2026-10-04 · T2.5 Token budget large enough for high reasoning effort · #74 (closes #73)
 - **Brief:** serves Easy #8 (a model setting whose effect on the answers the learner can show and explain) and the "does what it promises" part of the evaluation: the `high` option T2.4 added could not finish a long reply. In line with the brief.
