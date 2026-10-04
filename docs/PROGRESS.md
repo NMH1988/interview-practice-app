@@ -39,6 +39,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - PR review round 2 (code-reviewer, posted on #77, no bugs, ready to merge), two nits:
     - The reviewer guide said the scan stops any use of "components". It only flags `unsafe_allow_html`, calls named `html` and `from streamlit import html/components`; `import streamlit.components.v1` and `components.iframe` pass (checked). The guide now names what the scan covers and says to check the rest by hand. Widening the scan was left out of this ticket.
     - The PR body's Brief line now matches this entry's.
+  - PR review round 3 (code-reviewer, posted on #77, no bugs, ready to merge; CI green on 4a33d5c): the reviewer guide's output-safety sentence was split into three for readability, with the reviewer's wording. Its meaning is unchanged.
 - **Follow-ups:** none for this ticket. T7.1 (session score tracker) remains an Epic 7 extra.
 
 ## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)
