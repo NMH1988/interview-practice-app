@@ -127,7 +127,7 @@ At `high`, the sample-JD starter spent 3,648 of the 4,000 tokens thinking and wa
 - [x] The owner chose a budget per effort (not one larger budget for all): `minimal` / `low` / `medium` keep 4,000, `high` gets 16,000; the reason is in `docs/PROGRESS.md`.
 - [x] `config.py` holds the budgets (`MAX_TOKENS_BY_EFFORT`) and `MAX_TOKENS_CAP = 16000`; `_send` still clamps to the cap, and its comment says why.
 - [x] The reasoning-effort help text still says the thinking counts against the token limit, and names both limits.
-- [ ] Live check by the owner (real key): the JD sample starter at `high` finishes without ✂️; the token counts go in `docs/PROGRESS.md`.
+- [x] Live check by the owner (real key): the JD sample starter at `high` finishes without ✂️; the token counts go in `docs/PROGRESS.md`.
 
 **Tests**
 - [x] Unit: the budget sent for each effort equals the configured value and never exceeds the cap.
