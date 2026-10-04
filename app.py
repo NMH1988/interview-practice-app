@@ -15,7 +15,6 @@ from src.config import (
     DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
-    HIGH_EFFORT_MAX_TOKENS,
     MAX_ROLE_CHARS,
     MAX_TOKENS_BY_EFFORT,
     REASONING_EFFORTS,
@@ -271,8 +270,10 @@ with st.sidebar:
         help=(
             "How long the model thinks before it answers. Higher effort can give deeper, more "
             "careful feedback, but it is slower and uses more tokens. The thinking counts "
-            f"against the token limit, so High gets a larger limit ({HIGH_EFFORT_MAX_TOKENS:,} "
-            f"tokens instead of {DEFAULT_MAX_TOKENS:,}), which can also cost more per reply."
+            "against the token limit, so High gets a larger limit "
+            f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
+            f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more per "
+            "reply."
         ),
     )
     interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")

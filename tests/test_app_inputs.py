@@ -7,12 +7,10 @@ from streamlit.testing.v1 import AppTest
 from src.config import (
     ALLOWED_MODELS,
     API_KEY_NAME,
-    DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
-    HIGH_EFFORT_MAX_TOKENS,
     MAX_ROLE_CHARS,
     MAX_TOKENS_BY_EFFORT,
     MAX_TOKENS_CAP,
@@ -59,8 +57,8 @@ def test_reasoning_effort_help_names_both_token_limits(fake_llm):
     """The help says thinking uses the token limit and that High gets the larger one (T2.5)."""
     help_text = start().sidebar.selectbox(key="reasoning_effort").help
     assert "thinking counts against the token limit" in help_text
-    assert f"High gets a larger limit ({HIGH_EFFORT_MAX_TOKENS:,} tokens" in help_text
-    assert f"instead of {DEFAULT_MAX_TOKENS:,})" in help_text
+    assert f"High gets a larger limit ({MAX_TOKENS_BY_EFFORT['high']:,} tokens" in help_text
+    assert f"instead of {MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,})" in help_text
 
 
 def test_no_temperature_slider_remains(fake_llm):
