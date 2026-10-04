@@ -73,21 +73,24 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - The two prompt-wording points were fixed in round 2 with the owner's sentences (below).
   - PR review round 2 (owner's wording, option A):
     - The suggestion rule now also fires on a company name with details. Before, "provides only a company name" left Example 3's own message (a name plus a fact, no request) under the "unclear, invite" rule for the four strategies that never see Example 3.
-    - The "weak question" paragraph ends with "Do not use the candidate-answer review format or scoring rubric, and do not end with an interview question." Before, only the suggestion list was kept out of the strategies' review formats.
+    - The "weak question" paragraph got "Do not use the candidate-answer review format or scoring rubric, and do not end with an interview question." (round 3 moved it to the general feedback paragraph). Before, only the suggestion list was kept out of the strategies' review formats.
     - The owner's drafts also repeated the company rules and the four criteria. Only the new parts were added, so each rule is stated once.
     - Both sentences are pinned in every strategy, and the feedback rule is checked to close the review part, before the suggestion rules.
   - PR review round 3 (code-reviewer, posted on #75, no bugs):
     - The feedback-format sentence moved, unchanged, from the end of the "weak question" paragraph to the end of the general feedback paragraph ("Give concise and specific feedback… why."). Where it was, it read as covering weak questions only, so Structured output could still rate a strong own question with its rubric. Claude had suggested the first place; the owner approved the move.
     - The position test now checks the new place.
-    - Round 4 (code-reviewer, posted on #75, no bugs, nits only): the position test also checks that the rule is stated once; the two extra mutation checks were run and recorded above; the PR body's live-check list gained the "own question after a company was named earlier" case.
     - The PR body was brought up to date.
     - Stale comments in `app.py` (the caption) and on `FEW_SHOT_EXAMPLES` / `few_shot` were fixed.
-    - Open for the live check: once a company was named, a later own question (or one naming a company, "I plan to ask Spotify: …") may get feedback and new suggestions together.
+  - PR review round 4 (code-reviewer, posted on #75, no bugs, nits only):
+    - the position test also checks that the rule is stated once;
+    - the two extra mutation checks were run and recorded above;
+    - the PR body's live-check list gained the "own question after a company was named earlier" case.
+  - PR review round 5 (code-reviewer, posted on #75, no bugs, no code or test findings): this entry's layout was fixed (round 4 had been nested under round 3).
 - **Live check (owner, real key):** *pending.* Suggested runs:
   - a starter with no company;
   - a bare company name, and a company name with one fact about it;
   - an own question: the weak starter, and a strong one (e.g. "What would success look like in this role after 90 days?");
-  - an own question that names a company, and an own question after a company was named earlier;
+  - an own question that names a company ("I plan to ask Spotify: …"), and an own question after a company was named earlier: both may get feedback and new suggestions together;
   - the Few-shot and Structured output strategies (the second has its own fixed review structure).
   - Check that each reason is one short sentence and that nothing about the company is invented.
 - **Follow-ups:**
