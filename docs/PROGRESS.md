@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-04 · T5.7 Separate developer settings from practice settings · #? (closes #63)
+## 2026-10-04 · T5.7 Separate developer settings from practice settings · #78 (closes #63)
 - **Brief:** serves Medium #9 (keep the developer settings, model and system prompts, apart from the user experience, for users who may not know much about LLMs). In line with the brief.
 - **What:**
   - `app.py`'s sidebar header "Session settings" is now "Practice settings", followed by Interview type, Role (with its warning), Seniority and "New session".
