@@ -16,6 +16,37 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-04 · T5.7 Separate developer settings from practice settings · #? (closes #63)
+- **Brief:** serves Medium #9 (keep the developer settings, model and system prompts, apart from the user experience, for users who may not know much about LLMs). In line with the brief.
+- **What:**
+  - `app.py`'s sidebar header "Session settings" is now "Practice settings", followed by Interview type, Role (with its warning), Seniority and "New session".
+  - Model, Prompt strategy and Reasoning effort moved, unchanged (labels, keys, defaults, help), into `st.expander("Developer settings", key="developer_settings")`. It is collapsed by default and opens with the caption "Model and prompt settings for comparing results. The defaults work well for practice."
+  - Four UI tests in `tests/test_app_inputs.py`:
+    - the order (header, the three practice widgets, "New session", then the expander) and that no practice widget is inside the expander;
+    - the expander's label, key, collapsed state, caption and its three selects in order;
+    - the expander keeps its key while the role warning shows;
+    - model, strategy and effort set inside the expander reach the fake LLM (model, effort, effort's token budget and the strategy's system prompt).
+  - `docs/PLAN.md` gets a ticked T5.7 entry; `docs/BRIEF.md` marks Medium #9 done for keeping the settings apart, and points at T4.1–T4.4 for the guards.
+- **Why:**
+  - Practice settings come first because they are what every user changes. The developer settings stay one click away for comparing strategies (mandatory requirement 5) and efforts (Easy #8).
+  - An expander rather than a second header or a separate page: the issue's own suggestion. The widgets stay on the one page with the same keys, so the chat flow reads them exactly as before.
+  - The section names and caption are Claude's drafts, approved by the owner.
+- **Decisions & gotchas:**
+  - Done in a worktree (`.claude/worktrees/t5.7-dev-settings`) from `main`, because the main checkout holds uncommitted T5.5 (#22) work.
+  - The dashboard's "Filters" header and date input are left alone; T5.5 removes them. Both tickets edit the sidebar block, so whichever merges second resolves a small conflict right after the expander.
+  - "New session" is still `at.sidebar.button[0]` (`tests/test_app_chat.py`), since the expander has no buttons.
+  - In `AppTest`, `Expander.proto` is the `Expandable` message itself, so the collapsed check is `proto.expanded`.
+  - Mutation-checked (each fails a new test): `expanded=True`, the old "Session settings" header, the model select moved out of the expander.
+  - Browser check (Claude, fake key through the environment, no LLM call): at 1280 px and at 375 px (mobile, sidebar opened with its toggle), "Practice settings" comes first and "Developer settings" is collapsed. After opening it and picking `openai/gpt-5-nano`, the rerun kept it open with the new model shown. The only console error came from Streamlit's own audio-recording component (`wavesurfer`, "Container not found"), not from the sidebar.
+  - PR review round 1 (code-reviewer, before the PR was opened, no bugs):
+    - The reviewer asked whether the role warning, which appears above the expander, closes it. In the browser (same setup), with the expander open, clearing the Role field closed it. With `key="developer_settings"` (supported by `st.expander` in Streamlit 1.64) it stayed open both when the warning appeared and when a valid role removed it. The owner approved the fix. `AppTest` cannot see the open state in the browser, so the new test only checks that the key stays while the warning shows. Dropping the key fails 2 tests.
+    - `BRIEF.md`'s Medium #9 line starts "A security guard, designed for usability", while #63 quotes only the usability sentence. The full brief's wording was not checked: the owner left the choice to Claude. The line is worded to hold either way: done for keeping the settings apart, with the guards under T4.1–T4.4 (Easy #3).
+    - PLAN's manual check now says Claude did it with a fake key, matching this entry.
+    - `.claude/worktrees/` is not git-ignored; that is outside this ticket and was offered to the owner as a separate task.
+- **Follow-ups:**
+  - T7.5 (#64): put the max tokens widget inside the "Developer settings" expander.
+  - T5.5 (#22): resolve the sidebar conflict with this PR.
+
 ## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)
 - **Brief:** serves starter idea #3, the "questions to ask the interviewer" generator (company name and role in, 5–8 thoughtful questions to ask at the end of the interview, tailored to that company; quoted in #62). In line with the brief. Keeping feedback on the user's own question is the owner's "mix" choice (the starter ideas say "swap, mix, or extend").
 - **What:**

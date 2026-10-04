@@ -17,7 +17,7 @@ from src.config import (
     REASONING_EFFORTS,
 )
 from src.guard import INJECTION_REFUSAL
-from src.prompts import INTERVIEW_TYPES, SENIORITY_LEVELS
+from src.prompts import INTERVIEW_TYPES, SENIORITY_LEVELS, STRATEGIES
 from tests.injection_samples import ROLE_ATTACK
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
@@ -103,6 +103,65 @@ def test_token_budget_follows_the_reasoning_effort(fake_llm, effort):
     assert len(fake_llm.calls) == 1
     assert fake_llm.calls[0]["max_tokens"] == MAX_TOKENS_BY_EFFORT[effort]
     assert fake_llm.calls[0]["max_tokens"] <= MAX_TOKENS_CAP
+
+
+def test_practice_settings_come_first_outside_the_expander(fake_llm):
+    """Practice settings and "New session" come first, under their header, before the expander."""
+    at = start()
+    nodes = list(at.sidebar.children.values())
+    header, interview_type, role, seniority, new_session, developer = nodes[:6]
+    assert header.value == "Practice settings"
+    assert [interview_type.key, role.key, seniority.key] == ["interview_type", "role", "seniority"]
+    assert new_session.label == "New session"
+    assert developer.label == "Developer settings"
+    assert "Session settings" not in [h.value for h in at.sidebar.header]
+    assert not developer.text_input
+    assert not developer.button
+    assert {s.key for s in developer.selectbox}.isdisjoint({"interview_type", "seniority"})
+
+
+def test_developer_settings_sit_in_a_collapsed_expander(fake_llm):
+    """Model, strategy and reasoning effort sit in one "Developer settings" expander, closed."""
+    expanders = start().sidebar.expander
+    assert len(expanders) == 1
+    developer = expanders[0]
+    assert developer.label == "Developer settings"
+    assert developer.key == "developer_settings"
+    assert developer.proto.expanded is False
+    assert [s.key for s in developer.selectbox] == ["model", "strategy", "reasoning_effort"]
+    assert [c.value for c in developer.caption] == [
+        "Model and prompt settings for comparing results. The defaults work well for practice."
+    ]
+
+
+def test_expander_keeps_its_key_when_the_role_warning_shows(fake_llm):
+    """The role warning moves the expander down, but its key stays, so the browser keeps it open."""
+    at = start()
+    at.sidebar.text_input(key="role").set_value("   ").run(timeout=30)
+    assert not at.exception
+    assert len(at.sidebar.warning) == 1
+    assert [e.key for e in at.sidebar.expander] == ["developer_settings"]
+
+
+def test_developer_settings_set_in_the_expander_reach_the_llm(fake_llm):
+    """Model, strategy and effort picked inside the expander are the ones the LLM call gets."""
+    at = start()
+    developer = at.sidebar.expander[0]
+    developer.selectbox(key="model").set_value("openai/gpt-5-nano")
+    developer.selectbox(key="strategy").set_value("persona")
+    developer.selectbox(key="reasoning_effort").set_value("high")
+    at.run(timeout=30)
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    assert not at.exception
+    assert len(fake_llm.calls) == 1
+    call = fake_llm.calls[0]
+    assert call["model"] == "openai/gpt-5-nano"
+    assert call["reasoning_effort"] == "high"
+    assert call["max_tokens"] == MAX_TOKENS_BY_EFFORT["high"]
+    assert call["messages"][0] == {
+        "role": "system",
+        "content": STRATEGIES["persona"](DEFAULT_ROLE, INTERVIEW_TYPES[0]),
+    }
 
 
 def test_interview_type_role_and_seniority_inputs(fake_llm):

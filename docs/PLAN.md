@@ -286,6 +286,17 @@ The brief's starter idea is a generator: company name and role in, 5–8 thought
 - [x] UI flow: clicking a starter in this mode sends its text to the fake LLM (covered for every starter by `tests/test_app_examples.py`).
 - [x] Live check by the owner (real key, gpt-5-mini): results in `docs/PROGRESS.md`; one known limitation is followed up in T3.5 (#76).
 
+### T5.7 Separate developer settings from practice settings (S)
+The brief's Medium #9: keep the developer settings (model, system prompts) apart from the user experience, since the user may not know much about LLMs (quoted in #63).
+**Acceptance criteria**
+- [x] The practice settings (interview type, role, seniority, New session) come first, under a "Practice settings" header.
+- [x] The developer settings (model, prompt strategy, reasoning effort) sit in a "Developer settings" expander, collapsed by default. Max tokens joins it when T7.5 (#64) lands.
+- [x] Defaults and widget keys are unchanged.
+
+**Tests**
+- [x] UI flow: the developer widgets are inside the expander and the practice widgets are not; settings changed inside the expander reach the fake LLM call.
+- [x] Manual (Claude, fake key, no LLM call): desktop and mobile widths in a browser; the expander stays open while a setting is changed and while the role warning appears or goes away.
+
 ### T5.8 Job-description analysis adds a short study plan (S)
 The brief's job description analyser "extracts the key skills, likely interview topics, and a short study plan" (quoted in #70), and T5.3 promises "paste JD → prep strategy", but the JD mode's instructions never asked for one.
 **Acceptance criteria**
