@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #PR (closes #62)
+## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)
 - **Brief:** serves starter idea #3, the "questions to ask the interviewer" generator (company name and role in, 5–8 thoughtful questions to ask at the end of the interview, tailored to that company; quoted in #62). In line with the brief. Keeping feedback on the user's own question is the owner's "mix" choice (the starter ideas say "swap, mix, or extend").
 - **What:**
   - `MODE_INSTRUCTIONS["Questions to ask the interviewer"]` in `src/prompts.py` is the owner's new block:
