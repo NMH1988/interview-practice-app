@@ -54,9 +54,10 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - Left as is (optional): a relative form of the position asserts.
   - PR review round 4 (code-reviewer, posted on #78, ready to merge, no bugs; CI green on 37660eb):
     - The merge with `main` is complete: the diff against `main` holds only T5.7's 5 files, nothing T5.5 removed came back, and T5.5's smoke and output-safety tests still hold with the new sidebar.
-    - Should fix: the round-3 note said CI had never run on this PR. It did run on earlier heads; only fcd5c9f had none. Corrected above (`gh run list`: CI was cancelled on ec5b6b0 by the next push, and passed with PR checks on 950db5f, 8931cca and 37660eb).
+    - Should fix: the round-3 note said CI had never run on this PR. It did run on earlier heads; only fcd5c9f had none. Corrected above (`gh run list`: on ec5b6b0 CI was cancelled by the next push while PR checks passed; CI and PR checks passed on 950db5f, 8931cca and 37660eb).
     - Nits: the blank line the union merge dropped before T5.5's heading is back; "holds" became "held"; the reason for 935 now names both of T5.5's test changes.
-    - `mergeStateStatus: UNSTABLE` on 37660eb is likely a cancelled duplicate "PR checks" run (the push and the body edit started two; `pr-checks.yml` cancels in progress). Not a failure; `main` has no branch protection.
+    - `mergeStateStatus: UNSTABLE` on 37660eb: cause not confirmed. All its checks passed, apart from one cancelled duplicate "PR checks" run, and d84560d has the same cancelled duplicate yet reports `CLEAN`, so the status was likely transient. Not a failure; `main` has no branch protection.
+  - PR review round 5 (code-reviewer, posted on #78, ready to merge, no bugs; CI green and `CLEAN` on d84560d): no code change since round 4. Nits fixed: the UNSTABLE line above no longer names a cause; the ec5b6b0 run line says PR checks passed; the PR body says the owner left the brief-wording choice to Claude instead of "owner's call".
 - **Follow-ups:**
   - T7.5 (#64): put the max tokens widget inside the "Developer settings" expander.
 
