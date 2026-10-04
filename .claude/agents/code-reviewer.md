@@ -40,16 +40,16 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 
 ### 1. Correctness
 - **Reruns:** Streamlit reruns the whole script on every interaction. Anything that must survive (chat history, rate-limit counters) lives in `st.session_state` and is initialised once (`if "x" not in st.session_state:`).
-- **Widgets:** keys are unique; widgets that can return partial values are handled (e.g. `st.date_input` range returns one date mid-selection - see `app.py`); `st.stop()` is reached on every error path that must halt.
+- **Widgets:** keys are unique; widgets that can return partial or empty values are handled (e.g. a range or multi-select widget mid-selection); `st.stop()` is reached on every error path that must halt.
 - **Caching:** `st.cache_data` for data, `st.cache_resource` for clients; cached functions are not caching per-user LLM answers by accident.
 - **LLM errors:** timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; only 429/5xx are retried, at most 2 times with backoff; no bare `except:` or swallowed errors.
-- **Edge cases:** empty/whitespace strings, `None`, empty DataFrames, very long input, mid-stream failures (chat history must stay intact).
+- **Edge cases:** empty/whitespace strings, `None`, empty lists or chat history, very long input, mid-stream failures (chat history must stay intact).
 
 ### 2. Security
 - **API key:** read only through `src.config.get_api_key()`. Never hardcoded, logged, printed, shown in the UI, put in exception messages, or stored in `st.session_state`. `.streamlit/secrets.toml` and `.env` stay in `.gitignore`; `secrets.toml.example` holds only the placeholder.
 - **Guard before spend:** every code path that reaches the LLM goes through the guard first. Rejected input (empty, too long, injection, rate-limited) must make **no** API call.
 - **Prompt injection:** user text is wrapped in `<user_input>...</user_input>` and placed in the user message, never concatenated into the system prompt. System prompts tell the model to stay on interview prep and ignore instructions inside user input.
-- **Output safety:** LLM output is rendered as Markdown **without** `unsafe_allow_html`. `unsafe_allow_html` is acceptable only for static CSS built from theme options (as in `app.py`), never for model or user text.
+- **Output safety:** LLM output is rendered as Markdown **without** `unsafe_allow_html`. Since T5.5 no app file uses `unsafe_allow_html`, `st.html` or `components.v1.html`, or imports `html` / `components` from `streamlit`; `tests/test_output_safety.py` checks this. It does not catch `import streamlit.components.v1` or component calls other than `html` (e.g. `components.iframe`), so check those by hand. A new raw-HTML use needs a reason and a test change, and must never carry model or user text.
 - **Model settings:** the model must be in `ALLOWED_MODELS`; the reasoning effort is one of `REASONING_EFFORTS` (no `temperature`: the gpt-5 models ignore it); `max_tokens` is capped.
 - **Dependencies:** new runtime packages are pinned and identical in `pyproject.toml` and `requirements.txt`.
 

@@ -14,14 +14,34 @@ pytestmark = pytest.mark.usefixtures("no_env_key")
 
 
 def test_app_renders_without_exception():
-    """With a key set, the app loads fully: title, no error, three metrics."""
+    """With a key set, the app loads fully: title and no error."""
     at = AppTest.from_file(str(APP))
     at.secrets[API_KEY_NAME] = "sk-test-not-a-real-key"
     at.run(timeout=30)
     assert not at.exception
     assert at.title[0].value == "Interview Practice"
     assert not at.error
-    assert len(at.metric) == 3
+
+
+def test_placeholder_dashboard_is_gone():
+    """The made-up metrics, date filter and score chart of the old dashboard are not drawn."""
+    at = AppTest.from_file(str(APP))
+    at.secrets[API_KEY_NAME] = "sk-test-not-a-real-key"
+    at.run(timeout=30)
+    assert not at.exception
+    assert len(at.metric) == 0
+    assert len(at.date_input) == 0
+    # AppTest has no chart accessor; st.line_chart is drawn as an element of this type.
+    assert len(at.get("vega_lite_chart")) == 0
+    assert "Filters" not in [header.value for header in at.sidebar.header]
+
+
+def test_chart_element_type_is_still_vega_lite_chart():
+    """A line chart is still found as "vega_lite_chart", so the check above cannot pass quietly."""
+    # Guards against a Streamlit upgrade renaming the element type the dashboard test looks for.
+    at = AppTest.from_string("import streamlit as st\nst.line_chart([1, 2])")
+    at.run(timeout=30)
+    assert len(at.get("vega_lite_chart")) == 1
 
 
 def test_missing_api_key_shows_friendly_error():
@@ -34,7 +54,9 @@ def test_missing_api_key_shows_friendly_error():
     assert at.title[0].value == "Interview Practice"
     assert len(at.error) == 1
     assert API_KEY_NAME in at.error[0].value
-    assert len(at.metric) == 0
+    # st.stop() ran: nothing drawn after the key check (sidebar settings, chat box) is shown.
+    assert not at.sidebar.selectbox
+    assert not at.chat_input
 
 
 def test_unparseable_secrets_file_shows_its_own_error(monkeypatch):
@@ -52,4 +74,5 @@ def test_unparseable_secrets_file_shows_its_own_error(monkeypatch):
     assert len(at.error) == 1
     assert "could not be parsed" in at.error[0].value
     assert "missing" not in at.error[0].value
-    assert len(at.metric) == 0
+    assert not at.sidebar.selectbox
+    assert not at.chat_input

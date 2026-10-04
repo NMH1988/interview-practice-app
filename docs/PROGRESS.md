@@ -33,7 +33,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - The section names and caption are Claude's drafts, approved by the owner.
 - **Decisions & gotchas:**
   - Done in a worktree (`.claude/worktrees/t5.7-dev-settings`) from `main`, because the main checkout holds uncommitted T5.5 (#22) work.
-  - The dashboard's "Filters" header and date input are left alone; T5.5 removes them. Both tickets edit the sidebar block, so whichever merges second resolves a small conflict right after the expander.
+  - The dashboard's "Filters" header and date input were left to T5.5. T5.5 (#77) merged first, so this PR merged `main` and resolved the `app.py` conflict: it keeps the expander and takes `main`'s removal of the "Filters" header, date input, metrics and chart, so the sidebar now ends at the expander.
   - "New session" is still `at.sidebar.button[0]` (`tests/test_app_chat.py`), since the expander has no buttons.
   - In `AppTest`, `Expander.proto` is the `Expandable` message itself, so the collapsed check is `proto.expanded`.
   - Mutation-checked (each fails a new test): `expanded=True`, the old "Session settings" header, the model select moved out of the expander.
@@ -44,12 +44,41 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - PLAN's manual check now says Claude did it with a fake key, matching this entry.
     - `.claude/worktrees/` is not git-ignored; that is outside this ticket and was offered to the owner as a separate task.
   - PR review round 2 (code-reviewer, posted on #78, ready to merge, no bugs):
-    - From Streamlit 1.64's source: with `on_change="ignore"` (the default) the key only gives the expander a fixed block ID. Nothing goes into `st.session_state` and no callback runs. Without the key the browser tracks the expander by its position, which the role warning changes.
-    - The new test's docstring claimed "so the browser keeps it open", which the test cannot see. It now says only that the expander moves down one place (6th to 7th sidebar node, now asserted) and keeps its key; a comment says the open state was checked in the browser. Dropping the key still fails 2 tests.
+    - From Streamlit 1.64's source: with `on_change="ignore"` (the default) the key gives the expander a fixed block ID (plus a duplicate-key check and an `st-key-developer_settings` CSS class). Nothing goes into `st.session_state` and no callback runs. Without the key the browser tracks the expander by its position, which the role warning changes.
+    - The new test's docstring claimed "so the browser keeps it open", which the test cannot see. It now says only that the expander moves down one place (6th to 7th sidebar node, now asserted) and keeps its key; a comment says AppTest cannot see the open state. Dropping the key still fails 2 tests.
     - Questions left for the owner: whether "A security guard" in `BRIEF.md`'s Medium #9 line is a section heading in the full brief; and `BRIEF.md` calls T4.4 a "prompt-leak check" while `PLAN.md` titles it "Output safety" (both from before this PR).
+  - PR review round 3 (code-reviewer, posted on #78, needs changes, no bugs):
+    - Must fix: T5.5 (#77) had merged into `main`, so the PR was `CONFLICTING` and CI had never run on it. `origin/main` was merged in; `app.py` was resolved as above, and `docs/PROGRESS.md` merged on its own (`merge=union`) with this entry above T5.5's. On the merged state: `ruff check .` and `ruff format --check .` clean, `python -m pytest -q` 935 passed (T5.5 changed the smoke tests), and dropping the expander key still fails 2 tests.
+    - The PR body was brought up to date (conflict resolved here, test count, review rounds, the position asserts), and the T5.5 follow-up below was removed.
+    - Nits fixed in the round-2 note: the test comment's wording, and the key's other two effects.
+    - Left as is (optional): a relative form of the position asserts.
 - **Follow-ups:**
   - T7.5 (#64): put the max tokens widget inside the "Developer settings" expander.
-  - T5.5 (#22): resolve the sidebar conflict with this PR.
+## 2026-10-04 · T5.5 Remove placeholder dashboard · #77 (closes #22)
+- **Brief:** no brief item asks for a dashboard; it came with the starter template and showed made-up data. Removing it serves the "does what it promises" part of the evaluation, and keeps `main` in a state to hand in. The stricter raw-HTML scan also supports mandatory requirement 6 (security guard). In line with the brief.
+- **What:**
+  - `app.py` loses `load_sessions` (60 days of fake sessions), the sidebar's "Filters" header and date range, the three metrics and the score line chart, and the `pandas` / `datetime` imports they needed.
+  - The `<style>` block that only styled the metric cards (`stMetric*`) and its three theme-colour variables are removed too (owner approved). The theme itself still comes from `.streamlit/config.toml`.
+  - `tests/test_app_smoke.py`: the "three metrics" assert is gone; a new test checks for no metrics, no date input, no `vega_lite_chart` element and no "Filters" header.
+  - `tests/test_output_safety.py`: the raw-HTML scan used to allow exactly one exception, the theme CSS block. It now allows none (`test_app_never_renders_raw_html`), and the helpers that only served the exception (`theme_names`, `is_static_style_block` and their test) are removed.
+  - `docs/PLAN.md` ticks T5.5, notes the change on T4.4's source-scan line and on T7.1; `.claude/agents/code-reviewer.md`'s widget and output-safety rules no longer point at the removed code; a stale T5.5 comment in `tests/test_app_errors.py` is updated.
+- **Why:** Epic 7 is not done, so the plan's "or replace it with a real tracker" does not apply; T7.1 stays a separate extra. With the metrics gone, the CSS was dead code and the only raw HTML in the app, so removing it also makes the output-safety rule stricter and simpler.
+- **Decisions & gotchas:**
+  - AppTest has no chart accessor; `st.line_chart` shows up as an element of type `vega_lite_chart`, found with `at.get("vega_lite_chart")` (checked against the old `app.py`).
+  - Mutation-checked: the old `app.py` fails the new smoke test; adding back a line chart, a sidebar date input or a "Filters" header each fails it; adding a `<style>` block with `unsafe_allow_html=True` or an `st.html` call is flagged by the raw-HTML scan.
+  - Checked in the browser pane (no LLM call): desktop and 375 px both show the title with the starters right under it, nothing above them; no metrics, chart or date input; no horizontal scroll at 375 px; no server or console errors.
+  - A future raw-HTML use (e.g. custom CSS) now needs a test change and a reason; see the reviewer's output-safety rule.
+  - `ruff check .` from the repo root also scans untracked worktrees under `.claude/worktrees/`; CI does not see them. During this PR the T3.3 worktree once showed lint errors that were gone by the review, so it was likely mid-edit.
+  - PR review round 1 (code-reviewer, posted on #77, no bugs):
+    - Should-fix: the two missing-key smoke tests still ended with `assert len(at.metric) == 0`, which used to prove that `st.stop()` ran (otherwise the metrics were drawn) and is now always true. They now assert that no sidebar selectbox and no chat input are drawn. Mutation-checked: removing either `st.stop()` after a key error fails its test.
+    - A control test (`test_chart_element_type_is_still_vega_lite_chart`) checks that a line chart is still found as `vega_lite_chart`, so a Streamlit upgrade that renames the type cannot make the dashboard check pass quietly.
+    - The raw-HTML scan names flagged files by their path from the repo root, not just the file name.
+    - Nits: PLAN's T5.5 test line says "it used to assert 3 metrics"; the reviewer guide's widget and edge-case examples no longer mention `st.date_input` or DataFrames; this entry's Brief line names requirement 6.
+  - PR review round 2 (code-reviewer, posted on #77, no bugs, ready to merge), two nits:
+    - The reviewer guide said the scan stops any use of "components". It only flags `unsafe_allow_html`, calls named `html` and `from streamlit import html/components`; `import streamlit.components.v1` and `components.iframe` pass (checked). The guide now names what the scan covers and says to check the rest by hand. Widening the scan was left out of this ticket.
+    - The PR body's Brief line now matches this entry's.
+  - PR review round 3 (code-reviewer, posted on #77, no bugs, ready to merge; CI green on 4a33d5c): the reviewer guide's output-safety sentence was split into three for readability, with the reviewer's wording. Its meaning is unchanged.
+- **Follow-ups:** none for this ticket. T7.1 (session score tracker) remains an Epic 7 extra.
 
 ## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)
 - **Brief:** serves starter idea #3, the "questions to ask the interviewer" generator (company name and role in, 5–8 thoughtful questions to ask at the end of the interview, tailored to that company; quoted in #62). In line with the brief. Keeping feedback on the user's own question is the owner's "mix" choice (the starter ideas say "swap, mix, or extend").
