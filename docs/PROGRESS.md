@@ -26,9 +26,9 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - `Role / persona` strategy: the reply ends with practice tasks and offers next steps; it does not start quizzing the candidate. OK. (A typed "I want to apply to SAP Developer, Senior" with no JD gets "paste the JD", as the mode says: only an explicit request gets a sample.)
   - Sample-JD starter at `high`: cut off (✂️), `Prompt 772 · Completion 4,000 (reasoning 3,648)`. Not caused by this PR: about 350 tokens are left for the reply at any length. Ticketed as T2.5 (#73).
   - This closes T5.3's (#20) open check that JD mode returns a prep strategy.
+  - Re-run with the final sentence (sample-JD starter, Senior SAP Developer, `medium`): five plan items, each with exactly one practice task. OK.
 - **Decisions & gotchas:** "these areas" refers to the list above it, so the sentence must stay directly after the list (tested). A sample JD written on request (T5.4) gets the plan too, since the sample rule says to analyze it "in the same way".
 - **Follow-ups:**
-  - Owner re-runs the sample-JD starter at `medium` with the final sentence and checks the plan has at most five items.
   - T2.5 (#73): a token budget large enough for `high` reasoning effort.
   - `feature/t3.3-prompt-eval` (T3.3, #10) predates this sentence; merge `main` there before scoring the strategies.
 
