@@ -471,6 +471,14 @@ OWN_QUESTION_FORMAT_RULE = (
     "Do not use the candidate-answer review format or scoring rubric, and do not end with an "
     "interview question."
 )
+# The owner's rule against a second list of suggestions in feedback (PR #75 review round 6, after
+# the live check's Structured output run added eight new questions to its feedback).
+NO_EXTRA_LIST_RULE = (
+    "When giving feedback on the candidate's own question, you may suggest a better wording of "
+    "that question. Do not generate an additional list of suggested questions unless the "
+    "candidate explicitly asks for suggestions. This rule applies even if the candidate's "
+    "question mentions a company or includes company-specific details."
+)
 REASON_RULE = (
     "Follow each suggested question with one short sentence explaining which of the criteria "
     "above it demonstrates and why the question reflects that criterion."
@@ -612,12 +620,15 @@ def test_interviewer_mode_suggests_questions_after_its_criteria():
 
 
 def test_interviewer_mode_feedback_avoids_the_answer_review_format():
-    """The own-question format rule covers all feedback, before the suggestion rules begin."""
+    """The own-question feedback rules cover all feedback, before the suggestion rules begin."""
     block = MODE_INSTRUCTIONS[INTERVIEWER_QUESTIONS]
     # It ends the general feedback paragraph, not the "weak question" one, so a strong question
     # is covered too (PR #75 review round 3). Stated once, so a second copy cannot sneak back.
     assert block.count(OWN_QUESTION_FORMAT_RULE) == 1
-    assert "the question demonstrates and why. " + OWN_QUESTION_FORMAT_RULE + "\n\n" in block
+    # The no-extra-list rule follows it in the same paragraph (round 6).
+    feedback = OWN_QUESTION_FORMAT_RULE + " " + NO_EXTRA_LIST_RULE + "\n\n"
+    assert "the question demonstrates and why. " + feedback in block
+    assert block.count(NO_EXTRA_LIST_RULE) == 1
     assert block.index(OWN_QUESTION_FORMAT_RULE) < block.index("If the question is weak")
     assert block.index(OWN_QUESTION_FORMAT_RULE) < block.index(SUGGESTION_RULE)
 
@@ -629,6 +640,7 @@ def test_every_strategy_includes_the_question_suggestion_rules(name):
     assert SUGGESTION_RULE in prompt
     assert REASON_RULE in prompt
     assert OWN_QUESTION_FORMAT_RULE in prompt
+    assert NO_EXTRA_LIST_RULE in prompt
 
 
 def test_interviewer_few_shot_example_suggests_questions_instead_of_rating():
