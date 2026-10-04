@@ -612,10 +612,12 @@ def test_interviewer_mode_suggests_questions_after_its_criteria():
 
 
 def test_interviewer_mode_feedback_avoids_the_answer_review_format():
-    """The own-question rule closes the review part, before the suggestion rules begin."""
+    """The own-question format rule covers all feedback, before the suggestion rules begin."""
     block = MODE_INSTRUCTIONS[INTERVIEWER_QUESTIONS]
-    # It ends the "weak question" paragraph, so it reads as part of the feedback path.
-    assert "explain how it could be improved. " + OWN_QUESTION_FORMAT_RULE + "\n\n" in block
+    # It ends the general feedback paragraph, not the "weak question" one, so a strong question
+    # is covered too (PR #75 review round 3).
+    assert "the question demonstrates and why. " + OWN_QUESTION_FORMAT_RULE + "\n\n" in block
+    assert block.index(OWN_QUESTION_FORMAT_RULE) < block.index("If the question is weak")
     assert block.index(OWN_QUESTION_FORMAT_RULE) < block.index(SUGGESTION_RULE)
 
 

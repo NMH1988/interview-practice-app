@@ -226,11 +226,11 @@ MODE_INSTRUCTIONS: Mapping[str, str] = MappingProxyType(
             "the candidate is interested in learning, improving, and growing within the role or "
             "company?\n\n"
             "Give concise and specific feedback. Explain clearly which of these criteria the "
-            "question demonstrates and why.\n\n"
+            "question demonstrates and why. Do not use the candidate-answer review format or "
+            "scoring rubric, and do not end with an interview question.\n\n"
             "If the question is weak, too generic, focused mainly on personal benefits, or asks "
             "for basic information that could easily be found elsewhere, explain how it could be "
-            "improved. Do not use the candidate-answer review format or scoring rubric, and do "
-            "not end with an interview question.\n\n"
+            "improved.\n\n"
             "If the candidate asks for question suggestions, or provides a company name with or "
             "without additional details about the company, suggest 5–8 questions appropriate "
             "for the current role and seniority. Present the questions in a clear and relevant "
@@ -277,7 +277,8 @@ MODE_INSTRUCTIONS: Mapping[str, str] = MappingProxyType(
     }
 )
 
-# Examples (question, answer, feedback) for the few-shot strategy. Fictional content only.
+# Examples for the few-shot strategy: two answer reviews (question, answer, feedback) and, for
+# "Questions to ask the interviewer", suggested questions with reasons. Fictional content only.
 FEW_SHOT_EXAMPLES: tuple[str, ...] = (
     (
         "Example 1 — Technical\n\n"
@@ -552,7 +553,7 @@ def zero_shot(role: str, interview_type: str) -> str:
 
 
 def few_shot(role: str, interview_type: str) -> str:
-    """Build a prompt that shows example questions, answers and feedback."""
+    """Build a prompt that shows worked examples: answer reviews and suggested questions."""
     text = _EXAMPLE_SEPARATOR.join([_FEW_SHOT_INTRO, *FEW_SHOT_EXAMPLES, _FEW_SHOT_OUTRO])
     return _assemble(text, role, interview_type)
 

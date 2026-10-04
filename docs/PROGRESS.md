@@ -73,10 +73,17 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - The "weak question" paragraph ends with "Do not use the candidate-answer review format or scoring rubric, and do not end with an interview question." Before, only the suggestion list was kept out of the strategies' review formats.
     - The owner's drafts also repeated the company rules and the four criteria. Only the new parts were added, so each rule is stated once.
     - Both sentences are pinned in every strategy, and the feedback rule is checked to close the review part, before the suggestion rules.
+  - PR review round 3 (code-reviewer, posted on #75, no bugs):
+    - The feedback-format sentence moved, unchanged, from the end of the "weak question" paragraph to the end of the general feedback paragraph ("Give concise and specific feedback… why."). Where it was, it read as covering weak questions only, so Structured output could still rate a strong own question with its rubric. Claude had suggested the first place; the owner approved the move.
+    - The position test now checks the new place.
+    - The PR body was brought up to date.
+    - Stale comments in `app.py` (the caption) and on `FEW_SHOT_EXAMPLES` / `few_shot` were fixed.
+    - Open for the live check: once a company was named, a later own question (or one naming a company, "I plan to ask Spotify: …") may get feedback and new suggestions together.
 - **Live check (owner, real key):** *pending.* Suggested runs:
   - a starter with no company;
   - a bare company name, and a company name with one fact about it;
-  - an own question (the weak starter);
+  - an own question: the weak starter, and a strong one (e.g. "What would success look like in this role after 90 days?");
+  - an own question that names a company, and an own question after a company was named earlier;
   - the Few-shot and Structured output strategies (the second has its own fixed review structure).
   - Check that each reason is one short sentence and that nothing about the company is invented.
 - **Follow-ups:**
