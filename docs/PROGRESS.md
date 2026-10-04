@@ -98,10 +98,13 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - PR review round 8 (code-reviewer, posted on #75, ready to merge): record wording fixed.
     - "pragmatism" is noted;
     - the T5.3 claim keeps run 8 turn 2's closing question as an exception;
-    - the token gaps are exact (55);
+    - the token gaps are exact;
     - all discarded prompts are listed;
     - the limitation no longer states its cause as fact.
     - #76 and the PR body were corrected to match.
+  - PR review round 9 (code-reviewer, posted on #75, ready to merge):
+    - the 55-token gap is now stated for single-turn prompts only, since a second turn also contains its first reply;
+    - the PR body notes that run 1 has no token line.
 - **Live check (owner, real key, gpt-5-mini, `medium`, Senior Marketing Manager, "Questions to ask the interviewer", 2026-10-04).** The fictional "Northwind Logistics" was used, so an invented fact would be easy to spot. Below, "owner: OK" means the owner reported OK against the planned checks and gave no further detail. Anything else is attributed.
   1. Zero-shot, starter "Suggest questions I could ask at the end of my interview.": owner: OK (no token line).
   2. Zero-shot, `Northwind Logistics` alone: owner: OK (no token line), before round 6.
@@ -144,7 +147,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - A second attempt at re-running 5–7 came back with the default sidebar (replies about engineers, and a Behavioural question; Software Engineer and Mid-level are inferred from them and the config defaults; prompts of 718, 701 and 1,143). It is discarded.
   - Two more attempts were discarded:
     - one on the Behavioural mode (prompts of 717 for run 5; 597 and 746 for run 8's two turns; 597 for run 2);
-    - one on a server still running the code from before round 6 (prompts of 1,136 for run 5, the same as its earlier re-run; 1,016 for run 2 and run 8's first turn; 1,590 for run 8's second turn). These are 55 short of the counts after the restart. Restarting the server fixed it.
+    - one on a server still running the code from before round 6 (prompts of 1,136 for run 5, the same as its earlier re-run; 1,016 for run 2 and run 8's first turn; 1,590 for run 8's second turn). The single-turn prompts (1,136 and 1,016) are 55 short of the counts after the restart. Run 8's second turn (1,590 vs 1,618) is not comparable, because it also contains a different first reply. Restarting the server fixed it.
   - Known limitation (T3.5, #76): even with the round-6 block, Zero-shot once replied to an own question in the answer-review format (review headings, a closing question, three rewordings). Replies vary between runs, so whether a wording change fixes this needs several runs per strategy.
   - Not checked: Role / persona and Chain-of-thought. T5.3's (#20) open check that this mode does not quiz the candidate is closed for Zero-shot, Structured output and Few-shot, apart from run 8 turn 2's closing clarifying question (followed up in T3.5, #76). The other two are left for T3.3.
 - **Follow-ups:**
