@@ -123,6 +123,14 @@ def test_max_tokens_at_or_below_the_cap_is_sent_unchanged(call):
     assert _sent_max_tokens(call, 300) == 300
 
 
+@pytest.mark.parametrize("call", ["complete", "stream"])
+@pytest.mark.parametrize("effort", config.REASONING_EFFORTS)
+def test_each_effort_budget_is_sent_unchanged(call, effort):
+    """Every effort's configured budget fits the cap, so the clamp leaves it as it is (T2.5)."""
+    budget = config.MAX_TOKENS_BY_EFFORT[effort]
+    assert _sent_max_tokens(call, budget) == budget
+
+
 def test_cap_is_read_at_call_time(monkeypatch):
     """Changing llm's cap changes what is sent, so the limit is not fixed when llm is imported."""
     # llm imports MAX_TOKENS_CAP by name, so patching src.config at runtime would not reach it.

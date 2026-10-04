@@ -1,6 +1,8 @@
 """App-wide settings: allowed models, model defaults and secrets loading."""
 
 import os
+from collections.abc import Mapping
+from types import MappingProxyType
 
 import streamlit as st
 
@@ -15,10 +17,24 @@ REASONING_EFFORTS: tuple[str, ...] = ("minimal", "low", "medium", "high")
 DEFAULT_REASONING_EFFORT = "medium"
 
 # gpt-5 models spend reasoning tokens from this budget too, so keep it generous: a low budget
-# can be used up by thinking alone and return no text.
+# can be used up by thinking alone and return no text. Enough for minimal, low and medium.
 DEFAULT_MAX_TOKENS = 4000
+# At "high", the sample-JD starter used 3,648 of 4,000 tokens thinking and was cut off (T2.5).
+# 16,000 leaves room for twice that thinking plus a long reply. OpenRouter bills the tokens
+# used, not this limit, so the cost only rises when the model really thinks that long.
+HIGH_EFFORT_MAX_TOKENS = 16000
+# The max_tokens the app sends for each reasoning effort (one entry per REASONING_EFFORTS level).
+MAX_TOKENS_BY_EFFORT: Mapping[str, int] = MappingProxyType(
+    {
+        "minimal": DEFAULT_MAX_TOKENS,
+        "low": DEFAULT_MAX_TOKENS,
+        "medium": DEFAULT_MAX_TOKENS,
+        "high": HIGH_EFFORT_MAX_TOKENS,
+    }
+)
 # Every request is clamped to this, whatever a caller asks for, to bound the cost of one reply.
-MAX_TOKENS_CAP = 4000
+# The largest budget above, so "high" fits and nothing can ask for more.
+MAX_TOKENS_CAP = 16000
 
 # Longest user message (after cleaning) the guard lets through to the LLM.
 MAX_INPUT_CHARS = 2000

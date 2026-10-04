@@ -7,11 +7,15 @@ from streamlit.testing.v1 import AppTest
 from src.config import (
     ALLOWED_MODELS,
     API_KEY_NAME,
+    DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
+    HIGH_EFFORT_MAX_TOKENS,
     MAX_ROLE_CHARS,
+    MAX_TOKENS_BY_EFFORT,
+    MAX_TOKENS_CAP,
     REASONING_EFFORTS,
 )
 from src.guard import INJECTION_REFUSAL
@@ -51,6 +55,14 @@ def test_reasoning_effort_select_levels_and_default(fake_llm):
     assert fake_llm.calls == []
 
 
+def test_reasoning_effort_help_names_both_token_limits(fake_llm):
+    """The help says thinking uses the token limit and that High gets the larger one (T2.5)."""
+    help_text = start().sidebar.selectbox(key="reasoning_effort").help
+    assert "thinking counts against the token limit" in help_text
+    assert f"High gets a larger limit ({HIGH_EFFORT_MAX_TOKENS:,} tokens" in help_text
+    assert f"instead of {DEFAULT_MAX_TOKENS:,})" in help_text
+
+
 def test_no_temperature_slider_remains(fake_llm):
     """The temperature slider is gone: the allowed gpt-5 models ignore temperature (T2.4)."""
     at = start()
@@ -80,6 +92,19 @@ def test_changed_model_and_reasoning_effort_reach_the_llm(fake_llm, effort):
     assert len(fake_llm.calls) == 1
     assert fake_llm.calls[0]["model"] == "openai/gpt-5-nano"
     assert fake_llm.calls[0]["reasoning_effort"] == effort
+
+
+@pytest.mark.parametrize("effort", REASONING_EFFORTS)
+def test_token_budget_follows_the_reasoning_effort(fake_llm, effort):
+    """The LLM call gets the chosen effort's own token budget, never more than the cap (T2.5)."""
+    at = start()
+    at.sidebar.selectbox(key="reasoning_effort").set_value(effort)
+    at.run(timeout=30)
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    assert not at.exception
+    assert len(fake_llm.calls) == 1
+    assert fake_llm.calls[0]["max_tokens"] == MAX_TOKENS_BY_EFFORT[effort]
+    assert fake_llm.calls[0]["max_tokens"] <= MAX_TOKENS_CAP
 
 
 def test_interview_type_role_and_seniority_inputs(fake_llm):

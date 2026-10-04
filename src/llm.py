@@ -232,7 +232,8 @@ def _send(
     stream: bool = False,
 ) -> object:
     """Send one chat request, retrying 429/5xx with backoff, and return the SDK's response."""
-    # Whatever the caller asks for, one reply never costs more than the cap.
+    # Whatever the caller asks for, one reply never costs more than the cap. The cap is the
+    # "high" effort budget (config.MAX_TOKENS_BY_EFFORT), sized for its long thinking (T2.5).
     max_tokens = min(max_tokens, MAX_TOKENS_CAP)
     for attempt in range(MAX_RETRIES + 1):
         try:

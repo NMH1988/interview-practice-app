@@ -16,6 +16,22 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-04 · T2.5 Token budget large enough for high reasoning effort · #74 (closes #73)
+- **Brief:** serves Easy #8 (a model setting whose effect on the answers the learner can show and explain) and the "does what it promises" part of the evaluation: the `high` option T2.4 added could not finish a long reply. In line with the brief.
+- **What:** `src/config.py` gets `HIGH_EFFORT_MAX_TOKENS = 16000` and `MAX_TOKENS_BY_EFFORT` (read-only, one budget per `REASONING_EFFORTS` level: `minimal` / `low` / `medium` keep `DEFAULT_MAX_TOKENS = 4000`, `high` gets 16,000); `MAX_TOKENS_CAP` goes from 4,000 to 16,000. `app.py`'s `reply_pieces` sends the chosen effort's budget instead of always `DEFAULT_MAX_TOKENS`, and the effort help text now says "High gets a larger limit (16,000 tokens instead of 4,000), which can also cost more per reply" (numbers read from config). `_send` is unchanged apart from its comment. Tests in `tests/test_config.py`, `tests/test_llm.py` and `tests/test_app_inputs.py`.
+- **Why:** the owner chose a budget per effort over one larger budget for all, so the default (`medium`) and the cheaper levels keep their old cost bound and only `high` pays for its longer thinking. The owner chose 16,000: room for twice the 3,648 reasoning tokens measured plus a long reply. The owner asked about cost first: OpenRouter bills the tokens used, not `max_tokens`. Prices from OpenRouter's `/api/v1/models` on 2026-10-04 (output per 1M tokens: gpt-5 $10, gpt-5-mini $2, gpt-5-nano $0.40) put the worst case for one `high` reply that uses all 16,000 at about $0.032 on gpt-5-mini and $0.16 on gpt-5 (was $0.008 and $0.04 at 4,000).
+- **Live check (owner, real key):** *to do:* the sample-JD starter at `high` (gpt-5-mini) finishes without ✂️; record the token counts here.
+- **Decisions & gotchas:**
+  - `DEFAULT_MAX_TOKENS` keeps its name and value (now "the budget for minimal, low and medium"), because the unpushed T3.3 script imports it.
+  - The cap equals the largest budget (tested), so the clamp never trims an effort's own budget but still bounds any other caller.
+  - `app.py` looks the budget up with `.get(..., DEFAULT_MAX_TOKENS)`, so an unknown effort still reaches `llm.stream` and fails there as an `InvalidEffortError`, not as a `KeyError` outside the `LLMError` handling.
+  - Mutation-checked: a fixed `DEFAULT_MAX_TOKENS` in `app.py` and the old 4,000 cap each fail tests.
+  - Manual check in the browser pane (sidebar only, no message sent): the effort tooltip shows the new text with "16,000" and "4,000".
+  - Not checked: `REQUEST_TIMEOUT` is 30 s. A streamed reply keeps data flowing, but a non-streaming `complete()` at `high` with 16,000 tokens might wait longer than that before the first byte. The owner's streamed live check does not cover it.
+- **Follow-ups:**
+  - T3.3 (#10): `scripts/prompt_eval.py` bounds `--max-tokens` by `DEFAULT_MAX_TOKENS`; when it compares effort levels it should use `MAX_TOKENS_BY_EFFORT` (or allow up to `MAX_TOKENS_CAP`) and check the 30 s timeout on a `high` run with `complete()`.
+  - T7.5 (#64): the max-tokens widget's default should follow the chosen effort (`MAX_TOKENS_BY_EFFORT`), bounded by the new `MAX_TOKENS_CAP`.
+
 ## 2026-10-03 · T5.8 Job-description analysis adds a short study plan · #72 (closes #70)
 - **Brief:** serves starter idea #4, the job description analyser (issue #70 quotes the full brief: it "extracts the key skills, likely interview topics, and a short study plan"), and `PLAN.md` T5.3's "paste JD → prep strategy". In line with the brief, so done without a second question.
 - **What:** `MODE_INSTRUCTIONS[JD_ANALYSIS]` in `src/prompts.py` gets the owner's sentence as its own paragraph, right after the bulleted list: "End the analysis by prioritizing these areas by relevance to the role and creating a short, practical study plan of at most five items, each with a focused review topic and one interview practice task." Tests in `tests/test_prompts.py` (`STUDY_PLAN_RULE`): it follows the list directly and comes before the pasted-JD rules, and every strategy's JD prompt carries it verbatim. `docs/PLAN.md` gets a ticked T5.8 entry, and its T5.3 line no longer says the JD mode lacks a study plan.
