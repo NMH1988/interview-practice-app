@@ -16,6 +16,7 @@ from src.config import (
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
     MAX_ROLE_CHARS,
+    MAX_TOKENS_BY_EFFORT,
     REASONING_EFFORTS,
     MissingAPIKeyError,
     SecretsFileError,
@@ -197,7 +198,10 @@ def reply_pieces(
     try:
         # Checks the model, effort and key now (a failure here sends nothing); the request itself
         # goes out on the stream's first next().
-        stream = llm.stream(messages, model, reasoning_effort, DEFAULT_MAX_TOKENS)
+        # Higher effort thinks longer, so it gets a larger token budget (T2.5). .get(), so an
+        # unknown effort still reaches llm.stream and fails there as an LLMError, not a KeyError.
+        budget = MAX_TOKENS_BY_EFFORT.get(reasoning_effort, DEFAULT_MAX_TOKENS)
+        stream = llm.stream(messages, model, reasoning_effort, budget)
         # Counted here, just before the request goes out (a failed or cut-short one may still
         # have spent tokens). A plain list append, and nothing from llm.stream to the request
         # touches st.session_state, so no stop point falls between counting and sending: a
@@ -266,7 +270,10 @@ with st.sidebar:
         help=(
             "How long the model thinks before it answers. Higher effort can give deeper, more "
             "careful feedback, but it is slower and uses more tokens. The thinking counts "
-            "against the token limit, so a long answer is more likely to be cut off."
+            "against the token limit, so High gets a larger limit "
+            f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
+            f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more per "
+            "reply."
         ),
     )
     interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")

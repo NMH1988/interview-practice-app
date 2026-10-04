@@ -99,15 +99,20 @@ def test_complete_sends_arguments_as_given():
     assert "stream_options" not in body
 
 
-def _sent_max_tokens(call, requested):
-    """Make one request asking for `requested` tokens and return the max_tokens actually sent."""
+def _sent_body(call, requested, effort="medium"):
+    """Make one request with `effort` and `requested` tokens and return the JSON body sent."""
     fake = FakeOpenRouter(_reply("ok") if call == "complete" else _sse(_chunk("ok")))
     if call == "complete":
-        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", requested, client=fake.client())
+        llm.complete(MESSAGES, DEFAULT_MODEL, effort, requested, client=fake.client())
     else:
-        list(llm.stream(MESSAGES, DEFAULT_MODEL, "medium", requested, client=fake.client()))
+        list(llm.stream(MESSAGES, DEFAULT_MODEL, effort, requested, client=fake.client()))
     (request,) = fake.requests
-    return json.loads(request.content)["max_tokens"]
+    return json.loads(request.content)
+
+
+def _sent_max_tokens(call, requested):
+    """Make one request asking for `requested` tokens and return the max_tokens actually sent."""
+    return _sent_body(call, requested)["max_tokens"]
 
 
 @pytest.mark.parametrize("call", ["complete", "stream"])
@@ -121,6 +126,16 @@ def test_max_tokens_at_or_below_the_cap_is_sent_unchanged(call):
     """A request at or under the cap keeps the number it asked for."""
     assert _sent_max_tokens(call, config.MAX_TOKENS_CAP) == config.MAX_TOKENS_CAP
     assert _sent_max_tokens(call, 300) == 300
+
+
+@pytest.mark.parametrize("call", ["complete", "stream"])
+@pytest.mark.parametrize("effort", config.REASONING_EFFORTS)
+def test_each_effort_budget_is_sent_unchanged(call, effort):
+    """Each effort goes out with its own configured budget, which the clamp leaves as is (T2.5)."""
+    budget = config.MAX_TOKENS_BY_EFFORT[effort]
+    body = _sent_body(call, budget, effort)
+    assert body["reasoning"] == {"effort": effort}
+    assert body["max_tokens"] == budget
 
 
 def test_cap_is_read_at_call_time(monkeypatch):

@@ -53,6 +53,36 @@ def test_default_max_tokens_fits_the_cap():
     assert 0 < config.DEFAULT_MAX_TOKENS <= config.MAX_TOKENS_CAP
 
 
+def test_every_effort_has_a_token_budget():
+    """Each reasoning effort has exactly one budget, and no other key is listed (T2.5)."""
+    assert tuple(config.MAX_TOKENS_BY_EFFORT) == config.REASONING_EFFORTS
+
+
+def test_only_high_effort_gets_the_larger_budget():
+    """Minimal, low and medium keep the old 4,000; high gets 16,000 for its longer thinking."""
+    assert config.DEFAULT_MAX_TOKENS == 4000
+    assert config.HIGH_EFFORT_MAX_TOKENS == 16000
+    assert dict(config.MAX_TOKENS_BY_EFFORT) == {
+        "minimal": config.DEFAULT_MAX_TOKENS,
+        "low": config.DEFAULT_MAX_TOKENS,
+        "medium": config.DEFAULT_MAX_TOKENS,
+        "high": config.HIGH_EFFORT_MAX_TOKENS,
+    }
+
+
+def test_cap_is_the_largest_effort_budget():
+    """No budget is above the cap, and the cap allows no more than the largest budget needs."""
+    budgets = config.MAX_TOKENS_BY_EFFORT.values()
+    assert all(0 < budget <= config.MAX_TOKENS_CAP for budget in budgets)
+    assert config.MAX_TOKENS_CAP == max(budgets)
+
+
+def test_token_budgets_cannot_be_changed_at_runtime():
+    """The budget table is read-only, so no caller can raise a budget by accident."""
+    with pytest.raises(TypeError):
+        config.MAX_TOKENS_BY_EFFORT["high"] = 1  # type: ignore[index]
+
+
 def test_default_rate_limits():
     """The T4.3 limits (10 requests a minute, 50 a session) live in config.py."""
     assert config.RATE_LIMIT_PER_MINUTE == 10
