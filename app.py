@@ -362,8 +362,8 @@ if notice is not None or used_up is not None or show_starters:
         if show_starters:
             # A click queues the text as pending, so it goes through the guard, the rate limit
             # and the LLM like a typed message.
-            # The caption says what this mode expects the user to send (an answer, a question
-            # for their interviewer, or a job description).
+            # The caption says what this mode expects the user to send (an answer, a company
+            # name or a question for their interviewer, or a job description).
             st.caption(EXAMPLE_CAPTIONS.get(interview_type, "Try one of these:"))
             mode = INTERVIEW_TYPES.index(interview_type)
             starters = example_prompts(interview_type, shown_role, seniority)

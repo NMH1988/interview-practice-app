@@ -34,6 +34,12 @@ NORMAL_REPLIES = [
     "Here are three questions you could ask the interviewer:\n"
     "1. What does a typical week look like?\n2. How is success measured in this role?\n"
     "3. What are the team's biggest challenges right now?",
+    # The interviewer-questions mode's suggestion format (T5.6), not copied from Example 3.
+    "## Suggested Questions\n\n"
+    "1. How does the data team decide which dashboards to retire?\n"
+    "Why: It shows preparation and interest because you ask how the team spends its time.\n\n"
+    "2. What would a strong first year in this role look like?\n"
+    "Why: It shows a long-term perspective because you think beyond the first weeks.",
 ]
 
 

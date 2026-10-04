@@ -272,6 +272,20 @@ Sidebar: model select, strategy select, temperature slider (replaced by a reason
 **Tests**
 - [ ] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (today it asserts 3 metrics).
 
+### T5.6 "Questions to ask the interviewer" generates questions (M)
+The brief's starter idea is a generator: company name and role in, 5–8 thoughtful questions to ask at the end of the interview out, tailored to that company (quoted in #62). The mode used to only rate the candidate's own question. The owner chose to do both: suggest questions, and still give feedback on the candidate's own.
+**Acceptance criteria**
+- [x] `MODE_INSTRUCTIONS["Questions to ask the interviewer"]` (written by the owner) suggests 5–8 questions for the role and seniority, tailored to a company the candidate names (typed in the chat, no new field), using only what the candidate says about it; each suggestion has one short reason naming a criterion; the candidate's own question is reviewed against four criteria.
+- [x] The empty-chat starters and caption for this mode match the new behaviour.
+- [x] Few-shot Example 3 suggests questions instead of rating one.
+- [x] The chat placeholder for this mode matches the new behaviour.
+- [x] The user-prompt preface covers a request for questions as well as an own question (the job-description part was done in T5.3).
+
+**Tests**
+- [x] Unit: every strategy's prompt for this mode contains the owner's suggestion sentences, after the criteria they refer to; Example 3 has 5–8 questions, each with one reason, and no review headings; the starters pass the guard unchanged and match the mode.
+- [x] UI flow: clicking a starter in this mode sends its text to the fake LLM (covered for every starter by `tests/test_app_examples.py`).
+- [x] Live check by the owner (real key, gpt-5-mini): results in `docs/PROGRESS.md`; one known limitation is followed up in T3.5 (#76).
+
 ### T5.8 Job-description analysis adds a short study plan (S)
 The brief's job description analyser "extracts the key skills, likely interview topics, and a short study plan" (quoted in #70), and T5.3 promises "paste JD → prep strategy", but the JD mode's instructions never asked for one.
 **Acceptance criteria**

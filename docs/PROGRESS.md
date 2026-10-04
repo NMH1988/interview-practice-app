@@ -16,6 +16,146 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)
+- **Brief:** serves starter idea #3, the "questions to ask the interviewer" generator (company name and role in, 5–8 thoughtful questions to ask at the end of the interview, tailored to that company; quoted in #62). In line with the brief. Keeping feedback on the user's own question is the owner's "mix" choice (the starter ideas say "swap, mix, or extend").
+- **What:**
+  - `MODE_INSTRUCTIONS["Questions to ask the interviewer"]` in `src/prompts.py` is the owner's new block:
+    - the purpose, and topics to prioritise (not vacation or benefits);
+    - four criteria for reviewing the candidate's own question (preparation and interest, long-term perspective, cultural fit, desire for development), plus what makes one weak; that feedback uses neither the answer-review format nor a scoring rubric, does not end with an interview question, and offers a better wording of the question but no new list of suggestions unless asked (round 6);
+    - the suggestion rules: on a request, or a company name with or without details about it, suggest 5–8 questions for the role and seniority, each followed by one short sentence naming the criterion it shows, as a list rather than the answer-review format;
+    - tailor to a named company using only what the candidate said about it;
+    - on an unclear message, invite one of the three paths;
+    - "Do not ask the candidate an interview question in this mode" is kept.
+  - Few-shot Example 3 (owner's) now suggests five questions for a Senior Marketing Manager at the fictional ExampleCo Retail, each with a `Why:` line, and invites the candidate's own question. It no longer teaches rating only.
+  - `MESSAGE_KINDS` for the mode: "a request for questions to ask the interviewer, perhaps naming a company, or a question they plan to ask one".
+  - UI text (Claude's drafts, approved by the owner):
+    - placeholder "Type a company, or a question for feedback";
+    - caption "Get questions to ask at the end of your interview. Type a company name to fit them to it, or a question of your own for feedback. Or try one of these:";
+    - starters "Suggest questions I could ask at the end of my interview.", "Suggest questions about the team and how it works." and the framed weak "How many vacation days do I get?".
+  - Tests in `tests/test_prompts.py`:
+    - the suggestion and reason sentences are verbatim in every strategy, after the criteria;
+    - Example 3's shape: 5–8 questions, one `Why:` each, no review headings;
+    - the new preface, the starters and the hints.
+  - `MAX_PLACEHOLDER_CHARS` lowered from 60 to 46.
+  - `docs/PLAN.md` gets a ticked T5.6 entry; `docs/BRIEF.md`'s starter idea #3 line is updated.
+- **Why:**
+  - The owner chose two things: the company is typed in the chat (no sidebar field; the role and seniority already come from the sidebar), and the mode both suggests and reviews.
+  - The owner wrote the block and Example 3 over several review rounds. The main fixes:
+    - "interview questions" could be read as questions for the candidate; it is now "suggest … questions to ask the interviewer";
+    - the 5–8 count was missing;
+    - one rule asked for a role and seniority the app already sends;
+    - "verified information … through a trusted source" was asked of a model with no web access; it is now only what the candidate said.
+  - Format B (one reason line per question) was chosen for three reasons:
+    - it keeps replies short (T5.8's lesson: "short" alone does not bound length);
+    - it ties the suggestions to the same criteria the review uses;
+    - it gives the strategies a list format, so they do not borrow their answer-review headings.
+- **Decisions & gotchas:**
+  - "the criteria above" in the reason sentence refers to the numbered criteria, so the review criteria come before the suggestion rules (tested).
+  - Old paragraph 2 (topic list) and "After the candidate provides a question, evaluate it…" were dropped; the owner's purpose and criteria sentences replace them.
+  - The "meaningful conversation, not information found elsewhere" criterion became part of the "weak question" sentence (owner's choice).
+  - Only the candidate's own facts are allowed, so a well-known company gets its name in the questions but no facts from the model's general knowledge. Safer but less specific; the owner's choice.
+  - Placeholder, measured in the browser pane at 375 px:
+    - about 262 px of text fits;
+    - the approved "Type a company name, or a question for feedback" (47 characters, 289 px) was cut off, while the existing 46-character hints (258 px) fit;
+    - so "name" was dropped (253 px), and the length test now allows 46 characters instead of 60;
+    - the caption keeps "company name".
+  - Mutation-checked (each fails a test): a different count, a missing `Why:` line, a review heading in Example 3, the old placeholder, the old message kind. Later rounds added these:
+    - the old "only a company name" trigger fails 7 tests;
+    - removing the feedback-format rule fails 6;
+    - moving it back to the "weak question" paragraph, or adding a second copy there, fails the position test.
+  - Claude made no live LLM call. The owner's live check is below.
+  - PR review round 1 (code-reviewer, posted on #75, no bugs), test fixes:
+    - the Example 3 test also rejects `## Expected Answer` and `## Follow-up Question`;
+    - the "no rating wording" check matches whole words, so "generate" passes;
+    - the starter test checks that the framed question is about a personal benefit (weak on purpose) instead of repeating the helper's f-string;
+    - `NORMAL_REPLIES` in `tests/test_output_safety.py` has a reply in the suggestion format.
+    - Each fix was mutation-checked.
+    - The two prompt-wording points were fixed in round 2 with the owner's sentences (below).
+  - PR review round 2 (owner's wording, option A):
+    - The suggestion rule now also fires on a company name with details. Before, "provides only a company name" left Example 3's own message (a name plus a fact, no request) under the "unclear, invite" rule for the four strategies that never see Example 3.
+    - The "weak question" paragraph got "Do not use the candidate-answer review format or scoring rubric, and do not end with an interview question." (round 3 moved it to the general feedback paragraph). Before, only the suggestion list was kept out of the strategies' review formats.
+    - The owner's drafts also repeated the company rules and the four criteria. Only the new parts were added, so each rule is stated once.
+    - Both sentences are pinned in every strategy, and the feedback rule is checked to close the review part, before the suggestion rules.
+  - PR review round 3 (code-reviewer, posted on #75, no bugs):
+    - The feedback-format sentence moved, unchanged, from the end of the "weak question" paragraph to the end of the general feedback paragraph ("Give concise and specific feedback… why."). Where it was, it read as covering weak questions only, so Structured output could still rate a strong own question with its rubric. Claude had suggested the first place; the owner approved the move.
+    - The position test now checks the new place.
+    - The PR body was brought up to date.
+    - Stale comments in `app.py` (the caption) and on `FEW_SHOT_EXAMPLES` / `few_shot` were fixed.
+  - PR review round 4 (code-reviewer, posted on #75, no bugs, nits only):
+    - the position test also checks that the rule is stated once;
+    - the two extra mutation checks were run and recorded above;
+    - the PR body's live-check list gained the "own question after a company was named earlier" case.
+  - PR review round 5 (code-reviewer, posted on #75, no bugs, no code or test findings): this entry's layout was fixed (round 4 had been nested under round 3).
+  - PR review round 6 (code-reviewer, posted on #75):
+    - Claude's first write-up of the live check overclaimed. It said "all nine runs passed" in the owner's name, and restated the planned checks as observations. The prompt counts showed that runs 5–7 had not used the strategies named. The live check below is rewritten from the owner's reports and the re-runs.
+    - The Structured output re-run of run 5 added a second list of suggestions to its feedback. The owner added, after the feedback-format sentence: "When giving feedback on the candidate's own question, you may suggest a better wording of that question. Do not generate an additional list of suggested questions unless the candidate explicitly asks for suggestions. This rule applies even if the candidate's question mentions a company or includes company-specific details."
+    - The new rule is pinned in every strategy, stated once, and placed right after the format sentence. Mutation-checked: dropping its last sentence fails 6 tests.
+  - PR review round 7 (code-reviewer, posted on #75, no bugs):
+    - a follow-up had claimed two Few-shot runs; only run 7's re-run is confirmed;
+    - runs 8 and 9 are now marked as judged against the block before round 6;
+    - runs 2, 5 and 8 were marked for one more owner run under the new rule (done; see the live check);
+    - smaller wording fixes in the record.
+  - PR review round 8 (code-reviewer, posted on #75, ready to merge): record wording fixed.
+    - "pragmatism" is noted;
+    - the T5.3 claim keeps run 8 turn 2's closing question as an exception;
+    - the token gaps are exact;
+    - all discarded prompts are listed;
+    - the limitation no longer states its cause as fact.
+    - #76 and the PR body were corrected to match.
+  - PR review round 9 (code-reviewer, posted on #75, ready to merge):
+    - the 55-token gap is now stated for single-turn prompts only, since a second turn also contains its first reply;
+    - the PR body notes that run 1 has no token line.
+  - PR review round 10 (code-reviewer, posted on #75, ready to merge): run 4, also an own question, is marked as judged before round 6.
+- **Live check (owner, real key, gpt-5-mini, `medium`, Senior Marketing Manager, "Questions to ask the interviewer", 2026-10-04).** The fictional "Northwind Logistics" was used, so an invented fact would be easy to spot. Below, "owner: OK" means the owner reported OK against the planned checks and gave no further detail. Anything else is attributed.
+  1. Zero-shot, starter "Suggest questions I could ask at the end of my interview.": owner: OK (no token line).
+  2. Zero-shot, `Northwind Logistics` alone: owner: OK (no token line), before round 6.
+     - Re-run after round 6 (`Prompt 1,071 · Completion 1,362 (reasoning 832) · Total 2,433 tokens`, 55 more than the 1,016 of the attempt on the pre-round-6 server, matching the round-6 rule): 8 questions, each with one sentence naming a criterion, and nothing claimed about Northwind. So a bare company name still gets suggestions under the new rule.
+     - Owner agreed: OK.
+  3. Zero-shot, the company plus one fact ("They are moving their warehouses to a new automated system."): owner: OK. `Prompt 1,030 · Completion 1,064 (reasoning 448) · Total 2,094 tokens`.
+  4. Zero-shot, the weak "vacation days" starter: owner: OK (before round 6). `Prompt 1,020 · Completion 2,100 (reasoning 1,536) · Total 3,120 tokens`.
+  5. Structured output, a strong own question ("What would success look like in this role after 90 days?"):
+     - The owner's first run is discarded: its prompt count (1,041) was Zero-shot-sized, so the sidebar had not been switched (code-reviewer round 6).
+     - Re-run, confirmed by the prompt count (`Prompt 1,136 · Completion 1,474 (reasoning 832) · Total 2,610 tokens`, about 95 more than Zero-shot). From the pasted reply:
+       - no Relevance/Correctness rubric, no score and no `## Follow-up Question`, so round 3's move works;
+       - feedback rated each of the four criteria Strong or Moderate;
+       - but it then added "Suggested questions for a Senior Marketing Manager (5–8, ordered)", eight new questions nobody asked for (the double reply raised in round 3);
+       - one reason named "practicality", a Structured output rubric criterion.
+     - Owner agreed: partly met. Fixed in round 6 (below).
+     - Re-run after round 6 (`Prompt 1,191 · Completion 1,087 (reasoning 640) · Total 2,278 tokens`, 55 more than before):
+       - no rubric, no score and no `## Follow-up Question`;
+       - feedback against the four criteria (Moderate / Weak-to-moderate);
+       - **no new list of suggestions**, so the round-6 rule works;
+       - "practicality" did not appear, but one reason said "pragmatism", a close synonym of Structured output's `Practicality` criterion;
+       - it gave two rewordings where the rule says "a better wording";
+       - it ended with an offer.
+     - Owner agreed: nearly met (two rewordings instead of one).
+  6. Structured output, the suggestion starter:
+     - The first run is discarded: Prompt 1,018 was Zero-shot-sized.
+     - Re-run (`Prompt 1,119 · Completion 1,306 (reasoning 832) · Total 2,425 tokens`, about 100 more than Zero-shot): 8 questions, each with one sentence naming a criterion, and no rubric or score. Owner agreed: OK.
+  7. Few-shot, the company plus one fact:
+     - The first run is discarded: Prompt 1,030 was the same as Zero-shot run 3.
+     - Re-run (`Prompt 1,561 · Completion 1,273 (reasoning 768) · Total 2,834 tokens`, about 530 more than Zero-shot): 8 questions built on the automation fact, each followed by one sentence labelled "Shows <criterion>:" instead of Example 3's `Why:`. No ExampleCo question was copied. Owner agreed: OK; the label differs.
+  8. Zero-shot, `Northwind Logistics`, then in the same chat an own question ("How does the team handle peak season?"), reply pasted by the owner:
+     - feedback naming criteria, four rewordings and three follow-ups;
+     - no new list of 5–8 suggestions;
+     - it ended with an offer, not an interview question.
+     - Claude's reading: met the mode rules as they were before round 6. `Prompt 1,583 · Completion 1,328 (reasoning 832) · Total 2,911 tokens`.
+     - Re-run after round 6, Zero-shot, same two turns:
+       - turn 1 (`Prompt 1,071 · Completion 1,322 (reasoning 832) · Total 2,393 tokens`): 7 questions, each with one sentence naming a criterion;
+       - turn 2 (`Prompt 1,618 · Completion 1,735 (reasoning 1,344) · Total 3,353 tokens`): no new list of suggestions, but it used the answer-review headings `Evaluation` / `Feedback` / `Follow-up question`, ended with a clarifying question under that heading, and gave three rewordings.
+     - Owner agreed: turn 1 OK, turn 2 partly met. Recorded as a known limitation (the owner chose to merge and follow up in T3.5, #76).
+  9. Zero-shot, third turn of run 8's chat (owner confirmed), an own question naming a real company ("I plan to ask Spotify: …"), reply pasted by the owner: feedback only, and no Spotify facts beyond the "squads" the candidate wrote. Claude's reading: met the mode rules as they were before round 6. `Prompt 2,168 · Completion 1,651 (reasoning 1,152) · Total 3,819 tokens`.
+  - A second attempt at re-running 5–7 came back with the default sidebar (replies about engineers, and a Behavioural question; Software Engineer and Mid-level are inferred from them and the config defaults; prompts of 718, 701 and 1,143). It is discarded.
+  - Two more attempts were discarded:
+    - one on the Behavioural mode (prompts of 717 for run 5; 597 and 746 for run 8's two turns; 597 for run 2);
+    - one on a server still running the code from before round 6 (prompts of 1,136 for run 5, the same as its earlier re-run; 1,016 for run 2 and run 8's first turn; 1,590 for run 8's second turn). The single-turn prompts (1,136 and 1,016) are 55 short of the counts after the restart. Run 8's second turn (1,590 vs 1,618) is not comparable, because it also contains a different first reply. Restarting the server fixed it.
+  - Known limitation (T3.5, #76): even with the round-6 block, Zero-shot once replied to an own question in the answer-review format (review headings, a closing question, three rewordings). Replies vary between runs, so whether a wording change fixes this needs several runs per strategy.
+  - Not checked: Role / persona and Chain-of-thought. T5.3's (#20) open check that this mode does not quiz the candidate is closed for Zero-shot, Structured output and Few-shot, apart from run 8 turn 2's closing clarifying question (followed up in T3.5, #76). The other two are left for T3.3.
+- **Follow-ups:**
+  - `feature/t3.3-prompt-eval` (T3.3, #10) must merge `main` before scoring the strategies, since this mode and Example 3 changed. T3.3 should also check Role / persona and Chain-of-thought in this mode, which the live check did not run.
+  - `_FEW_SHOT_INTRO` still says the examples show "how to evaluate candidate answers". Optional: in the one confirmed Few-shot run (7), the model wrote "Shows <criterion>:" instead of Example 3's `Why:`. Adding Example 3's purpose to the intro may make the label stick.
+  - T3.5 (#76): measure, over several runs per strategy, how often own-question feedback uses the answer-review headings, ends with a question or gives more than one rewording; adjust the wording if needed. It also covers the rubric wording leaking into reasons ("practicality" once with Structured output; its re-run said "pragmatism" instead), Few-shot's `Why:` label, and an own question that mentions a company under the round-6 rule (not re-run live; run 9 was judged against the old block). It can be folded into T3.3.
+
 ## 2026-10-04 · T2.5 Token budget large enough for high reasoning effort · #74 (closes #73)
 - **Brief:** serves Easy #8 (a model setting whose effect on the answers the learner can show and explain) and the "does what it promises" part of the evaluation: the `high` option T2.4 added could not finish a long reply. In line with the brief.
 - **What:** `src/config.py` gets `HIGH_EFFORT_MAX_TOKENS = 16000` and `MAX_TOKENS_BY_EFFORT` (read-only, one budget per `REASONING_EFFORTS` level: `minimal` / `low` / `medium` keep `DEFAULT_MAX_TOKENS = 4000`, `high` gets 16,000); `MAX_TOKENS_CAP` goes from 4,000 to 16,000. `app.py`'s `reply_pieces` sends the chosen effort's budget instead of always `DEFAULT_MAX_TOKENS`, and the effort help text now says "High gets a larger limit (16,000 tokens instead of 4,000), which can also cost more per reply" (numbers read from `MAX_TOKENS_BY_EFFORT`). `_send` is unchanged apart from its comment. Tests in `tests/test_config.py`, `tests/test_llm.py` and `tests/test_app_inputs.py`.
