@@ -615,7 +615,8 @@ def test_interviewer_mode_feedback_avoids_the_answer_review_format():
     """The own-question format rule covers all feedback, before the suggestion rules begin."""
     block = MODE_INSTRUCTIONS[INTERVIEWER_QUESTIONS]
     # It ends the general feedback paragraph, not the "weak question" one, so a strong question
-    # is covered too (PR #75 review round 3).
+    # is covered too (PR #75 review round 3). Stated once, so a second copy cannot sneak back.
+    assert block.count(OWN_QUESTION_FORMAT_RULE) == 1
     assert "the question demonstrates and why. " + OWN_QUESTION_FORMAT_RULE + "\n\n" in block
     assert block.index(OWN_QUESTION_FORMAT_RULE) < block.index("If the question is weak")
     assert block.index(OWN_QUESTION_FORMAT_RULE) < block.index(SUGGESTION_RULE)

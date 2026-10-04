@@ -59,7 +59,10 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - the approved "Type a company name, or a question for feedback" (47 characters, 289 px) was cut off, while the existing 46-character hints (258 px) fit;
     - so "name" was dropped (253 px), and the length test now allows 46 characters instead of 60;
     - the caption keeps "company name".
-  - Mutation-checked (each fails a test): a different count, a missing `Why:` line, a review heading in Example 3, the old placeholder, the old message kind.
+  - Mutation-checked (each fails a test): a different count, a missing `Why:` line, a review heading in Example 3, the old placeholder, the old message kind. Later rounds added these:
+    - the old "only a company name" trigger fails 7 tests;
+    - removing the feedback-format rule fails 6;
+    - moving it back to the "weak question" paragraph, or adding a second copy there, fails the position test.
   - No live LLM call was made in this PR.
   - PR review round 1 (code-reviewer, posted on #75, no bugs), test fixes:
     - the Example 3 test also rejects `## Expected Answer` and `## Follow-up Question`;
@@ -76,6 +79,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - PR review round 3 (code-reviewer, posted on #75, no bugs):
     - The feedback-format sentence moved, unchanged, from the end of the "weak question" paragraph to the end of the general feedback paragraph ("Give concise and specific feedback… why."). Where it was, it read as covering weak questions only, so Structured output could still rate a strong own question with its rubric. Claude had suggested the first place; the owner approved the move.
     - The position test now checks the new place.
+    - Round 4 (code-reviewer, posted on #75, no bugs, nits only): the position test also checks that the rule is stated once; the two extra mutation checks were run and recorded above; the PR body's live-check list gained the "own question after a company was named earlier" case.
     - The PR body was brought up to date.
     - Stale comments in `app.py` (the caption) and on `FEW_SHOT_EXAMPLES` / `few_shot` were fixed.
     - Open for the live check: once a company was named, a later own question (or one naming a company, "I plan to ask Spotify: …") may get feedback and new suggestions together.
