@@ -270,7 +270,7 @@ Sidebar: model select, strategy select, temperature slider (replaced by a reason
 - [x] Dummy `load_sessions` data and chart removed (or replaced by a real session-score tracker if Epic 7 is done). Epic 7 is not done, so they are removed, with the date filter and the metric-card CSS.
 
 **Tests**
-- [x] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (today it asserts 3 metrics). It now checks for no metrics, no date filter, no chart and no "Filters" header.
+- [x] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (it used to assert 3 metrics). It now checks for no metrics, no date filter, no chart and no "Filters" header.
 - [x] Unit (source scan): no app file renders raw HTML (`tests/test_output_safety.py`).
 
 ### T5.6 "Questions to ask the interviewer" generates questions (M)

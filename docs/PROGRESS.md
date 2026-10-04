@@ -17,7 +17,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 ---
 
 ## 2026-10-04 · T5.5 Remove placeholder dashboard · #77 (closes #22)
-- **Brief:** no brief item asks for a dashboard; it came with the starter template and showed made-up data. Removing it serves the "does what it promises" part of the evaluation, and keeps `main` in a state to hand in. In line with the brief.
+- **Brief:** no brief item asks for a dashboard; it came with the starter template and showed made-up data. Removing it serves the "does what it promises" part of the evaluation, and keeps `main` in a state to hand in. The stricter raw-HTML scan also supports mandatory requirement 6 (security guard). In line with the brief.
 - **What:**
   - `app.py` loses `load_sessions` (60 days of fake sessions), the sidebar's "Filters" header and date range, the three metrics and the score line chart, and the `pandas` / `datetime` imports they needed.
   - The `<style>` block that only styled the metric cards (`stMetric*`) and its three theme-colour variables are removed too (owner approved). The theme itself still comes from `.streamlit/config.toml`.
@@ -30,7 +30,12 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - Mutation-checked: the old `app.py` fails the new smoke test; adding back a line chart, a sidebar date input or a "Filters" header each fails it; adding a `<style>` block with `unsafe_allow_html=True` or an `st.html` call is flagged by the raw-HTML scan.
   - Checked in the browser pane (no LLM call): desktop and 375 px both show the title with the starters right under it, nothing above them; no metrics, chart or date input; no horizontal scroll at 375 px; no server or console errors.
   - A future raw-HTML use (e.g. custom CSS) now needs a test change and a reason; see the reviewer's output-safety rule.
-  - `ruff check .` from the repo root also scans untracked worktrees under `.claude/worktrees/`; CI does not see them.
+  - `ruff check .` from the repo root also scans untracked worktrees under `.claude/worktrees/`; CI does not see them. During this PR the T3.3 worktree once showed lint errors that were gone by the review, so it was likely mid-edit.
+  - PR review round 1 (code-reviewer, posted on #77, no bugs):
+    - Should-fix: the two missing-key smoke tests still ended with `assert len(at.metric) == 0`, which used to prove that `st.stop()` ran (otherwise the metrics were drawn) and is now always true. They now assert that no sidebar selectbox and no chat input are drawn. Mutation-checked: removing either `st.stop()` after a key error fails its test.
+    - A control test (`test_chart_element_type_is_still_vega_lite_chart`) checks that a line chart is still found as `vega_lite_chart`, so a Streamlit upgrade that renames the type cannot make the dashboard check pass quietly.
+    - The raw-HTML scan names flagged files by their path from the repo root, not just the file name.
+    - Nits: PLAN's T5.5 test line says "it used to assert 3 metrics"; the reviewer guide's widget and edge-case examples no longer mention `st.date_input` or DataFrames; this entry's Brief line names requirement 6.
 - **Follow-ups:** none for this ticket. T7.1 (session score tracker) remains an Epic 7 extra.
 
 ## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)

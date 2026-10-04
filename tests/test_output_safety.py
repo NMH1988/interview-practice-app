@@ -248,7 +248,12 @@ def test_app_never_renders_raw_html():
     sources = app_sources()
     assert APP in sources and (ROOT / "src" / "guard.py") in sources
     found = {path: html_render_nodes(path) for path in sources}
-    assert [f"{path.name}:{node.lineno}" for path, nodes in found.items() for node in nodes] == []
+    flagged = [
+        f"{path.relative_to(ROOT).as_posix()}:{node.lineno}"
+        for path, nodes in found.items()
+        for node in nodes
+    ]
+    assert flagged == []
 
 
 def test_chat_renders_html_as_text(fake_llm, no_env_key):

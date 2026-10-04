@@ -36,6 +36,14 @@ def test_placeholder_dashboard_is_gone():
     assert "Filters" not in [header.value for header in at.sidebar.header]
 
 
+def test_chart_element_type_is_still_vega_lite_chart():
+    """A line chart is still found as "vega_lite_chart", so the check above cannot pass quietly."""
+    # Guards against a Streamlit upgrade renaming the element type the dashboard test looks for.
+    at = AppTest.from_string("import streamlit as st\nst.line_chart([1, 2])")
+    at.run(timeout=30)
+    assert len(at.get("vega_lite_chart")) == 1
+
+
 def test_missing_api_key_shows_friendly_error():
     """Without a key, the app shows a setup message instead of crashing."""
     at = AppTest.from_file(str(APP))
@@ -46,7 +54,9 @@ def test_missing_api_key_shows_friendly_error():
     assert at.title[0].value == "Interview Practice"
     assert len(at.error) == 1
     assert API_KEY_NAME in at.error[0].value
-    assert len(at.metric) == 0
+    # st.stop() ran: nothing drawn after the key check (sidebar settings, chat box) is shown.
+    assert not at.sidebar.selectbox
+    assert not at.chat_input
 
 
 def test_unparseable_secrets_file_shows_its_own_error(monkeypatch):
@@ -64,4 +74,5 @@ def test_unparseable_secrets_file_shows_its_own_error(monkeypatch):
     assert len(at.error) == 1
     assert "could not be parsed" in at.error[0].value
     assert "missing" not in at.error[0].value
-    assert len(at.metric) == 0
+    assert not at.sidebar.selectbox
+    assert not at.chat_input
