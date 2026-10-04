@@ -450,6 +450,12 @@ SAMPLE_JD_RULE = (
     "sample job description, then analyze it in the same way as a job description provided by "
     "the candidate."
 )
+# The owner's study-plan sentence for the job-description mode (T5.8), kept verbatim.
+STUDY_PLAN_RULE = (
+    "End the analysis by prioritizing these areas by relevance to the role and creating a short, "
+    "practical study plan of at most five items, each with a focused review topic and one "
+    "interview practice task."
+)
 
 
 def test_every_mode_has_its_own_example_prompts_and_caption():
@@ -542,6 +548,20 @@ def test_job_description_mode_tells_the_coach_how_to_write_a_sample():
 def test_every_strategy_includes_the_sample_job_description_rule(name):
     """Every strategy's job-description prompt carries the owner's sample-JD sentence."""
     assert SAMPLE_JD_RULE in STRATEGIES[name](DEFAULT_ROLE, JD_ANALYSIS)
+
+
+def test_job_description_mode_ends_the_analysis_with_a_study_plan():
+    """The study-plan sentence follows the list it refers to, before the pasted-JD rules."""
+    block = MODE_INSTRUCTIONS[JD_ANALYSIS]
+    # "these areas" means the list just above, so the sentence must come right after it.
+    assert "- and likely interview questions.\n\n" + STUDY_PLAN_RULE in block
+    assert block.index(STUDY_PLAN_RULE) < block.index("A pasted job description")
+
+
+@pytest.mark.parametrize("name", sorted(STRATEGIES))
+def test_every_strategy_includes_the_study_plan_rule(name):
+    """Every strategy's job-description prompt carries the owner's study-plan sentence."""
+    assert STUDY_PLAN_RULE in STRATEGIES[name](DEFAULT_ROLE, JD_ANALYSIS)
 
 
 def test_static_starters_cover_every_mode_but_job_description():
