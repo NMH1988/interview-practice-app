@@ -32,7 +32,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - An expander rather than a second header or a separate page: the issue's own suggestion. The widgets stay on the one page with the same keys, so the chat flow reads them exactly as before.
   - The section names and caption are Claude's drafts, approved by the owner.
 - **Decisions & gotchas:**
-  - Done in a worktree (`.claude/worktrees/t5.7-dev-settings`) from `main`, because the main checkout holds uncommitted T5.5 (#22) work.
+  - Done in a worktree (`.claude/worktrees/t5.7-dev-settings`) from `main`, because the main checkout held uncommitted T5.5 (#22) work at the time.
   - The dashboard's "Filters" header and date input were left to T5.5. T5.5 (#77) merged first, so this PR merged `main` and resolved the `app.py` conflict: it keeps the expander and takes `main`'s removal of the "Filters" header, date input, metrics and chart, so the sidebar now ends at the expander.
   - "New session" is still `at.sidebar.button[0]` (`tests/test_app_chat.py`), since the expander has no buttons.
   - In `AppTest`, `Expander.proto` is the `Expandable` message itself, so the collapsed check is `proto.expanded`.
@@ -48,12 +48,18 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - The new test's docstring claimed "so the browser keeps it open", which the test cannot see. It now says only that the expander moves down one place (6th to 7th sidebar node, now asserted) and keeps its key; a comment says AppTest cannot see the open state. Dropping the key still fails 2 tests.
     - Questions left for the owner: whether "A security guard" in `BRIEF.md`'s Medium #9 line is a section heading in the full brief; and `BRIEF.md` calls T4.4 a "prompt-leak check" while `PLAN.md` titles it "Output safety" (both from before this PR).
   - PR review round 3 (code-reviewer, posted on #78, needs changes, no bugs):
-    - Must fix: T5.5 (#77) had merged into `main`, so the PR was `CONFLICTING` and CI had never run on it. `origin/main` was merged in; `app.py` was resolved as above, and `docs/PROGRESS.md` merged on its own (`merge=union`) with this entry above T5.5's. On the merged state: `ruff check .` and `ruff format --check .` clean, `python -m pytest -q` 935 passed (T5.5 changed the smoke tests), and dropping the expander key still fails 2 tests.
+    - Must fix: T5.5 (#77) had merged into `main`, so the PR was `CONFLICTING` and CI did not run on the round-3 head (fcd5c9f). `origin/main` was merged in (37660eb); `app.py` was resolved as above, and `docs/PROGRESS.md` merged on its own (`merge=union`) with this entry above T5.5's. On the merged state: `ruff check .` and `ruff format --check .` clean, `python -m pytest -q` 935 passed (one more than before: T5.5 added 2 smoke tests and replaced 2 output-safety tests with 1), and dropping the expander key still fails 2 tests.
     - The PR body was brought up to date (conflict resolved here, test count, review rounds, the position asserts), and the T5.5 follow-up below was removed.
     - Nits fixed in the round-2 note: the test comment's wording, and the key's other two effects.
     - Left as is (optional): a relative form of the position asserts.
+  - PR review round 4 (code-reviewer, posted on #78, ready to merge, no bugs; CI green on 37660eb):
+    - The merge with `main` is complete: the diff against `main` holds only T5.7's 5 files, nothing T5.5 removed came back, and T5.5's smoke and output-safety tests still hold with the new sidebar.
+    - Should fix: the round-3 note said CI had never run on this PR. It did run on earlier heads; only fcd5c9f had none. Corrected above (`gh run list`: CI was cancelled on ec5b6b0 by the next push, and passed with PR checks on 950db5f, 8931cca and 37660eb).
+    - Nits: the blank line the union merge dropped before T5.5's heading is back; "holds" became "held"; the reason for 935 now names both of T5.5's test changes.
+    - `mergeStateStatus: UNSTABLE` on 37660eb is likely a cancelled duplicate "PR checks" run (the push and the body edit started two; `pr-checks.yml` cancels in progress). Not a failure; `main` has no branch protection.
 - **Follow-ups:**
   - T7.5 (#64): put the max tokens widget inside the "Developer settings" expander.
+
 ## 2026-10-04 · T5.5 Remove placeholder dashboard · #77 (closes #22)
 - **Brief:** no brief item asks for a dashboard; it came with the starter template and showed made-up data. Removing it serves the "does what it promises" part of the evaluation, and keeps `main` in a state to hand in. The stricter raw-HTML scan also supports mandatory requirement 6 (security guard). In line with the brief.
 - **What:**
