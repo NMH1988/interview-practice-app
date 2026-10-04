@@ -21,8 +21,8 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 - **What:**
   - `MODE_INSTRUCTIONS["Questions to ask the interviewer"]` in `src/prompts.py` is the owner's new block:
     - the purpose, and topics to prioritise (not vacation or benefits);
-    - four criteria for reviewing the candidate's own question (preparation and interest, long-term perspective, cultural fit, desire for development), plus what makes one weak;
-    - the suggestion rules: on a request or a bare company name, suggest 5–8 questions for the role and seniority, each followed by one short sentence naming the criterion it shows, as a list rather than the answer-review format;
+    - four criteria for reviewing the candidate's own question (preparation and interest, long-term perspective, cultural fit, desire for development), plus what makes one weak; that feedback uses neither the answer-review format nor a scoring rubric, and does not end with an interview question;
+    - the suggestion rules: on a request, or a company name with or without details about it, suggest 5–8 questions for the role and seniority, each followed by one short sentence naming the criterion it shows, as a list rather than the answer-review format;
     - tailor to a named company using only what the candidate said about it;
     - on an unclear message, invite one of the three paths;
     - "Do not ask the candidate an interview question in this mode" is kept.
@@ -67,11 +67,15 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - the starter test checks that the framed question is about a personal benefit (weak on purpose) instead of repeating the helper's f-string;
     - `NORMAL_REPLIES` in `tests/test_output_safety.py` has a reply in the suggestion format.
     - Each fix was mutation-checked.
-    - The two prompt-wording points (what triggers suggestions; a format for feedback on the candidate's own question) wait for the owner's sentences.
+    - The two prompt-wording points were fixed in round 2 with the owner's sentences (below).
+  - PR review round 2 (owner's wording, option A):
+    - The suggestion rule now also fires on a company name with details. Before, "provides only a company name" left Example 3's own message (a name plus a fact, no request) under the "unclear, invite" rule for the four strategies that never see Example 3.
+    - The "weak question" paragraph ends with "Do not use the candidate-answer review format or scoring rubric, and do not end with an interview question." Before, only the suggestion list was kept out of the strategies' review formats.
+    - The owner's drafts also repeated the company rules and the four criteria. Only the new parts were added, so each rule is stated once.
+    - Both sentences are pinned in every strategy, and the feedback rule is checked to close the review part, before the suggestion rules.
 - **Live check (owner, real key):** *pending.* Suggested runs:
   - a starter with no company;
-  - a bare company name;
-  - a company with one fact;
+  - a bare company name, and a company name with one fact about it;
   - an own question (the weak starter);
   - the Few-shot and Structured output strategies (the second has its own fixed review structure).
   - Check that each reason is one short sentence and that nothing about the company is invented.

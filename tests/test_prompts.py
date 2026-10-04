@@ -461,9 +461,15 @@ STUDY_PLAN_RULE = (
 # The owner's sentences for "Questions to ask the interviewer" (T5.6), kept verbatim: when to
 # suggest questions and how many, then what follows each suggested question.
 SUGGESTION_RULE = (
-    "If the candidate asks for question suggestions, or provides only a company name, suggest "
-    "5–8 questions appropriate for the current role and seniority, and present them in a clear "
-    "and relevant order."
+    "If the candidate asks for question suggestions, or provides a company name with or without "
+    "additional details about the company, suggest 5–8 questions appropriate for the current "
+    "role and seniority. Present the questions in a clear and relevant order."
+)
+# The owner's rule for feedback on the candidate's own question (PR #75 review round 1): no
+# answer-review format, and no interview question at the end.
+OWN_QUESTION_FORMAT_RULE = (
+    "Do not use the candidate-answer review format or scoring rubric, and do not end with an "
+    "interview question."
 )
 REASON_RULE = (
     "Follow each suggested question with one short sentence explaining which of the criteria "
@@ -605,12 +611,21 @@ def test_interviewer_mode_suggests_questions_after_its_criteria():
     assert "Do not ask the candidate an interview question in this mode." in block
 
 
+def test_interviewer_mode_feedback_avoids_the_answer_review_format():
+    """The own-question rule closes the review part, before the suggestion rules begin."""
+    block = MODE_INSTRUCTIONS[INTERVIEWER_QUESTIONS]
+    # It ends the "weak question" paragraph, so it reads as part of the feedback path.
+    assert "explain how it could be improved. " + OWN_QUESTION_FORMAT_RULE + "\n\n" in block
+    assert block.index(OWN_QUESTION_FORMAT_RULE) < block.index(SUGGESTION_RULE)
+
+
 @pytest.mark.parametrize("name", sorted(STRATEGIES))
 def test_every_strategy_includes_the_question_suggestion_rules(name):
-    """Every strategy's prompt for the mode asks for 5-8 suggested questions with reasons."""
+    """Every strategy's prompt for the mode carries the owner's suggestion and feedback rules."""
     prompt = STRATEGIES[name](DEFAULT_ROLE, INTERVIEWER_QUESTIONS)
     assert SUGGESTION_RULE in prompt
     assert REASON_RULE in prompt
+    assert OWN_QUESTION_FORMAT_RULE in prompt
 
 
 def test_interviewer_few_shot_example_suggests_questions_instead_of_rating():
