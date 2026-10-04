@@ -105,13 +105,14 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - PR review round 9 (code-reviewer, posted on #75, ready to merge):
     - the 55-token gap is now stated for single-turn prompts only, since a second turn also contains its first reply;
     - the PR body notes that run 1 has no token line.
+  - PR review round 10 (code-reviewer, posted on #75, ready to merge): run 4, also an own question, is marked as judged before round 6.
 - **Live check (owner, real key, gpt-5-mini, `medium`, Senior Marketing Manager, "Questions to ask the interviewer", 2026-10-04).** The fictional "Northwind Logistics" was used, so an invented fact would be easy to spot. Below, "owner: OK" means the owner reported OK against the planned checks and gave no further detail. Anything else is attributed.
   1. Zero-shot, starter "Suggest questions I could ask at the end of my interview.": owner: OK (no token line).
   2. Zero-shot, `Northwind Logistics` alone: owner: OK (no token line), before round 6.
      - Re-run after round 6 (`Prompt 1,071 · Completion 1,362 (reasoning 832) · Total 2,433 tokens`, 55 more than the 1,016 of the attempt on the pre-round-6 server, matching the round-6 rule): 8 questions, each with one sentence naming a criterion, and nothing claimed about Northwind. So a bare company name still gets suggestions under the new rule.
      - Owner agreed: OK.
   3. Zero-shot, the company plus one fact ("They are moving their warehouses to a new automated system."): owner: OK. `Prompt 1,030 · Completion 1,064 (reasoning 448) · Total 2,094 tokens`.
-  4. Zero-shot, the weak "vacation days" starter: owner: OK. `Prompt 1,020 · Completion 2,100 (reasoning 1,536) · Total 3,120 tokens`.
+  4. Zero-shot, the weak "vacation days" starter: owner: OK (before round 6). `Prompt 1,020 · Completion 2,100 (reasoning 1,536) · Total 3,120 tokens`.
   5. Structured output, a strong own question ("What would success look like in this role after 90 days?"):
      - The owner's first run is discarded: its prompt count (1,041) was Zero-shot-sized, so the sidebar had not been switched (code-reviewer round 6).
      - Re-run, confirmed by the prompt count (`Prompt 1,136 · Completion 1,474 (reasoning 832) · Total 2,610 tokens`, about 95 more than Zero-shot). From the pasted reply:
