@@ -16,6 +16,23 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-04 · T5.5 Remove placeholder dashboard · #TBD (closes #22)
+- **Brief:** no brief item asks for a dashboard; it came with the starter template and showed made-up data. Removing it serves the "does what it promises" part of the evaluation, and keeps `main` in a state to hand in. In line with the brief.
+- **What:**
+  - `app.py` loses `load_sessions` (60 days of fake sessions), the sidebar's "Filters" header and date range, the three metrics and the score line chart, and the `pandas` / `datetime` imports they needed.
+  - The `<style>` block that only styled the metric cards (`stMetric*`) and its three theme-colour variables are removed too (owner approved). The theme itself still comes from `.streamlit/config.toml`.
+  - `tests/test_app_smoke.py`: the "three metrics" assert is gone; a new test checks for no metrics, no date input, no `vega_lite_chart` element and no "Filters" header.
+  - `tests/test_output_safety.py`: the raw-HTML scan used to allow exactly one exception, the theme CSS block. It now allows none (`test_app_never_renders_raw_html`), and the helpers that only served the exception (`theme_names`, `is_static_style_block` and their test) are removed.
+  - `docs/PLAN.md` ticks T5.5, notes the change on T4.4's source-scan line and on T7.1; `.claude/agents/code-reviewer.md`'s widget and output-safety rules no longer point at the removed code; a stale T5.5 comment in `tests/test_app_errors.py` is updated.
+- **Why:** Epic 7 is not done, so the plan's "or replace it with a real tracker" does not apply; T7.1 stays a separate extra. With the metrics gone, the CSS was dead code and the only raw HTML in the app, so removing it also makes the output-safety rule stricter and simpler.
+- **Decisions & gotchas:**
+  - AppTest has no chart accessor; `st.line_chart` shows up as an element of type `vega_lite_chart`, found with `at.get("vega_lite_chart")` (checked against the old `app.py`).
+  - Mutation-checked: the old `app.py` fails the new smoke test; adding back a line chart, a sidebar date input or a "Filters" header each fails it; adding a `<style>` block with `unsafe_allow_html=True` or an `st.html` call is flagged by the raw-HTML scan.
+  - Checked in the browser pane (no LLM call): desktop and 375 px both show the title with the starters right under it, nothing above them; no metrics, chart or date input; no horizontal scroll at 375 px; no server or console errors.
+  - A future raw-HTML use (e.g. custom CSS) now needs a test change and a reason; see the reviewer's output-safety rule.
+  - `ruff check .` from the repo root also scans untracked worktrees under `.claude/worktrees/`; CI does not see them.
+- **Follow-ups:** none for this ticket. T7.1 (session score tracker) remains an Epic 7 extra.
+
 ## 2026-10-04 · T5.6 "Questions to ask the interviewer" suggests questions · #75 (closes #62)
 - **Brief:** serves starter idea #3, the "questions to ask the interviewer" generator (company name and role in, 5–8 thoughtful questions to ask at the end of the interview, tailored to that company; quoted in #62). In line with the brief. Keeping feedback on the user's own question is the owner's "mix" choice (the starter ideas say "swap, mix, or extend").
 - **What:**

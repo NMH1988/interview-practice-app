@@ -194,79 +194,6 @@ def html_render_nodes(path: Path) -> list[ast.AST]:
     return nodes
 
 
-def theme_names(path: Path) -> set[str]:
-    """Return names assigned once, as `x = st.get_option(...)` or `... or "<literal>"`."""
-
-    def is_get_option(value: ast.expr) -> bool:
-        """Return True if `value` is a call to `*.get_option(...)`."""
-        return (
-            isinstance(value, ast.Call)
-            and isinstance(value.func, ast.Attribute)
-            and value.func.attr == "get_option"
-        )
-
-    def is_theme_value(value: ast.expr) -> bool:
-        """Return True if `value` is a theme option, optionally with a literal fallback."""
-        if isinstance(value, ast.BoolOp) and isinstance(value.op, ast.Or):
-            first, *rest = value.values
-            return is_get_option(first) and all(
-                isinstance(v, ast.Constant) and isinstance(v.value, str) for v in rest
-            )
-        return is_get_option(value)
-
-    tree = ast.parse(path.read_bytes(), filename=str(path))
-    # Every way a name gets a value: assignment, parameter, import, def/class, except, match.
-    named = (
-        ast.ExceptHandler,
-        ast.MatchAs,
-        ast.MatchStar,
-        ast.FunctionDef,
-        ast.AsyncFunctionDef,
-        ast.ClassDef,
-    )
-    stores = []
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Store):
-            stores.append(node.id)
-        elif isinstance(node, ast.arg):
-            stores.append(node.arg)
-        elif isinstance(node, ast.alias):
-            stores.append(node.asname or node.name.split(".")[0])
-        elif isinstance(node, named) and node.name:
-            stores.append(node.name)
-        elif isinstance(node, ast.MatchMapping) and node.rest:
-            stores.append(node.rest)
-    themed = {
-        target.id
-        for node in tree.body
-        if isinstance(node, ast.Assign) and is_theme_value(node.value)
-        for target in node.targets
-        if isinstance(target, ast.Name)
-    }
-    return {name for name in themed if stores.count(name) == 1}
-
-
-def is_static_style_block(node: ast.AST, allowed_names: set[str]) -> bool:
-    """Return True if the call's first argument is a `<style>` block using only theme names."""
-    if not isinstance(node, ast.Call) or not node.args:
-        return False
-    arg = node.args[0]
-    parts = arg.values if isinstance(arg, ast.JoinedStr) else [arg]
-    if not all(
-        isinstance(p, ast.FormattedValue)
-        or (isinstance(p, ast.Constant) and isinstance(p.value, str))
-        for p in parts
-    ):
-        return False
-    literal = "".join(p.value for p in parts if isinstance(p, ast.Constant)).strip()
-    filled = [p.value for p in parts if isinstance(p, ast.FormattedValue)]
-    return (
-        literal.startswith("<style>")
-        and literal.endswith("</style>")
-        and all(isinstance(v, ast.Name) and v.id in allowed_names for v in filled)
-    )
-
-
 def app_sources() -> list[Path]:
     """Return every app Python file: `app.py` and the rest, without tests, venvs or builds."""
     skipped = {"tests", "venv", "env", "build", "dist"}
@@ -316,56 +243,12 @@ def test_html_render_nodes_finds_every_raw_html_route(tmp_path):
     ]
 
 
-def test_static_style_block_check_rejects_user_or_model_text(tmp_path):
-    """Only a `<style>` block filled with single-assignment theme names passes."""
-    source = tmp_path / "sample.py"
-    source.write_text(
-        "primary = st.get_option('theme.primaryColor') or '#fff'\n"
-        "accent = st.get_option('theme.primaryColor') or st.session_state.accent\n"
-        "card = st.get_option('theme.secondaryBackgroundColor')\n"
-        "card = reply\n"
-        "border = st.get_option('theme.primaryColor')\n"
-        "def render(border):\n"
-        "    pass\n"
-        "shade = st.get_option('theme.primaryColor')\n"
-        "from answers import reply as shade\n"
-        "tone = st.get_option('theme.textColor')\n"
-        "try:\n    pass\nexcept Exception as tone:\n    pass\n"
-        "hue = st.get_option('theme.textColor')\n"
-        "match reply:\n    case {'hue': hue}:\n        pass\n"
-        "glow = st.get_option('theme.textColor')\n"
-        "match reply:\n    case {**glow}:\n        pass\n"
-        "rim = st.get_option('theme.textColor')\n"
-        "def rim():\n    pass\n"
-        "dim = st.get_option('theme.textColor')\n"
-        "match reply:\n    case [*dim]:\n        pass\n"
-        "edge = st.get_option('theme.textColor')\n"
-        "class edge:\n    pass\n"
-        "fade = st.get_option('theme.textColor')\n"
-        "async def fade():\n    pass\n"
-        "st.markdown(f'<style>a {{ color: {primary}; }}</style>', unsafe_allow_html=True)\n"
-        "st.markdown(f'<style>a {{ color: {reply}; }}</style>', unsafe_allow_html=True)\n"
-        "st.markdown(f'<style>a {{ color: {accent}; }}</style>', unsafe_allow_html=True)\n"
-        "st.markdown(f'<style>a {{ color: {card}; }}</style>', unsafe_allow_html=True)\n"
-        "st.markdown(f'<b>{primary}</b>', unsafe_allow_html=True)\n"
-        "st.markdown(1, unsafe_allow_html=True)\n",
-        encoding="utf-8",
-    )
-    names = theme_names(source)
-    assert names == {"primary"}
-    checks = [is_static_style_block(node, names) for node in html_render_nodes(source)]
-    assert checks == [True, False, False, False, False, False]
-
-
-def test_only_raw_html_is_the_static_theme_css_block():
-    """Model and user text never render as raw HTML; the one exception is the theme CSS."""
+def test_app_never_renders_raw_html():
+    """No app file turns on raw HTML, so model and user text always render as plain text."""
     sources = app_sources()
     assert APP in sources and (ROOT / "src" / "guard.py") in sources
     found = {path: html_render_nodes(path) for path in sources}
-    others = [path.name for path, nodes in found.items() if nodes and path != APP]
-    assert others == []
-    assert len(found[APP]) == 1
-    assert is_static_style_block(found[APP][0], theme_names(APP))
+    assert [f"{path.name}:{node.lineno}" for path, nodes in found.items() for node in nodes] == []
 
 
 def test_chat_renders_html_as_text(fake_llm, no_env_key):
