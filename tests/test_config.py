@@ -77,6 +77,14 @@ def test_cap_is_the_largest_effort_budget():
     assert config.MAX_TOKENS_CAP == max(budgets)
 
 
+def test_every_effort_budget_fits_the_max_tokens_field():
+    """Each effort's budget lies within the Max tokens field's bounds, so it can start there."""
+    assert 0 < config.MIN_MAX_TOKENS < config.MAX_TOKENS_CAP
+    assert 0 < config.MAX_TOKENS_STEP <= config.MAX_TOKENS_CAP - config.MIN_MAX_TOKENS
+    for budget in config.MAX_TOKENS_BY_EFFORT.values():
+        assert config.MIN_MAX_TOKENS <= budget <= config.MAX_TOKENS_CAP
+
+
 def test_token_budgets_cannot_be_changed_at_runtime():
     """The budget table is read-only, so no caller can raise a budget by accident."""
     with pytest.raises(TypeError):
