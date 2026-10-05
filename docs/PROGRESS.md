@@ -46,8 +46,11 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
     - Its question, the merge order with #83 (T6.13): #83 merged first (`2d28e13`), so this PR conflicted at the top of this log. It was resolved locally by merging `origin/main` (`merge=union`), then checked: T6.10's entry is above T6.13's, the removed "Entries marked" line did not come back, there is one `---`, and the blank line between the two entries, which the union merge dropped, was put back.
   - PR review round 2 (code-reviewer, posted on #84, needs changes; no CI on 670f281 because the PR conflicted with `main`). All round-1 points confirmed fixed, and #24's body matches PLAN's T6.1 section box for box.
     - Must fix: the conflict with `main` after #83 merged. Resolved as described in the round-1 bullet above (merge `d74ee37`, blank line restored in `49fd0b5`).
-    - Should fix: the merge-order bullet still described a future merge and had dropped round 1's "the PR merged last goes on top". It now records how the conflict was resolved.
+    - Should fix: the merge-order bullet still described a future merge and had dropped round 1's "with the PR merged last on top". It now records how the conflict was resolved.
     - Nits fixed with the owner's OK: the round-1 record had its optional point and question at the same level as the fixed nits, so the nits now sit under their own sub-bullet; the PR description also mentions #24's body edit.
+  - PR review round 3 (code-reviewer, posted on #84, ready to merge; CI green on 6de43ca, PR mergeable): every round-2 point is fixed and the round-2 record matches its comment. The merge `d74ee37` brought in #83's changes unchanged.
+    - One optional nit fixed with the owner's OK: the round-2 record now quotes round 1 exactly ("with the PR merged last on top").
+    - Its question, whether "with the owner's OK" in the round-2 record is true: yes, the owner approved the two nits in the chat; the repo and GitHub cannot show that.
 - **Follow-ups:**
   - Turn on branch protection for `main` (require `lint`, `test`, `security`, and `linked-issue` from T6.6), then tick T6.1's last box and close #24.
   - Check T6.6's Dependabot skip on the next Dependabot push.
