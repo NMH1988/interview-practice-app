@@ -51,12 +51,18 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - "the environment, both gitignored" now names the `OPENROUTER_API_KEY` variable (only the file is gitignored);
     - Chain-of-thought's format replaces the rubric with one score (it read as if it added to Structured output's);
     - the "Brief idea" column names each idea instead of mixing names and starter numbers;
-    - nits: `high` costs 2.6–3 times `medium`, not "about three"; the low-effort echo is of the prompt's instruction (a paraphrase); job-description analysis has one starter; changing (not picking) the effort resets Max tokens; the questions mode is "told not to" quiz you, not guaranteed.
+    - nits: `high` costs 2.6–3.1 times `medium`, not "about three" (first written as "2.6–3", fixed in PR review round 1); the low-effort echo is of the prompt's instruction (a paraphrase); job-description analysis has one starter; changing (not picking) the effort resets Max tokens; the questions mode is "told not to" quiz you, not guaranteed.
   - A T7.5 session shared the main checkout, so this branch was first created from T7.5's commit, and T7.5's PR-number commit (b830954) landed on it.
     - The owner moved that commit back by hand, and T7.5 (#80) merged.
     - This work then moved to its own worktree (`.claude/worktrees/t6.12-readme`) from `main` after the merge.
     - The README describes T7.5's Max tokens field (500–16,000, step 500, reset when the effort changes).
   - The owner reviewed and approved the README's wording before the PR.
+  - PR review round 1 (code-reviewer, posted on #81, ready to merge, no must or should fix; CI green on b727fb2), four nits fixed:
+    - `high` against `medium` is "2.6–3.1 times", as in `PROMPT_EVALUATION.md` (the local review's fix had written "2.6–3");
+    - the mode table's last column cites one list, the brief's examples ("Brief example it covers"), with the starter-idea numbers as "also";
+    - the setup note no longer suggests a `.env` file works: only `secrets.toml` is gitignored and read, or the shell variable;
+    - the PR body says the guard table has the four guards plus secrets and errors.
+    - Its question, whether to name OpenRouter keep-alive messages as the likely reason the 46.6 s reply did not hit the 30 s per-read timeout: the owner keeps it open until measured.
 - **Follow-ups:** none ticketed. The deploy URL goes into the README with T6.3 (#26).
 
 ## 2026-10-05 · T7.5 Max tokens setting in the UI · #80 (closes #64)

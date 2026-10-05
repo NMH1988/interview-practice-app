@@ -20,12 +20,12 @@ in one place, for any role and level.
 
 ### The four interview types
 
-| Interview type | What you send | What you get back | Brief idea it serves |
+| Interview type | What you send | What you get back | Brief example it covers |
 |---|---|---|---|
-| **Behavioural** | Say hi or click a starter, then answer with a real example from your past | One "Tell me about a time…" question at a time, feedback on each answer, then a follow-up question built on your example | Interview questions (the brief's first example) |
+| **Behavioural** | Say hi or click a starter, then answer with a real example from your past | One "Tell me about a time…" question at a time, feedback on each answer, then a follow-up question built on your example | Interview questions |
 | **Technical** | Say hi or click a starter, then type your answer | One technical question at a time, fitted to the role and seniority, feedback on each answer, then a follow-up question | Technical questions (the brief's example is programming-language questions; we widened it to any role) |
-| **Questions to ask the interviewer** | Ask for suggestions, name a company (with or without facts about it), or paste a question you plan to ask | 5–8 suggested questions, each with one sentence on why it is a good one; or feedback on your own question against four criteria (preparation, long-term view, cultural fit, wish to grow). The coach is told not to quiz you in this mode | Questions to ask at the end (starter idea #3) |
-| **Job-description analysis** | Paste a job description (up to 6,000 characters), or ask for a sample one for your role | Responsibilities, required skills, likely topics and questions, keywords, preparation gaps, and a study plan of at most five items | Job-description analysis (starter idea #4) |
+| **Questions to ask the interviewer** | Ask for suggestions, name a company (with or without facts about it), or paste a question you plan to ask | 5–8 suggested questions, each with one sentence on why it is a good one; or feedback on your own question against four criteria (preparation, long-term view, cultural fit, wish to grow). The coach is told not to quiz you in this mode | Questions to ask at the end (also starter idea #3) |
+| **Job-description analysis** | Paste a job description (up to 6,000 characters), or ask for a sample one for your role | Responsibilities, required skills, likely topics and questions, keywords, preparation gaps, and a study plan of at most five items | Job-description analysis (also starter idea #4) |
 
 An empty chat offers clickable starters for each type (one sample job description in
 job-description analysis). The sidebar's "New session" button
@@ -41,8 +41,9 @@ clears the chat.
    set the `OPENROUTER_API_KEY` environment variable instead.
 5. Run the app: `streamlit run app.py`
 
-`.streamlit/secrets.toml` and `.env` are gitignored, so never commit your key. If the key is
-missing, the app shows a setup message instead of starting.
+`.streamlit/secrets.toml` is gitignored, so never commit your key. The app does not read a `.env`
+file: use `secrets.toml` or set the variable in your shell. If the key is missing, the app shows a
+setup message instead of starting.
 
 ## How a message flows
 
@@ -152,7 +153,7 @@ temperature slider would have changed nothing. The app offers reasoning effort i
 | medium | 768 / 811, 15.1 s | 512 / 1,874, 21.1 s |
 | high | 3,904 / 961, 30.8 s | 4,288 / 1,877, 46.6 s |
 
-Higher effort mostly buys hidden thinking, not longer answers. `high` cost about 2.6–3 times the
+Higher effort mostly buys hidden thinking, not longer answers. `high` cost about 2.6–3.1 times the
 completion tokens of `medium` and took about twice as long. At `minimal` and `low` the
 behavioural rubric was more lenient, and the model echoed the prompt's own instruction. The owner
 kept `medium`.
