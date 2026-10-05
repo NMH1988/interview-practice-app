@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-05 · T6.12 README: product choice, techniques, settings, guards and limits · #TBD (closes #69)
+## 2026-10-05 · T6.12 README: product choice, techniques, settings, guards and limits · #81 (closes #69)
 - **Brief:** documents mandatory requirement #1 (the kind of prep and why). Serves two evaluation parts: "core concepts" (prompt techniques, settings, the system/user/assistant roles, output types) and "reflection" (choice of techniques and settings, potential problems, improvements). In line with the brief. Docs only, no code change.
 - **What:**
   - `README.md` grows from setup only to:
@@ -56,6 +56,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - The owner moved that commit back by hand, and T7.5 (#80) merged.
     - This work then moved to its own worktree (`.claude/worktrees/t6.12-readme`) from `main` after the merge.
     - The README describes T7.5's Max tokens field (500–16,000, step 500, reset when the effort changes).
+  - The owner reviewed and approved the README's wording before the PR.
 - **Follow-ups:** none ticketed. The deploy URL goes into the README with T6.3 (#26).
 
 ## 2026-10-05 · T7.5 Max tokens setting in the UI · #80 (closes #64)

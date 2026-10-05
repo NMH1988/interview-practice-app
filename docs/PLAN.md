@@ -399,7 +399,7 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [x] README: the security guards (input, injection, rate limit, output) and their known limits.
 - [x] README: known problems and improvement ideas, drawn from the PROGRESS follow-ups.
 - [x] The product-decision line above states the final choice. The README's "Model settings live in `src/config.py`" line is corrected.
-- [ ] Owner reviews the wording. `docs/PROGRESS.md` entry added.
+- [x] Owner reviews the wording. `docs/PROGRESS.md` entry added.
 
 **Tests**
 - None (docs only).
