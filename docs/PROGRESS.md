@@ -20,7 +20,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - `docs/PLAN.md`: every box of T1.1, T1.2, T3.1, T6.5, T6.7, T6.8 and T6.9 is ticked, and T6.6's except one. T6.1's heading loses "✅ *(configured in this change)*" and becomes "T6.1 CI pipeline (S)"; its first two boxes are ticked. A T6.10 entry is added.
   - Boxes left open say why: T6.1's branch protection, T6.6's Dependabot check and T4.2's two Stretch boxes (not done).
   - `docs/PROGRESS.md`: the T1.1 entry no longer says `ALLOWED_MODELS` holds only gpt-5-mini; the T1.1 and T1.2 follow-ups say which are done; both lose "(open when logged)", and so does the intro line that explained the mark (no entry uses it now).
-  - Issue #24's title loses the same "✅ *(configured in this change)*" (owner's choice).
+  - Issue #24 is renamed to "T6.1 CI pipeline (S)" (owner's choice), and its body ticks the same two boxes as PLAN, with the same note on the third.
 - **Why:** each box was checked against `main` (01d49ac; 1,038 tests pass, ruff clean) before it was ticked, not ticked because the issue is closed:
   - T1.1: `src/config.py` has the three brief models, default gpt-5-mini; `tests/test_config.py`, `tests/test_dependencies.py`, `tests/test_app_smoke.py`. The three models came in `e5eca90`, inside #36, so the "knowingly unmet" note was out of date before the PR merged.
   - T1.2: `.gitignore`, `tests/test_secrets_hygiene.py` (the example holds only the placeholder key since `5338696`, inside #37), the missing-key and broken-file tests in `tests/test_app_smoke.py`, and the README's 5 setup steps.
@@ -35,8 +35,14 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - T6.6's "a Dependabot PR skips the check" was never seen: #34 and #35 were opened before `pr-checks.yml` existed and have not been pushed to since, so the workflow never ran on them. The owner chose to leave it open rather than trigger a rebase.
   - Not changed (outside #65): T5.1's ticked "Temperature slider" criterion (replaced by T2.4) and the "(planned)" notes in `code-reviewer.md`'s file table. The T5.1 entry's note that the T1.1 entry is out of date stays as history.
   - T6.1 gets "(S)" like the other T6 tickets; Claude proposed the heading and the owner approved it.
-  - T6.8's "every ticket that changes code has a Tests list" counts CI and process tickets (T6.1, T6.5, T6.7, T6.11) as not code, as T6.8's own entry says.
+  - T6.8's "every ticket that changes code has a Tests list" counts CI and process tickets (T6.1, T6.5, T6.7, T6.8, T6.11) as not code, following T6.8's entry (which names T6.1, T6.5 and T6.7; T6.11 came later).
   - Review before the PR (code-reviewer, local): every ticked box and every fact in this entry was checked again on `origin/main` and GitHub. It asked to rename #24 before merging (done with the PR) and to fill in the PR number. One nit was fixed: the PR-template follow-up comes from T6.7, not T6.6.
+  - PR review round 1 (code-reviewer, posted on #84, ready to merge, no must or should fix; CI green on 3e3eb3f). Fixed:
+    - this entry says #24 was renamed to "T6.1 CI pipeline (S)", not only that it lost the ✅;
+    - the not-code ticket list adds T6.8 and no longer says T6.8's entry names T6.11;
+    - PLAN's T6.10 criterion says T6.1 "was" marked ✅.
+    - Its optional point (outside #65), on the owner's request: #24's body now ticks the two boxes met, like PLAN.
+    - Its question, the merge order with #83 (T6.13): both PRs add an entry at the top of this log, so the one merged second conflicts here. Resolve it locally and check four things: both entries are kept, the removed "Entries marked" line does not come back, there is one `---`, and the blank lines between entries are intact.
 - **Follow-ups:**
   - Turn on branch protection for `main` (require `lint`, `test`, `security`, and `linked-issue` from T6.6), then tick T6.1's last box and close #24.
   - Check T6.6's Dependabot skip on the next Dependabot push.

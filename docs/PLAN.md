@@ -389,7 +389,7 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 ### T6.10 Tick PLAN.md boxes for closed tickets (S)
 **Acceptance criteria**
 - [x] Every box of a ticket whose issue is closed is ticked, after checking the work really meets it; anything not met is listed in `docs/PROGRESS.md` as a follow-up instead of ticked.
-- [x] T6.1 (marked ✅ in PLAN, all boxes unticked; issue #24 still open) is ticked or its status corrected.
+- [x] T6.1 (was marked ✅ in PLAN with all boxes unticked; issue #24 open) is ticked or its status corrected.
 - [x] Stale PROGRESS text is corrected: the T1.1 entry's "only gpt-5-mini" and the "(open when logged)" marks on T1.1 and T1.2.
 - [x] `docs/PROGRESS.md` entry added.
 
