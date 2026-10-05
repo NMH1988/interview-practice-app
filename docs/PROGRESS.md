@@ -12,9 +12,36 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 - **Follow-ups:** what is left, with ticket numbers.
 ```
 
-Entries marked *(open when logged)* were backfilled while their PR was still open. Check its state on GitHub.
-
 ---
+
+## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #TBD (closes #65)
+- **Brief:** beyond the brief (owner's request), confirmed by the owner. The brief asks for no plan or progress log; this keeps `docs/` accurate for the review, which reads the repo as submitted. Docs only, no code change.
+- **What:**
+  - `docs/PLAN.md`: every box of T1.1, T1.2, T3.1, T6.5, T6.7, T6.8 and T6.9 is ticked, and T6.6's except one. T6.1's heading loses "✅ *(configured in this change)*" and becomes "T6.1 CI pipeline (S)"; its first two boxes are ticked. A T6.10 entry is added.
+  - Boxes left open say why: T6.1's branch protection, T6.6's Dependabot check and T4.2's two Stretch boxes (not done).
+  - `docs/PROGRESS.md`: the T1.1 entry no longer says `ALLOWED_MODELS` holds only gpt-5-mini; the T1.1 and T1.2 follow-ups say which are done; both lose "(open when logged)", and so does the intro line that explained the mark (no entry uses it now).
+  - Issue #24's title loses the same "✅ *(configured in this change)*" (owner's choice).
+- **Why:** each box was checked against `main` (01d49ac; 1,038 tests pass, ruff clean) before it was ticked, not ticked because the issue is closed:
+  - T1.1: `src/config.py` has the three brief models, default gpt-5-mini; `tests/test_config.py`, `tests/test_dependencies.py`, `tests/test_app_smoke.py`. The three models came in `e5eca90`, inside #36, so the "knowingly unmet" note was out of date before the PR merged.
+  - T1.2: `.gitignore`, `tests/test_secrets_hygiene.py` (the example holds only the placeholder key since `5338696`, inside #37), the missing-key and broken-file tests in `tests/test_app_smoke.py`, and the README's 5 setup steps.
+  - T3.1: `STRATEGIES` maps five keys to `(role, interview_type) -> str` functions; `tests/test_prompts.py`.
+  - T6.5: `.claude/agents/code-reviewer.md` (read-only rules, default `main...HEAD`, checklist, ruff and pytest, fixed report).
+  - T6.6: the template, `pr-checks.yml` and `CLAUDE.md`; the manual fail-then-pass test is recorded in #41's description (two linked runs).
+  - T6.7: every merged PR has an entry in this log (checked against `gh pr list --state merged`).
+  - T6.8: the Testing strategy section, the Definition of Done, and a Tests list in every code ticket's issue.
+  - T6.9: `CLAUDE.md`, the `qrspi` skill and `tests/test_conventions.py`.
+- **Decisions & gotchas:**
+  - T6.1's third box is not met: `gh api repos/NMH1988/interview-practice-app/branches/main/protection` answers "Branch not protected", and the repo has no rulesets. Branch protection is a repo security setting, so Claude did not turn it on; the owner chose to leave the box open, and #24 stays open.
+  - T6.6's "a Dependabot PR skips the check" was never seen: #34 and #35 were opened before `pr-checks.yml` existed and have not been pushed to since, so the workflow never ran on them. The owner chose to leave it open rather than trigger a rebase.
+  - Not changed (outside #65): T5.1's ticked "Temperature slider" criterion (replaced by T2.4) and the "(planned)" notes in `code-reviewer.md`'s file table. The T5.1 entry's note that the T1.1 entry is out of date stays as history.
+  - T6.1 gets "(S)" like the other T6 tickets; Claude proposed the heading and the owner approved it.
+  - T6.8's "every ticket that changes code has a Tests list" counts CI and process tickets (T6.1, T6.5, T6.7, T6.11) as not code, as T6.8's own entry says.
+  - Review before the PR (code-reviewer, local): every ticked box and every fact in this entry was checked again on `origin/main` and GitHub. It asked to rename #24 before merging (done with the PR) and to fill in the PR number. One nit was fixed: the PR-template follow-up comes from T6.7, not T6.6.
+- **Follow-ups:**
+  - Turn on branch protection for `main` (require `lint`, `test`, `security`, and `linked-issue` from T6.6), then tick T6.1's last box and close #24.
+  - Check T6.6's Dependabot skip on the next Dependabot push.
+  - T4.2's LLM classifier (Stretch) is not done; `BRIEF.md` Easy #3 says the same.
+  - Still open from T6.7: add a "- [ ] `docs/PROGRESS.md` entry added" line to the PR template.
 
 ## 2026-10-05 · T6.12 README: product choice, techniques, settings, guards and limits · #81 (closes #69)
 - **Brief:** documents mandatory requirement #1 (the kind of prep and why). Serves two evaluation parts: "core concepts" (prompt techniques, settings, the system/user/assistant roles, output types) and "reflection" (choice of techniques and settings, potential problems, improvements). In line with the brief. Docs only, no code change.
@@ -588,17 +615,17 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 - **Why:** one agent rather than separate frontend/backend agents, because Streamlit UI and logic are the same Python codebase and most bugs sit where they meet.
 - **Decisions & gotchas:** first committed on the T1.2 branch, then moved to its own ticket/branch at the user's request (one ticket per PR). Claude Code loads agents at session start, so start a new session to use it.
 
-## 2026-10-01 · T1.2 Secrets management · #37 (closes #2) *(open when logged)*
+## 2026-10-01 · T1.2 Secrets management · #37 (closes #2)
 - **What:** `src/config.py:get_api_key()` reads `OPENROUTER_API_KEY` from `st.secrets`, falls back to the env var, and raises `MissingAPIKeyError` if blank or missing. `app.py` shows a friendly error and `st.stop()`s. Adds `.streamlit/secrets.toml.example` and README setup in 5 steps. Also adds one-line docstrings to every function and documents that convention in `CLAUDE.md`.
 - **Why:** `st.secrets` works locally and on Streamlit Cloud; the env var covers CI and other hosts.
 - **Decisions & gotchas:** stacked on #36, so merge #36 first. Tests clear the env var and use fake keys, so CI needs no real key.
-- **Follow-ups (from the code-reviewer dry run):** `test_secrets_example_has_placeholder_key_only` only checks that the placeholder exists, not that it is the only key. T1.2 boxes in `docs/PLAN.md` are not ticked.
+- **Follow-ups (from the code-reviewer dry run):** `test_secrets_example_has_placeholder_key_only` only checks that the placeholder exists, not that it is the only key (done in this PR, `5338696`: the test now finds every `sk-or-v1-` value). T1.2 boxes in `docs/PLAN.md` are not ticked (done in T6.10).
 
-## 2026-10-01 · T1.1 Restructure project & config · #36 (closes #1) *(open when logged)*
+## 2026-10-01 · T1.1 Restructure project & config · #36 (closes #1)
 - **What:** `src/` package with `config.py` (`ALLOWED_MODELS`, `DEFAULT_MODEL = "openai/gpt-5-mini"`, temperature 0.0-1.5, default 0.7). Pins `openai==3.22.1` and `streamlit==1.64.0` in `requirements.txt` and `pyproject.toml`, with a test that keeps them identical. Removes `main.py` and adds a README stub. Adds `pythonpath = ["."]` to pytest so CI can import `src`.
 - **Why:** gives later tickets (guard, prompts, llm) a home and one place for settings.
-- **Decisions & gotchas:** `ALLOWED_MODELS` holds **only** `gpt-5-mini`, as agreed with the user, although the plan says "exactly the three from the brief". That acceptance criterion is knowingly unmet.
-- **Follow-ups:** add the other two models later, or update the plan. `app.py` placeholder dashboard stays until T5.5.
+- **Decisions & gotchas:** `ALLOWED_MODELS` first held only `gpt-5-mini`, as agreed with the user. Before the PR merged, `e5eca90` added `gpt-5-nano` and `gpt-5`, so the criterion "exactly the three from the brief" is met (corrected in T6.10).
+- **Follow-ups:** add the other two models later, or update the plan (done in this PR, `e5eca90`). `app.py` placeholder dashboard stays until T5.5 (done, #77).
 
 ## 2026-10-01 · Workflow rules: QRSPI skill · `72fe075` on `main` (no PR)
 - **What:** `.claude/skills/qrspi/SKILL.md` and `CLAUDE.md`. Every coding task follows Question -> Research -> Structure -> Plan -> Implement.

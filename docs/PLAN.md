@@ -51,26 +51,26 @@ Goal: a clean, runnable repo skeleton that other epics build on.
 - Create `src/` package, `config.py` (model list, default `openai/gpt-5-mini`, default temperature).
 - Remove placeholder `main.py`; fill README stub; fix `pyproject.toml` description/dependencies (streamlit, openai/httpx).
 **Acceptance criteria**
-- [ ] `streamlit run app.py` starts with no errors.
-- [ ] Allowed models are exactly the three from the brief; default is `gpt-5-mini`.
-- [ ] `pyproject.toml` and `requirements.txt` list the same runtime dependencies.
+- [x] `streamlit run app.py` starts with no errors.
+- [x] Allowed models are exactly the three from the brief; default is `gpt-5-mini`.
+- [x] `pyproject.toml` and `requirements.txt` list the same runtime dependencies.
 
 **Tests**
-- [ ] Unit: allowed models are exactly the three from the brief; default is `openai/gpt-5-mini` (`tests/test_config.py`).
-- [ ] Unit: `pyproject.toml` and `requirements.txt` list the same runtime dependencies (`tests/test_dependencies.py`).
-- [ ] UI flow: the app loads with no exception (`tests/test_app_smoke.py`).
+- [x] Unit: allowed models are exactly the three from the brief; default is `openai/gpt-5-mini` (`tests/test_config.py`).
+- [x] Unit: `pyproject.toml` and `requirements.txt` list the same runtime dependencies (`tests/test_dependencies.py`).
+- [x] UI flow: the app loads with no exception (`tests/test_app_smoke.py`).
 
 ### T1.2 Secrets management (S)
 - Load `OPENROUTER_API_KEY` from `st.secrets` or env var; `.streamlit/secrets.toml.example`.
 **Acceptance criteria**
-- [ ] Key is never committed (`secrets.toml`, `.env` are gitignored — already done).
-- [ ] Missing key shows a friendly in-app error, not a stack trace.
-- [ ] README documents local setup in ≤ 5 steps.
+- [x] Key is never committed (`secrets.toml`, `.env` are gitignored — already done).
+- [x] Missing key shows a friendly in-app error, not a stack trace.
+- [x] README documents local setup in ≤ 5 steps.
 
 **Tests**
-- [ ] Unit: the key is read from `st.secrets`, then the env var; a missing key and an unparseable `secrets.toml` each raise their own error (`tests/test_config.py`).
-- [ ] Unit: `secrets.toml` and `.env` are gitignored; the example file holds only a placeholder (`tests/test_secrets_hygiene.py`).
-- [ ] UI flow: a missing key and a broken secrets file each show one `st.error` and no exception (`tests/test_app_smoke.py`).
+- [x] Unit: the key is read from `st.secrets`, then the env var; a missing key and an unparseable `secrets.toml` each raise their own error (`tests/test_config.py`).
+- [x] Unit: `secrets.toml` and `.env` are gitignored; the example file holds only a placeholder (`tests/test_secrets_hygiene.py`).
+- [x] UI flow: a missing key and a broken secrets file each show one `st.error` and no exception (`tests/test_app_smoke.py`).
 
 ## Epic 2 — OpenRouter Integration
 Goal: reliable LLM calls behind one small interface.
@@ -138,11 +138,11 @@ Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evi
 
 ### T3.1 Prompt registry (S)
 **Acceptance criteria**
-- [ ] `prompts.py` exposes a dict of named strategies; each is a function `(role, interview_type) -> system prompt`.
-- [ ] Unit test asserts ≥ 5 strategies are registered and all return non-empty strings.
+- [x] `prompts.py` exposes a dict of named strategies; each is a function `(role, interview_type) -> system prompt`.
+- [x] Unit test asserts ≥ 5 strategies are registered and all return non-empty strings.
 
 **Tests**
-- [ ] Unit: ≥ 5 strategies are registered; each returns a non-empty string for every interview type (parametrised).
+- [x] Unit: ≥ 5 strategies are registered; each returns a non-empty string for every interview type (parametrised).
 
 ### T3.2 Implement five strategies (M)
 Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (reason before scoring) · Role/persona (strict senior interviewer) · Structured-output (rubric + fixed Markdown/JSON sections). Optional 6th: self-critique.
@@ -192,13 +192,13 @@ Goal: prevent misuse before any tokens are spent.
 **Acceptance criteria**
 - [x] Known patterns ("ignore previous instructions", "reveal your system prompt", role-override attempts) are blocked — parametrised tests cover ≥ 10 attack strings and ≥ 5 benign strings (no false positives on normal answers).
 - [x] Blocked requests show a neutral refusal and are logged without logging the API key.
-- [ ] Stretch: cheap LLM classifier pass (`gpt-5-nano`) for off-topic detection, behind a feature flag.
+- [ ] Stretch: cheap LLM classifier pass (`gpt-5-nano`) for off-topic detection, behind a feature flag. (Not done; the guard is regex only.)
 
 **Tests**
 - [x] Unit (parametrised): ≥ 10 attack strings are blocked, including upper-case and extra-space variants; ≥ 5 normal interview answers are allowed.
 - [x] Unit (`caplog`): a blocked request is logged, and the log never contains the API key.
 - [x] UI flow: an attack string shows the neutral refusal, and the fake LLM is called 0 times.
-- [ ] Stretch: with the flag off, the classifier is never called; with it on, a mocked classifier result is respected.
+- [ ] Stretch: with the flag off, the classifier is never called; with it on, a mocked classifier result is respected. (Not done, as above.)
 
 ### T4.3 Rate limiting (S)
 **Acceptance criteria**
@@ -310,12 +310,12 @@ The brief's job description analyser "extracts the key skills, likely interview 
 ## Epic 6 — Quality, CI/CD & Deployment
 Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 
-### T6.1 CI pipeline ✅ *(configured in this change)*
+### T6.1 CI pipeline (S)
 `.github/workflows/ci.yml`: ruff lint + format check, pytest with coverage, `pip-audit`.
 **Acceptance criteria**
-- [ ] CI runs on every PR and push to `main`; all three jobs green on current `main`.
-- [ ] CI needs **no** OpenRouter key (LLM calls mocked).
-- [ ] Branch protection on `main` requires CI to pass *(manual GitHub setting)*.
+- [x] CI runs on every PR and push to `main`; all three jobs green on current `main`.
+- [x] CI needs **no** OpenRouter key (LLM calls mocked).
+- [ ] Branch protection on `main` requires CI to pass *(manual GitHub setting)*. Not set yet (checked in T6.10), so #24 stays open.
 
 ### T6.2 Test suite (M)
 **Acceptance criteria**
@@ -348,43 +348,53 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 ### T6.5 Code-reviewer subagent (S)
 - `.claude/agents/code-reviewer.md`: read-only reviewer for branches/PRs, tailored to this repo's stack and rules.
 **Acceptance criteria**
-- [ ] Read-only; reviews the current branch vs `main` by default, or named files / PR / ticket.
-- [ ] Checklist covers correctness, security (secrets, guard, injection, output safety), mocked tests and project conventions.
-- [ ] Runs ruff + pytest, checks the ticket's acceptance criteria, and reports in a fixed severity-ranked format.
+- [x] Read-only; reviews the current branch vs `main` by default, or named files / PR / ticket.
+- [x] Checklist covers correctness, security (secrets, guard, injection, output safety), mocked tests and project conventions.
+- [x] Runs ruff + pytest, checks the ticket's acceptance criteria, and reports in a fixed severity-ranked format.
 
 ### T6.6 Every PR closes its ticket (S)
 **Acceptance criteria**
-- [ ] PR template starts with `Closes #`.
-- [ ] `.github/workflows/pr-checks.yml` fails PRs without `Closes/Fixes/Resolves #<issue>` (Dependabot exempt) and re-runs on description edits.
-- [ ] `CLAUDE.md` documents the rule, including retargeting stacked PRs to `main`.
+- [x] PR template starts with `Closes #`.
+- [x] `.github/workflows/pr-checks.yml` fails PRs without `Closes/Fixes/Resolves #<issue>` (Dependabot exempt) and re-runs on description edits.
+- [x] `CLAUDE.md` documents the rule, including retargeting stacked PRs to `main`.
 
 **Tests**
-- [ ] Manual: a PR whose description has no `Closes/Fixes/Resolves #N` fails the `linked-issue` job; adding the keyword and editing the description makes it pass.
-- [ ] Manual: a Dependabot PR skips the check.
+- [x] Manual: a PR whose description has no `Closes/Fixes/Resolves #N` fails the `linked-issue` job; adding the keyword and editing the description makes it pass.
+- [ ] Manual: a Dependabot PR skips the check. Not seen yet: #34 and #35 were opened before the workflow existed and have not been pushed to since.
 
 ### T6.7 Progress log read before every ticket (S)
 **Acceptance criteria**
-- [ ] `docs/PROGRESS.md` has one entry per PR (what, why, decisions/gotchas, follow-ups), backfilled with all work so far.
-- [ ] `CLAUDE.md` and the `qrspi` skill require reading it (plus open PRs) before a new ticket.
-- [ ] Every PR adds its own entry (Dependabot exempt).
+- [x] `docs/PROGRESS.md` has one entry per PR (what, why, decisions/gotchas, follow-ups), backfilled with all work so far.
+- [x] `CLAUDE.md` and the `qrspi` skill require reading it (plus open PRs) before a new ticket.
+- [x] Every PR adds its own entry (Dependabot exempt).
 
 ### T6.8 Test plan in every ticket (S)
 **Acceptance criteria**
-- [ ] `docs/PLAN.md` has a "Testing strategy" section: unit tests, UI flow tests (`AppTest` with a fake LLM), the deploy smoke test, and why there is no browser E2E suite.
-- [ ] Every ticket that changes code has a **Tests** list in `docs/PLAN.md` and in its GitHub issue.
-- [ ] T6.2 becomes "fill gaps + enforce coverage"; the Definition of Done includes the ticket's **Tests** list.
+- [x] `docs/PLAN.md` has a "Testing strategy" section: unit tests, UI flow tests (`AppTest` with a fake LLM), the deploy smoke test, and why there is no browser E2E suite.
+- [x] Every ticket that changes code has a **Tests** list in `docs/PLAN.md` and in its GitHub issue.
+- [x] T6.2 becomes "fill gaps + enforce coverage"; the Definition of Done includes the ticket's **Tests** list.
 
 ### T6.9 Code conventions in CLAUDE.md (S)
 **Acceptance criteria**
-- [ ] `CLAUDE.md` has a "Code conventions" section: one-line docstring on every function, method and class (tests and fixtures included), and a plain-language "what I did and why" walkthrough after each task.
-- [ ] The `qrspi` skill's Implement phase repeats both rules.
-- [ ] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no one-line docstring.
+- [x] `CLAUDE.md` has a "Code conventions" section: one-line docstring on every function, method and class (tests and fixtures included), and a plain-language "what I did and why" walkthrough after each task.
+- [x] The `qrspi` skill's Implement phase repeats both rules.
+- [x] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no one-line docstring.
 
 **Tests**
-- [ ] Unit: `tests/test_conventions.py` passes on the current tree.
-- [ ] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function, an empty docstring and a multi-line docstring in a temporary file, and nothing for documented ones.
-- [ ] Unit: a UTF-8 BOM file is still checked, and a file that does not parse raises a SyntaxError naming it.
-- [ ] Unit: the repo-wide check fails if `src/` or `tests/` is missing, so a renamed folder cannot go unchecked.
+- [x] Unit: `tests/test_conventions.py` passes on the current tree.
+- [x] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function, an empty docstring and a multi-line docstring in a temporary file, and nothing for documented ones.
+- [x] Unit: a UTF-8 BOM file is still checked, and a file that does not parse raises a SyntaxError naming it.
+- [x] Unit: the repo-wide check fails if `src/` or `tests/` is missing, so a renamed folder cannot go unchecked.
+
+### T6.10 Tick PLAN.md boxes for closed tickets (S)
+**Acceptance criteria**
+- [x] Every box of a ticket whose issue is closed is ticked, after checking the work really meets it; anything not met is listed in `docs/PROGRESS.md` as a follow-up instead of ticked.
+- [x] T6.1 (marked ✅ in PLAN, all boxes unticked; issue #24 still open) is ticked or its status corrected.
+- [x] Stale PROGRESS text is corrected: the T1.1 entry's "only gpt-5-mini" and the "(open when logged)" marks on T1.1 and T1.2.
+- [x] `docs/PROGRESS.md` entry added.
+
+**Tests**
+- None (docs only).
 
 ### T6.11 Read the project brief before every ticket (S)
 **Acceptance criteria**
