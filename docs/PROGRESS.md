@@ -64,6 +64,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - the PR body says the guard table has the four guards plus secrets and errors.
     - Its question, whether to name OpenRouter keep-alive messages as the likely reason the 46.6 s reply did not hit the 30 s per-read timeout: the owner keeps it open until measured.
   - PR review round 2 (code-reviewer, posted on #81, ready to merge, no must or should fix; CI green on 3c852da): all four round-1 nits confirmed fixed. Two nits in this entry fixed: the round-1 note said only `secrets.toml` is gitignored (`.env` is too, and `tests/test_secrets_hygiene.py` checks it; the app just does not read it), and the "What" list used the old column name.
+  - PR review round 3 (code-reviewer, posted on #81, ready to merge; CI green on ce742fb): no findings. Both round-2 nits are fixed and the round-2 record matches its comment.
 - **Follow-ups:** none ticketed. The deploy URL goes into the README with T6.3 (#26).
 
 ## 2026-10-05 · T7.5 Max tokens setting in the UI · #80 (closes #64)
