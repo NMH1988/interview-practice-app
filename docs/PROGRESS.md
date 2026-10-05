@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #TBD (closes #65)
+## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #84 (closes #65)
 - **Brief:** beyond the brief (owner's request), confirmed by the owner. The brief asks for no plan or progress log; this keeps `docs/` accurate for the review, which reads the repo as submitted. Docs only, no code change.
 - **What:**
   - `docs/PLAN.md`: every box of T1.1, T1.2, T3.1, T6.5, T6.7, T6.8 and T6.9 is ticked, and T6.6's except one. T6.1's heading loses "✅ *(configured in this change)*" and becomes "T6.1 CI pipeline (S)"; its first two boxes are ticked. A T6.10 entry is added.
