@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-05 · T6.13 README: explain what temperature does · #PR (closes #82)
+## 2026-10-05 · T6.13 README: explain what temperature does · #83 (closes #82)
 - **Brief:** serves the evaluation's "core concepts" part, which asks to explain how LLM settings, naming temperature first, change the output. In line with the brief. Docs only, no code change.
 - **What:** `README.md` "Model settings": the "Why reasoning effort and not temperature" paragraph becomes "What temperature does, and why the app does not offer it". It now explains that temperature sets how random the word choice is (one token at a time; low gives nearly the same, safe answer, high gives more varied answers that can drift or contain more mistakes), the 0.0–2.0 range and 1.0 default with a link to OpenRouter's parameter docs, and what low or high would suit in this coach. The T2.4 reason stays (accepted but ignored by the gpt-5 models), plus one clause on how reasoning effort differs. `docs/PLAN.md` gets a T6.13 entry.
 - **Why:** found while checking the project against the brief after T6.12: the README said why there is no temperature, but not what it does, and the evaluation names it. The owner approved Claude's draft as written.
