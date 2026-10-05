@@ -2,7 +2,7 @@
 
 This is the evidence for the brief's mandatory requirement #5: *"Write at least 5 system prompts with different techniques … and check which one works best for you."* It also covers optional task Easy #8 (compare how a model setting changes the output) and Hard #5 (assess the performance of the prompts, here by scoring them by hand). Ticket: T3.3 (#10).
 
-**Result:** Structured output and Zero-shot tied at 93/100. The project owner chose **Structured output** as the app's default strategy, as a product-design preference (see [The winner](#the-winner)). The default reasoning effort stays **medium**.
+**Result:** Structured output and Zero-shot tied at 92/100. The project owner chose **Structured output** as the app's default strategy, as a product-design preference (see [The winner](#the-winner)). The default reasoning effort stays **medium**.
 
 The raw replies, with the owner's scores and notes, are committed next to this file:
 
@@ -18,7 +18,7 @@ The raw replies, with the owner's scores and notes, are committed next to this f
 - **Two scoring rules**, agreed before the final pass:
   1. A reply that breaks a rule written in the mode's instructions (`MODE_INSTRUCTIONS`, for example the answer-review format in "Questions to ask the interviewer") always loses points, and the note says why.
   2. Each defect is deducted under one criterion only.
-- **Score revisions:** the scores were revised during review, after questions about consistency. The owner first chose Structured output when an earlier pass tied it with Zero-shot at 92–92. The final pass, which re-checked every table under the two rules above, tied them again at 93–93, and the owner kept the choice. The report holds only the final scores.
+- **Score revisions:** the scores were revised during review, after questions about consistency. The owner first chose Structured output when an earlier pass tied it with Zero-shot at 92–92. The final pass, which re-checked every table under the two rules above, tied them again at 93–93, and the owner kept the choice. The PR review then found that no job-description reply ends with its study plan, which the mode requires ("End the analysis by … creating a short, practical study plan"); the owner counted it as a mode rule, so every strategy lost one Structure point on `jd-review` (92–92, ranking unchanged). The report holds only the final scores.
 
 ### Test inputs
 
@@ -72,28 +72,28 @@ All 25 requests succeeded: none was blocked by the input guard, refused by the o
 
 | Strategy | qta-suggest | behavioral | technical | qta-own | jd-review | **Total** |
 |---|---|---|---|---|---|---|
-| Structured output | 20 | 17 | 17 | 20 | 19 | **93** |
-| Zero-shot | 20 | 18 | 17 | 19 | 19 | **93** |
-| Chain-of-thought | 20 | 17 | 16 | 20 | 18 | **91** |
-| Role / persona | 19 | 19 | 16 | 17 | 19 | **90** |
-| Few-shot | 19 | 18 | 17 | 17 | 18 | **89** |
+| Structured output | 20 | 17 | 17 | 20 | 18 | **92** |
+| Zero-shot | 20 | 18 | 17 | 19 | 18 | **92** |
+| Chain-of-thought | 20 | 17 | 16 | 20 | 17 | **90** |
+| Role / persona | 19 | 19 | 16 | 17 | 18 | **89** |
+| Few-shot | 19 | 18 | 17 | 17 | 17 | **88** |
 
 ### Score per criterion (out of 25) and cost
 
 | Strategy | Relevance | Actionability | Structure | Tone | Mode-rule deductions | Completion tokens (5 replies) | Time (5 replies) |
 |---|---|---|---|---|---|---|---|
-| Structured output | 21 | 25 | 22 | 25 | 0 | 8,720 | 76.9 s |
-| Zero-shot | 21 | 25 | 22 | 25 | 1 (`qta-own`) | 7,879 | 79.5 s |
-| Chain-of-thought | 20 | 25 | 21 | 25 | 0 | 7,829 | 61.0 s |
-| Role / persona | 21 | 25 | 19 | 25 | 1 (`qta-own`) | 7,737 | 72.3 s |
-| Few-shot | 19 | 25 | 20 | 25 | 1 (`qta-own`) | 6,924 | 58.4 s |
+| Structured output | 21 | 25 | 21 | 25 | 1 (`jd-review`) | 8,720 | 76.9 s |
+| Zero-shot | 21 | 25 | 21 | 25 | 2 (`qta-own`, `jd-review`) | 7,879 | 79.5 s |
+| Chain-of-thought | 20 | 25 | 20 | 25 | 1 (`jd-review`) | 7,829 | 61.0 s |
+| Role / persona | 21 | 25 | 18 | 25 | 2 (`qta-own`, `jd-review`) | 7,737 | 72.3 s |
+| Few-shot | 19 | 25 | 19 | 25 | 2 (`qta-own`, `jd-review`) | 6,924 | 58.4 s |
 
 Completion tokens include the model's hidden reasoning. Few-shot had the largest prompts (1,176–1,635 tokens, because of its three examples) but the shortest replies.
 
 ### What the scores show
 
 - **The top three are not clearly separated.** Structured output, Zero-shot and Chain-of-thought are within two points of each other. With one run per combination, a gap that small can come from run-to-run variation (see [Limitations](#limitations)).
-- **Few-shot and Role / persona fell behind on `qta-own`.** Both switched to the answer-review format (`## Evaluation`, `## Feedback`, `## Follow-up Question`, and Persona also `## Expected Answer`), which the mode's instructions forbid for feedback on the candidate's own question. Each lost three points under Structure. Zero-shot lost one point there for adding a list of follow-up questions, which the mode also forbids unless the candidate asks for suggestions.
+- **Few-shot and Role / persona fell behind on `qta-own`.** Both switched to the answer-review format (`## Evaluation`, `## Feedback`, `## Follow-up Question`, and Persona also `## Expected Answer`), which the mode's instructions forbid for feedback on the candidate's own question. Each lost three points under Structure. Zero-shot lost one point there for adding a list of follow-up questions, which the mode also forbids unless the candidate asks for suggestions. On `jd-review` every strategy broke the same mode rule (see problem 3 below), so that deduction does not change the ranking.
 - **Actionability and Tone did not separate the strategies:** every strategy scored 25/25 on both. All the differences come from Relevance and Structure.
 
 ### Problems shared by all or most strategies
@@ -102,7 +102,7 @@ These do not depend on the technique, so they point to the shared parts of the p
 
 1. **Invented facts in sample answers** (`behavioral`). Every strategy except Role / persona wrote a model answer with made-up campaign numbers and results (for example "increasing monthly revenue by 12%"), and some made the candidate the owner of a measurement they said they did not track. A candidate could repeat those numbers as if they were real. Relevance 3 for four strategies, 4 for Role / persona.
 2. **Seniority not respected** (`technical`). For a Junior candidate, all five strategies asked for production-level topics such as N+1 queries, persisted queries, rate limiting and query-cost limits. Chain-of-thought and Structured output mentioned the Junior level but still asked for that depth. Relevance 3 for all five.
-3. **Long job-description analyses** (`jd-review`). Every reply was 7,861–9,135 characters, repeating material across the skills, topics, keywords, gaps and study-plan sections (Structure 4 for all five). Every reply still ended with a study plan of exactly five items, each with one review topic and one practice task, as the mode asks.
+3. **Long job-description analyses that do not end with the study plan** (`jd-review`). Every reply was 7,861–9,135 characters, repeating material across the skills, topics, keywords, gaps and study-plan sections. Every reply included a study plan of exactly five items, each with one review topic and one practice task, but none ended with it, as the mode requires: all five added general tips and an offer to continue after it. Each strategy lost one Structure point for the repetition and one for the mode rule (Structure 3 for all five).
 4. **A few-shot example leaked into another mode.** Few-shot's job-description reply listed "temporal dead zone (not relevant here — ignore)" among the keywords. The term comes from its JavaScript example (Example 1 in `FEW_SHOT_EXAMPLES`).
 
 Things that worked in every reply: `qta-suggest` got 7 or 8 questions (the mode asks for 5–8) with one reason line each, tailored to the S/4HANA fact, with no invented facts about the company; Role / persona and Chain-of-thought were checked on this path too, which T5.6's live check had not covered. No strategy asked the candidate an interview question in "Questions to ask the interviewer".
@@ -113,15 +113,15 @@ The project owner's reading of the tie:
 
 > 1. The inputs were already clear: Zero-shot had enough task, role, and seniority information to produce strong responses.
 > 2. Structured formatting did not prevent content errors: Both strategies invented details in the behavioral case and exceeded Junior expectations in the technical case.
-> 3. Their strengths offset each other: Zero-shot scored one point higher in behavioral, while Structured output scored one point higher in qta-own, resulting in 93/100 for both.
+> 3. Their strengths offset each other: Zero-shot scored one point higher in behavioral, while Structured output scored one point higher in qta-own, resulting in 92/100 for both.
 
 A fact from the code that supports point 1: every strategy is the technique's own text joined to the same session context and the same shared rules, including the mode's instructions (`_assemble` in `src/prompts.py`). Zero-shot therefore already carries most of the guidance; only the technique part differs between strategies.
 
 The project owner's choice:
 
-> I selected Structured output as a product-design preference. In the five evaluated inputs, it followed the mode-specific presentation rules and provided a more focused qta-own response than Zero-shot. Its section-based organization in Behavioural and Technical responses may also help users locate feedback and expected answers, although the app renders all responses as Markdown and does not validate their format by mode.
+> I selected Structured output as a product-design preference. In the five evaluated inputs, it followed the mode-specific presentation rules, apart from the job-description study-plan rule, which all five strategies broke, and provided a more focused qta-own response than Zero-shot. Its section-based organization in Behavioural and Technical responses may also help users locate feedback and expected answers, although the app renders all responses as Markdown and does not validate their format by mode.
 >
-> The trade-off is approximately 11% more completion tokens than Zero-shot (8,720 versus 7,879), and an additional scoring rubric in the behavioural response that needs to be reviewed. Both strategies scored 93/100, so this choice does not demonstrate superior overall response quality.
+> The trade-off is approximately 11% more completion tokens than Zero-shot (8,720 versus 7,879), and an additional scoring rubric in the behavioural response that needs to be reviewed. Both strategies scored 92/100, so this choice does not demonstrate superior overall response quality.
 
 `DEFAULT_STRATEGY = "structured_output"` in `src/config.py` makes it the strategy the sidebar starts with; the user can still pick any of the five under "Developer settings".
 
@@ -166,6 +166,6 @@ What changed:
 - **Not ticketed, from the shared problems above:**
   - sample answers invent facts (problem 1);
   - feedback ignores the Junior level (problem 2);
-  - long, repetitive job-description analyses (problem 3);
+  - long, repetitive job-description analyses that do not end with the study plan (problem 3);
   - the Few-shot JavaScript example leaking into other modes (problem 4);
   - the `minimal` / `low` prompt echo.

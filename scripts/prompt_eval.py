@@ -1,10 +1,10 @@
 """Run fixed test inputs through every prompt strategy and write a report to score by hand (T3.3).
 
-Run from the repo root, after filling in scripts/eval_inputs.json:
+Run from the repo root; the inputs are in scripts/eval_inputs.json (or pass --inputs):
 
     python -m scripts.prompt_eval --dry-run
     python -m scripts.prompt_eval
-    python -m scripts.prompt_eval --strategies few_shot --efforts minimal low medium high --ids jd-1
+    python -m scripts.prompt_eval --strategies few_shot --efforts minimal high --ids jd-review
 
 It calls the real OpenRouter API (the key comes from .streamlit/secrets.toml or the
 OPENROUTER_API_KEY environment variable), so it is run by hand and never in CI.
@@ -52,7 +52,8 @@ INPUT_FIELDS = ("id", "role", "interview_type", "seniority", "text")
 OPTIONAL_FIELDS = ("question",)
 # The rubric from docs/PLAN.md (T3.3), each scored 1-5.
 CRITERIA = ("Relevance", "Actionability", "Structure", "Tone")
-# The inputs template uses this word in every field; a run refuses to start while it is there.
+# Marks a field not filled in yet (a new inputs file can start from it); a run refuses to start
+# while a field begins with it.
 PLACEHOLDER = "TODO"
 
 
