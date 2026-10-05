@@ -20,7 +20,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 - **Brief:** serves Medium #1 (let the user tune the model settings, max tokens among them, through sliders or fields). In line with the brief. With model (T5.1) and reasoning effort (T2.4) already tunable, `BRIEF.md` now marks Medium #1 done; temperature is not offered because the gpt-5 models ignore it (T2.4).
 - **What:**
   - `src/config.py`: `MIN_MAX_TOKENS = 500` and `MAX_TOKENS_STEP = 500`, the field's lower bound and step; the cap stays `MAX_TOKENS_CAP` (16,000).
-  - `app.py`: a "Max tokens" `st.number_input` (key `max_tokens`) in the "Developer settings" expander, after Reasoning effort, with its own help text. Its value starts at `MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]` (4,000) through `st.session_state.setdefault`. The effort select gets `on_change=reset_max_tokens`, which sets the field to the new effort's budget. `reply_pieces` takes `max_tokens` from the field instead of looking the budget up from the effort, so the `.get(..., DEFAULT_MAX_TOKENS)` fallback and the `DEFAULT_MAX_TOKENS` import are gone. The effort help now says "picking High also raises Max tokens to 16,000 (4,000 for the others)".
+  - `app.py`: a "Max tokens" `st.number_input` (key `max_tokens`) in the "Developer settings" expander, after Reasoning effort, with its own help text. Its value starts at the budget of the effort already in the session, or of the default effort when there is none (4,000 at `medium`), through `st.session_state.setdefault`. The effort select gets `on_change=reset_max_tokens`, which sets the field to the new effort's budget. `reply_pieces` takes `max_tokens` from the field instead of looking the budget up from the effort, so the `.get(..., DEFAULT_MAX_TOKENS)` fallback and the `DEFAULT_MAX_TOKENS` import are gone. The effort help now says "picking High also raises Max tokens to 16,000 (4,000 for the others)".
   - Tests in `tests/test_app_inputs.py`:
     - the field's label, bounds, step, default and place after the effort select;
     - a typed value reaches the fake LLM;
@@ -38,7 +38,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - The field gets no `value=`: the effort callback writes `st.session_state.max_tokens`, and Streamlit warns when a widget has both a default and a Session State value.
   - The effort change overrides a value the user typed before (on purpose; the help says so). A value typed afterwards stays until the effort changes again.
   - Streamlit 1.64's `number_input` checks bounds on the server too: an out-of-range value (only possible without the browser's own check) is replaced by the widget's default, here `min_value` (500), since no `value=` is given. Found with `AppTest`; the test only asserts that what reaches the LLM is within the bounds. `llm._send` still clamps to the cap.
-  - Mutation-checked (each fails tests in `tests/test_app_inputs.py`): no `on_change` (4 fail), sending the effort's budget instead of the field (2), `max_value` twice the cap (2), `min_value=1` (3).
+  - Mutation-checked (each fails tests in `tests/test_app_inputs.py`; re-run on the pushed tests in PR review round 1): no `on_change` (6 fail), sending the effort's budget instead of the field (2), `max_value` twice the cap (2), `min_value=1` (3), a "raise only" `max(...)` reset (2).
   - Browser check (Claude, no message sent, so no LLM call):
     - at 1280 px the field shows 4,000 under Reasoning effort; picking High set it to 16,000; its bounds are 500–16,000, step 500.
     - Typing 20000 and Enter marked the field red with "Number is outside the allowed range. Please enter a value between 500 and 16000.", and it was not applied.
@@ -48,7 +48,10 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - Review before the PR (code-reviewer, local; no bugs, ready to merge):
     - Should fix: the reset was only tested going up (to High or from a typed 2,500). A "raise only" `max(...)` reset passed every test. A test now goes from High back to Medium and Low; the `max(...)` mutation fails it (2 fail).
     - Nits fixed: the field's comment says Streamlit replaces an out-of-range value with the minimum; the starting value follows an effort already in the session (a session kept across a code reload), not always the default one.
-    - The reviewer worked out the four mutation counts above by hand from the tests, and checked the Streamlit claims in the 1.64 source.
+    - The reviewer worked out the mutation counts by hand from the tests, and checked the Streamlit claims in the 1.64 source.
+  - PR review round 1 (code-reviewer, posted on #80, ready to merge, no bugs; CI green on b830954), two nits in this entry:
+    - The `on_change` mutation count (4) dated from before the downward-reset test. Re-running all five mutations on the pushed tests gave 6 for it, as the reviewer counted by hand; the other counts were unchanged.
+    - The "What" line still said the field starts at the default effort's budget; it now says the effort already in the session, or the default one.
 - **Live check:** not done (no real-key call by Claude). Optional for the owner: `medium` at 500 tokens should show ✂️ or "The model used up its token limit before writing an answer."
 - **Follow-ups:** none for this ticket.
 
