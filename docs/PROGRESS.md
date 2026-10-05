@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-05 · T3.3 Prompt evaluation · #<PR> (closes #10)
+## 2026-10-05 · T3.3 Prompt evaluation · #79 (closes #10)
 - **Brief:** serves mandatory requirement #5 ("check which one works best for you"), Easy #8 (compare how a model setting changes the output) and Hard #5 (assess the prompts' performance, here by hand on a rubric). In line with the brief. The rubric scoring is for the strategies only: the brief asks only to *compare* the effort levels, so those runs were read, not scored (owner's rule, 2026-10-05: skip work the brief asks for nowhere).
 - **What:**
   - `scripts/prompt_eval.py` (`python -m scripts.prompt_eval`, run from the T3.3 checkout) sends the fixed inputs in `scripts/eval_inputs.json` through the chosen strategies, `--efforts` (default `medium`) and `--runs`, and writes `docs/eval/run-<timestamp>.md`: every reply as a blockquote with its length, time and token line (the app's "Token usage" format), a ✂️ mark if `max_tokens` cut it, and an empty 1-5 score table (Relevance, Actionability, Structure, Tone, Notes). Each input has `id`, `role`, `interview_type`, `seniority`, `text` and an optional `question` (the coach's question, sent as the previous assistant turn). `--ids` runs only some inputs; `--blind` hides the strategies behind shuffled letters with a separate key file; `--dry-run` prints each input's guard result and user prompt and the request count, with no API call. Tests in `tests/test_prompt_eval.py` (all LLM calls faked); `tests/test_conventions.py` also scans `scripts/`.
