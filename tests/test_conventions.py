@@ -88,7 +88,7 @@ def test_missing_docstrings_names_file_on_syntax_error(tmp_path):
 
 
 def test_every_function_and_class_has_a_docstring():
-    """Every function, method and class in app.py, src/, scripts/ and tests/ has a docstring."""
+    """Every function, method and class in app.py, src/, scripts/, tests/ has one docstring line."""
     # rglob on a missing folder yields nothing, so a renamed folder would silently go unchecked.
     for folder in ("src", "scripts", "tests"):
         assert (ROOT / folder).is_dir(), f"{folder}/ not found; update SOURCES in this test"
