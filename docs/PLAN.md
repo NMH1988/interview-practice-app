@@ -157,14 +157,14 @@ Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (rea
 - [x] UI flow: the strategy select lists every registered strategy by its label.
 
 ### T3.3 Prompt evaluation (M)
-- Run the same 3–5 fixed test inputs through all strategies at the default reasoning effort (temperature until T2.4); score on a rubric (relevance, actionability, structure, tone, 1–5).
+- Run the same 3–5 fixed test inputs through all strategies at the default reasoning effort (temperature until T2.4); score on a rubric (relevance, actionability, structure, tone, 1–5). The reasoning-effort comparison (Easy #8) runs the winner at the four levels and is compared by reading, not scored.
 **Acceptance criteria**
-- [ ] `docs/PROMPT_EVALUATION.md` contains the test inputs, a results table, and a justified winner.
-- [ ] The winning strategy is the app default.
+- [x] `docs/PROMPT_EVALUATION.md` contains the test inputs, a results table, and a justified winner.
+- [x] The winning strategy is the app default.
 
 **Tests**
-- [ ] Unit: the default strategy in `config.py` exists in the registry.
-- [ ] Manual: the evaluation itself uses the real API, so it is run by hand and recorded in `docs/PROMPT_EVALUATION.md`, not in CI.
+- [x] Unit: the default strategy in `config.py` exists in the registry.
+- [x] Manual: the evaluation itself uses the real API, so it is run by hand and recorded in `docs/PROMPT_EVALUATION.md`, not in CI.
 
 ### T3.4 User-prompt builder (S)
 **Acceptance criteria**
