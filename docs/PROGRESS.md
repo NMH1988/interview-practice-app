@@ -51,6 +51,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - PR review round 3 (code-reviewer, posted on #84, ready to merge; CI green on 6de43ca, PR mergeable): every round-2 point is fixed and the round-2 record matches its comment. The merge `d74ee37` brought in #83's changes unchanged.
     - One optional nit fixed with the owner's OK: the round-2 record now quotes round 1 exactly ("with the PR merged last on top").
     - Its question, whether "with the owner's OK" in the round-2 record is true: yes, the owner approved the two nits in the chat; the repo and GitHub cannot show that.
+  - PR review round 4 (code-reviewer, posted on #84, ready to merge; CI green on 98b2a71, PR mergeable): no findings. The round-3 nit is fixed (the quote matches round 1 word for word) and the round-3 record matches its comment. Its question repeats round 3's for the round-3 record's "with the owner's OK", with the same answer: the owner approved that nit in the chat.
 - **Follow-ups:**
   - Turn on branch protection for `main` (require `lint`, `test`, `security`, and `linked-issue` from T6.6), then tick T6.1's last box and close #24.
   - Check T6.6's Dependabot skip on the next Dependabot push.
