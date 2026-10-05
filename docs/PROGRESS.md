@@ -16,6 +16,16 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-05 · T6.13 README: explain what temperature does · #PR (closes #82)
+- **Brief:** serves the evaluation's "core concepts" part, which asks to explain how LLM settings, naming temperature first, change the output. In line with the brief. Docs only, no code change.
+- **What:** `README.md` "Model settings": the "Why reasoning effort and not temperature" paragraph becomes "What temperature does, and why the app does not offer it". It now explains that temperature sets how random the word choice is (one token at a time; low gives nearly the same, safe answer, high gives more varied answers that can drift or contain more mistakes), the 0.0–2.0 range and 1.0 default with a link to OpenRouter's parameter docs, and what low or high would suit in this coach. The T2.4 reason stays (accepted but ignored by the gpt-5 models), plus one clause on how reasoning effort differs. `docs/PLAN.md` gets a T6.13 entry.
+- **Why:** found while checking the project against the brief after T6.12: the README said why there is no temperature, but not what it does, and the evaluation names it. The owner approved Claude's draft as written.
+- **Decisions & gotchas:**
+  - The repo had no explanation of temperature, so the range, default and "at 0 the same response" come from OpenRouter's parameter docs (read 2026-10-05), not from a test of our own; the gpt-5 models ignore it, so it cannot be tried in this app.
+  - "A low value would suit consistent feedback, a higher one varied questions" is an illustration of the trade-off, not a measured result.
+  - Made in its own worktree (`.claude/worktrees/t6.13-readme-temperature`) from `main`, since a T6.10 session shares the main checkout (see T6.12's gotcha about commits landing on the wrong branch).
+- **Follow-ups:** none.
+
 ## 2026-10-05 · T6.12 README: product choice, techniques, settings, guards and limits · #81 (closes #69)
 - **Brief:** documents mandatory requirement #1 (the kind of prep and why). Serves two evaluation parts: "core concepts" (prompt techniques, settings, the system/user/assistant roles, output types) and "reflection" (choice of techniques and settings, potential problems, improvements). In line with the brief. Docs only, no code change.
 - **What:**
