@@ -56,6 +56,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
     - The mutation line now says Claude re-ran the mutations after round 1; round 1's reviewer counted by hand and did not run them.
     - The local-review bullet again says that reviewer counted the four mutations as they stood then (`on_change` at 4), not the later five.
     - The reviewer recounted all five mutations by hand and they match; it could not see that they were run, which Claude did in the T7.5 worktree (6, 2, 2, 3, 2 fail).
+  - PR review round 3 (code-reviewer, posted on #80, ready to merge; CI green on 71c6993): no findings. Both round-2 nits are fixed and the round-2 record matches its comment. The reviewer ran the five mutations itself on a `git archive` copy of 71c6993 and got the same counts (6, 2, 2, 3, 2), with the same failing tests round 2 had predicted.
 - **Live check:** not done (no real-key call by Claude). Optional for the owner: `medium` at 500 tokens should show ✂️ or "The model used up its token limit before writing an answer."
 - **Follow-ups:** none for this ticket.
 
