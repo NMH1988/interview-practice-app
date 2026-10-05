@@ -9,7 +9,7 @@ from streamlit.runtime.state.safe_session_state import SafeSessionState
 from streamlit.testing.v1 import AppTest
 
 from src import llm, prompts
-from src.config import API_KEY_NAME, DEFAULT_ROLE, DEFAULT_SENIORITY
+from src.config import API_KEY_NAME, DEFAULT_ROLE, DEFAULT_SENIORITY, DEFAULT_STRATEGY
 from src.prompts import INTERVIEW_TYPES, STRATEGIES, build_user_prompt
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
@@ -104,9 +104,7 @@ def test_role_is_cleaned_before_it_reaches_the_prompts(fake_llm):
     at.sidebar.text_input(key="role").set_value("  Data \n  Analyst ").run(timeout=30)
     say(at, "Hello.")
     system, user = fake_llm.calls[0]["messages"]
-    assert system["content"] == STRATEGIES[next(iter(STRATEGIES))](
-        "Data Analyst", INTERVIEW_TYPES[0]
-    )
+    assert system["content"] == STRATEGIES[DEFAULT_STRATEGY]("Data Analyst", INTERVIEW_TYPES[0])
     assert user["content"].startswith("Role: Data Analyst\n")
 
 
