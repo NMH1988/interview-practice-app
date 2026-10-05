@@ -38,7 +38,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - The field gets no `value=`: the effort callback writes `st.session_state.max_tokens`, and Streamlit warns when a widget has both a default and a Session State value.
   - The effort change overrides a value the user typed before (on purpose; the help says so). A value typed afterwards stays until the effort changes again.
   - Streamlit 1.64's `number_input` checks bounds on the server too: an out-of-range value (only possible without the browser's own check) is replaced by the widget's default, here `min_value` (500), since no `value=` is given. Found with `AppTest`; the test only asserts that what reaches the LLM is within the bounds. `llm._send` still clamps to the cap.
-  - Mutation-checked (each fails tests in `tests/test_app_inputs.py`; re-run on the pushed tests in PR review round 1): no `on_change` (6 fail), sending the effort's budget instead of the field (2), `max_value` twice the cap (2), `min_value=1` (3), a "raise only" `max(...)` reset (2).
+  - Mutation-checked (each fails tests in `tests/test_app_inputs.py`; re-run by Claude on the pushed tests after PR review round 1): no `on_change` (6 fail), sending the effort's budget instead of the field (2), `max_value` twice the cap (2), `min_value=1` (3), a "raise only" `max(...)` reset (2).
   - Browser check (Claude, no message sent, so no LLM call):
     - at 1280 px the field shows 4,000 under Reasoning effort; picking High set it to 16,000; its bounds are 500–16,000, step 500.
     - Typing 20000 and Enter marked the field red with "Number is outside the allowed range. Please enter a value between 500 and 16000.", and it was not applied.
@@ -48,10 +48,14 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - Review before the PR (code-reviewer, local; no bugs, ready to merge):
     - Should fix: the reset was only tested going up (to High or from a typed 2,500). A "raise only" `max(...)` reset passed every test. A test now goes from High back to Medium and Low; the `max(...)` mutation fails it (2 fail).
     - Nits fixed: the field's comment says Streamlit replaces an out-of-range value with the minimum; the starting value follows an effort already in the session (a session kept across a code reload), not always the default one.
-    - The reviewer worked out the mutation counts by hand from the tests, and checked the Streamlit claims in the 1.64 source.
+    - The reviewer worked out the four mutation counts as they stood then (`on_change` at 4, before the downward-reset test) by hand from the tests, and checked the Streamlit claims in the 1.64 source.
   - PR review round 1 (code-reviewer, posted on #80, ready to merge, no bugs; CI green on b830954), two nits in this entry:
     - The `on_change` mutation count (4) dated from before the downward-reset test. Re-running all five mutations on the pushed tests gave 6 for it, as the reviewer counted by hand; the other counts were unchanged.
     - The "What" line still said the field starts at the default effort's budget; it now says the effort already in the session, or the default one.
+  - PR review round 2 (code-reviewer, posted on #80, ready to merge, no bugs; CI green on ff1f52d; only this entry changed since round 1), two wording nits in this entry:
+    - The mutation line now says Claude re-ran the mutations after round 1; round 1's reviewer counted by hand and did not run them.
+    - The local-review bullet again says that reviewer counted the four mutations as they stood then (`on_change` at 4), not the later five.
+    - The reviewer recounted all five mutations by hand and they match; it could not see that they were run, which Claude did in the T7.5 worktree (6, 2, 2, 3, 2 fail).
 - **Live check:** not done (no real-key call by Claude). Optional for the owner: `medium` at 500 tokens should show ✂️ or "The model used up its token limit before writing an answer."
 - **Follow-ups:** none for this ticket.
 
