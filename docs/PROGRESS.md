@@ -42,12 +42,13 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
     - the not-code ticket list adds T6.8 and no longer says T6.8's entry names T6.11;
     - PLAN's T6.10 criterion says T6.1 "was" marked ✅.
     - Its optional point (outside #65), on the owner's request: #24's body now ticks the two boxes met, like PLAN.
-    - Its question, the merge order with #83 (T6.13): both PRs add an entry at the top of this log, so the one merged second conflicts here. Resolve it locally and check four things: both entries are kept, the removed "Entries marked" line does not come back, there is one `---`, and the blank lines between entries are intact.
+    - Its question, the merge order with #83 (T6.13): #83 merged first (`2d28e13`), so this PR conflicted at the top of this log. It was resolved locally by merging `origin/main` (`merge=union`), then checked: T6.10's entry is above T6.13's, the removed "Entries marked" line did not come back, there is one `---`, and the blank line between the two entries, which the union merge dropped, was put back.
 - **Follow-ups:**
   - Turn on branch protection for `main` (require `lint`, `test`, `security`, and `linked-issue` from T6.6), then tick T6.1's last box and close #24.
   - Check T6.6's Dependabot skip on the next Dependabot push.
   - T4.2's LLM classifier (Stretch) is not done; `BRIEF.md` Easy #3 says the same.
   - Still open from T6.7: add a "- [ ] `docs/PROGRESS.md` entry added" line to the PR template.
+
 ## 2026-10-05 · T6.13 README: explain what temperature does · #83 (closes #82)
 - **Brief:** serves the evaluation's "core concepts" part, which asks to explain how LLM settings, naming temperature first, change the output. In line with the brief. Docs only, no code change.
 - **What:** `README.md` "Model settings": the "Why reasoning effort and not temperature" paragraph becomes "What temperature does, and why the app does not offer it". It now explains that temperature sets how random the word choice is (one token at a time; low gives nearly the same, predictable answer, high gives more varied answers that can drift or contain more mistakes), the 0.0–2.0 range and 1.0 default with a link to OpenRouter's parameter docs, and what low or high would suit in this coach. The T2.4 reason stays (no `temperature` support listed for the gpt-5 models; a live check on gpt-5-mini showed it accepted but ignored), plus one clause on how reasoning effort differs. `docs/PLAN.md` gets a T6.13 entry.
