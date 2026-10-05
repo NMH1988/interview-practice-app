@@ -223,7 +223,7 @@ def test_notice_of_an_unknown_kind_is_shown_as_an_error_not_a_crash(fake_llm):
 def last_in_main(at: AppTest):
     """Return the last node of the main area: the one just above the chat input."""
     # The chat input lives in the bottom area, not in main, so this is whatever comes last
-    # after the dashboard and the chat, whatever T5.5 does to the dashboard.
+    # after the chat history.
     return list(at.main.children.values())[-1]
 
 

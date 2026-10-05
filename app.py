@@ -1,9 +1,7 @@
 from collections.abc import Iterator
 from contextlib import closing
-from datetime import date, timedelta
 from itertools import chain
 
-import pandas as pd
 import streamlit as st
 
 from src import llm, rate_limit
@@ -47,27 +45,6 @@ from src.rate_limit import RateLimitError, check_rate_limit, session_cap_reached
 
 st.set_page_config(page_title="Interview Practice", layout="wide")
 
-# Theme colours come from .streamlit/config.toml so the cards always match the app.
-primary = st.get_option("theme.primaryColor") or "#4f46e5"
-card_bg = st.get_option("theme.secondaryBackgroundColor") or "#f1f2f9"
-text = st.get_option("theme.textColor") or "#1f2430"
-
-st.markdown(
-    f"""
-    <style>
-    [data-testid="stMetric"] {{
-        background: {card_bg};
-        border-left: 4px solid {primary};
-        border-radius: 8px;
-        padding: 12px 16px;
-    }}
-    [data-testid="stMetricLabel"] {{ color: {text}; opacity: 0.75; }}
-    [data-testid="stMetricValue"] {{ color: {primary}; }}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 st.title("Interview Practice")
 
 try:
@@ -88,22 +65,6 @@ except MissingAPIKeyError:
     )
     st.stop()
 
-
-@st.cache_data
-def load_sessions() -> pd.DataFrame:
-    """Return 60 days of made-up practice sessions for the dashboard."""
-    # Placeholder data: replace with your real practice-session records.
-    days = pd.date_range(end=date.today(), periods=60, freq="D")
-    return pd.DataFrame(
-        {
-            "date": days,
-            "questions": [3 + (i * 7) % 6 for i in range(60)],
-            "score": [60 + (i * 11) % 40 for i in range(60)],
-        }
-    )
-
-
-df = load_sessions()
 
 # Chat state. Each history turn is {"role", "content" (shown in the chat), "sent" (sent to the
 # LLM)}; assistant turns also keep "usage" (an llm.Usage, or None if not reported) and
@@ -250,35 +211,9 @@ def reply_pieces(
 
 
 with st.sidebar:
-    st.header("Session settings")
-    model = st.selectbox(
-        "Model", ALLOWED_MODELS, index=ALLOWED_MODELS.index(DEFAULT_MODEL), key="model"
-    )
-    # Shows each strategy by its technique label; the key picks the system prompt. Starts at the
-    # strategy that won the T3.3 evaluation.
-    strategy = st.selectbox(
-        "Prompt strategy",
-        list(STRATEGIES),
-        index=list(STRATEGIES).index(DEFAULT_STRATEGY),
-        format_func=STRATEGY_LABELS.__getitem__,
-        key="strategy",
-    )
-    # Replaces the temperature slider: the allowed gpt-5 models ignore temperature (T2.4).
-    reasoning_effort = st.selectbox(
-        "Reasoning effort",
-        REASONING_EFFORTS,
-        index=REASONING_EFFORTS.index(DEFAULT_REASONING_EFFORT),
-        format_func=str.capitalize,
-        key="reasoning_effort",
-        help=(
-            "How long the model thinks before it answers. Higher effort can give deeper, more "
-            "careful feedback, but it is slower and uses more tokens. The thinking counts "
-            "against the token limit, so High gets a larger limit "
-            f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
-            f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more per "
-            "reply."
-        ),
-    )
+    # What the user practises comes first; the model settings follow in a collapsed section, for
+    # users who are not familiar with LLMs (the brief's Medium #9, T5.7).
+    st.header("Practice settings")
     interview_type = st.selectbox("Interview type", INTERVIEW_TYPES, key="interview_type")
     # Streamlit cuts the value to max_chars on the server too; validate_role checks it again.
     role = st.text_input("Role", DEFAULT_ROLE, max_chars=MAX_ROLE_CHARS, key="role")
@@ -300,27 +235,41 @@ with st.sidebar:
         key="seniority",
     )
     st.button("New session", on_click=new_session, icon="🔄")
-    st.header("Filters")
-    picked = st.date_input(
-        "Date range",
-        value=(date.today() - timedelta(days=29), date.today()),
-        min_value=df["date"].min().date(),
-        max_value=df["date"].max().date(),
-    )
-
-# While the user is mid-selection Streamlit returns a single date.
-if len(picked) == 2:
-    start, end = picked
-    filtered = df[(df["date"].dt.date >= start) & (df["date"].dt.date <= end)]
-else:
-    filtered = df.iloc[0:0]
-
-c1, c2, c3 = st.columns(3)
-c1.metric("Sessions", len(filtered))
-c2.metric("Questions answered", int(filtered["questions"].sum()))
-c3.metric("Average score", f"{filtered['score'].mean():.0f}" if len(filtered) else "-")
-
-st.line_chart(filtered.set_index("date")["score"])
+    # Collapsed by default. Keys and defaults are the same as before T5.7, so the chat flow reads
+    # these values exactly as it did. The expander's own key keeps it open when the role warning
+    # above it appears or goes away; without one, that shift closed it (seen in a browser).
+    with st.expander("Developer settings", key="developer_settings"):
+        st.caption(
+            "Model and prompt settings for comparing results. The defaults work well for practice."
+        )
+        model = st.selectbox(
+            "Model", ALLOWED_MODELS, index=ALLOWED_MODELS.index(DEFAULT_MODEL), key="model"
+        )
+        # Shows each strategy by its technique label; the key picks the system prompt. Starts at
+        # the strategy that won the T3.3 evaluation.
+        strategy = st.selectbox(
+            "Prompt strategy",
+            list(STRATEGIES),
+            index=list(STRATEGIES).index(DEFAULT_STRATEGY),
+            format_func=STRATEGY_LABELS.__getitem__,
+            key="strategy",
+        )
+        # Replaces the temperature slider: the allowed gpt-5 models ignore temperature (T2.4).
+        reasoning_effort = st.selectbox(
+            "Reasoning effort",
+            REASONING_EFFORTS,
+            index=REASONING_EFFORTS.index(DEFAULT_REASONING_EFFORT),
+            format_func=str.capitalize,
+            key="reasoning_effort",
+            help=(
+                "How long the model thinks before it answers. Higher effort can give deeper, "
+                "more careful feedback, but it is slower and uses more tokens. The thinking "
+                "counts against the token limit, so High gets a larger limit "
+                f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
+                f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more "
+                "per reply."
+            ),
+        )
 
 for turn in st.session_state.history:
     with st.chat_message(turn["role"]):

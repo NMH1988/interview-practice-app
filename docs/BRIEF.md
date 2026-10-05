@@ -54,7 +54,7 @@ Do these **only after the core app works**. Anyone with software experience is i
 6. A separate field for the job description you are applying for, with preparation for that position (RAG).
 7. Let the user pick from LLMs of different providers (e.g. Gemini, OpenAI). Our `ALLOWED_MODELS` holds only the three OpenAI models, so this is **not** done.
 8. Use image generation creatively (`google/gemini-2.5-flash-image`).
-9. A security guard, designed for usability: keep developer settings (model, system prompts) separate from the user experience. (*planned:* #63)
+9. A security guard, designed for usability: keep developer settings (model, system prompts) separate from the user experience. (*done:* T5.7, #63, for keeping the settings apart: "Practice settings" first, then a collapsed "Developer settings" section; the guards themselves are T4.1–T4.4, under Easy #3)
 
 **Hard**
 1. A full chatbot instead of a one-time call. (*done:* T5.2, T2.2)

@@ -216,7 +216,7 @@ Goal: prevent misuse before any tokens are spent.
 
 **Tests**
 - [x] Unit: a response that contains the system prompt verbatim is replaced by the refusal; a normal response is unchanged.
-- [x] Unit (source scan): model and user text are rendered without `unsafe_allow_html`; the only allowed `unsafe_allow_html=True` is the static theme CSS block in `app.py`.
+- [x] Unit (source scan): model and user text are rendered without `unsafe_allow_html`; the only allowed `unsafe_allow_html=True` was the static theme CSS block in `app.py` (removed in T5.5 with the metric cards it styled; the scan now allows no raw HTML at all).
 - [x] UI flow: HTML in the user's message and in the model's reply is shown as text (the Markdown element has `allow_html` off).
 
 ## Epic 5 — Streamlit UI
@@ -267,10 +267,11 @@ Sidebar: model select, strategy select, temperature slider (replaced by a reason
 
 ### T5.5 Remove placeholder dashboard (S)
 **Acceptance criteria**
-- [ ] Dummy `load_sessions` data and chart removed (or replaced by a real session-score tracker if Epic 7 is done).
+- [x] Dummy `load_sessions` data and chart removed (or replaced by a real session-score tracker if Epic 7 is done). Epic 7 is not done, so they are removed, with the date filter and the metric-card CSS.
 
 **Tests**
-- [ ] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (today it asserts 3 metrics).
+- [x] UI flow: update `tests/test_app_smoke.py` so no metrics or chart remain (it used to assert 3 metrics). It now checks for no metrics, no date filter, no chart and no "Filters" header.
+- [x] Unit (source scan): no app file renders raw HTML (`tests/test_output_safety.py`).
 
 ### T5.6 "Questions to ask the interviewer" generates questions (M)
 The brief's starter idea is a generator: company name and role in, 5–8 thoughtful questions to ask at the end of the interview out, tailored to that company (quoted in #62). The mode used to only rate the candidate's own question. The owner chose to do both: suggest questions, and still give feedback on the candidate's own.
@@ -285,6 +286,17 @@ The brief's starter idea is a generator: company name and role in, 5–8 thought
 - [x] Unit: every strategy's prompt for this mode contains the owner's suggestion sentences, after the criteria they refer to; Example 3 has 5–8 questions, each with one reason, and no review headings; the starters pass the guard unchanged and match the mode.
 - [x] UI flow: clicking a starter in this mode sends its text to the fake LLM (covered for every starter by `tests/test_app_examples.py`).
 - [x] Live check by the owner (real key, gpt-5-mini): results in `docs/PROGRESS.md`; one known limitation is followed up in T3.5 (#76).
+
+### T5.7 Separate developer settings from practice settings (S)
+The brief's Medium #9: keep the developer settings (model, system prompts) apart from the user experience, since the user may not know much about LLMs (quoted in #63).
+**Acceptance criteria**
+- [x] The practice settings (interview type, role, seniority, New session) come first, under a "Practice settings" header.
+- [x] The developer settings (model, prompt strategy, reasoning effort) sit in a "Developer settings" expander, collapsed by default. Max tokens joins it when T7.5 (#64) lands.
+- [x] Defaults and widget keys are unchanged.
+
+**Tests**
+- [x] UI flow: the developer widgets are inside the expander and the practice widgets are not; settings changed inside the expander reach the fake LLM call.
+- [x] Manual (Claude, fake key, no LLM call): desktop and mobile widths in a browser; the expander stays open while a setting is changed and while the role warning appears or goes away.
 
 ### T5.8 Job-description analysis adds a short study plan (S)
 The brief's job description analyser "extracts the key skills, likely interview topics, and a short study plan" (quoted in #70), and T5.3 promises "paste JD → prep strategy", but the JD mode's instructions never asked for one.
@@ -380,7 +392,7 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [x] `CLAUDE.md` and the `qrspi` skill's Question phase say to read it before every ticket (and the full brief when the exact wording matters), name the brief item the ticket serves (or label it "beyond the brief (owner's request)"), and ask (not infer) when our docs or prompts contradict the brief or a choice changes what the product does. A contradiction with the brief or work beyond it is always flagged, even when the owner asks for it.
 
 ## Epic 7 — Optional / Portfolio Extras
-- T7.1 Session score tracker (replaces placeholder chart) — AC: scores parsed from structured output and charted per session.
+- T7.1 Session score tracker (the placeholder chart it was to replace was removed in T5.5) — AC: scores parsed from structured output and charted per session.
   - Tests: unit — scores are parsed from structured output, and malformed or missing scores are skipped without crashing; UI flow — after scored replies, the chart has one point per scored answer.
 - T7.2 Export practice session to Markdown — AC: download button yields the full transcript.
   - Tests: unit — the transcript builder turns the history into Markdown with every message in order; UI flow — with history, the download button is shown.
