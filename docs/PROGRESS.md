@@ -26,6 +26,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - Made in its own worktree (`.claude/worktrees/t6.13-readme-temperature`) from `main`, since a T6.10 session shares the main checkout (see T6.12's gotcha about commits landing on the wrong branch).
   - PR review round 1 (code-reviewer, approve; two nits fixed with the owner's OK): "A live check confirmed" became "A live check on gpt-5-mini confirmed", since T2.4 called only gpt-5-mini (the other two rest on the model list); "safe answer" became "predictable answer", so it does not read as content safety. The reviewer had no web access; the OpenRouter page had been read during research and matches the README.
   - PR review round 2 (code-reviewer, approve; two optional nits fixed with the owner's OK): the round-1 word changes had left two README lines over 100 characters, so the paragraph was re-wrapped (the rendered text is unchanged); the round-1 bullet above now says "round 1".
+  - PR review round 3 (code-reviewer, approve, no findings): the word-diff of the re-wrap shows no changed words, and every line of the paragraph is at most 100 characters.
 - **Follow-ups:** none.
 
 ## 2026-10-05 · T6.12 README: product choice, techniques, settings, guards and limits · #81 (closes #69)
