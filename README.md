@@ -143,15 +143,15 @@ default, so users who do not know LLMs can ignore them.
 **What temperature does, and why the app does not offer it.** Temperature controls how random
 the model's word choice is. The model writes one token at a time, picking from a list of likely
 next tokens. A low temperature makes it almost always pick the most likely one, so the same input
-gives nearly the same, predictable answer. A high temperature gives less likely tokens more of a chance,
-so answers vary more and sound less generic, but they can also drift off topic or contain more
-mistakes. [OpenRouter documents](https://openrouter.ai/docs/api-reference/parameters) a range of
-0.0 to 2.0 (default 1.0), and says that at 0 the model always gives the same response for a given
-input. For this coach, a low value would suit consistent feedback on answers, and a higher one
+gives nearly the same, predictable answer. A high temperature gives less likely tokens more of a
+chance, so answers vary more and sound less generic, but they can also drift off topic or contain
+more mistakes. [OpenRouter documents](https://openrouter.ai/docs/api-reference/parameters) a range
+of 0.0 to 2.0 (default 1.0), and says that at 0 the model always gives the same response for a
+given input. For this coach, a low value would suit consistent feedback on answers, and a higher one
 would suit more varied interview questions. But OpenRouter lists no `temperature` support for the
 three gpt-5 models. A live check on gpt-5-mini confirmed that it accepts the parameter but
-ignores it, so a temperature slider would have changed nothing. The app offers reasoning effort instead, which
-changes how long the model thinks, not how random its word choice is.
+ignores it, so a temperature slider would have changed nothing. The app offers reasoning effort
+instead, which changes how long the model thinks, not how random its word choice is.
 
 **What effort changed** (Structured output, one run per level, from `PROMPT_EVALUATION.md`):
 
