@@ -16,6 +16,48 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
+## 2026-10-05 · T6.12 README: product choice, techniques, settings, guards and limits · #TBD (closes #69)
+- **Brief:** documents mandatory requirement #1 (the kind of prep and why). Serves two evaluation parts: "core concepts" (prompt techniques, settings, the system/user/assistant roles, output types) and "reflection" (choice of techniques and settings, potential problems, improvements). In line with the brief. Docs only, no code change.
+- **What:**
+  - `README.md` grows from setup only to:
+    - what the app is and who it is for, why this kind of practice, and a table of the four interview types (what you send, what you get, the brief idea each serves);
+    - the setup steps, unchanged;
+    - how a message flows;
+    - the five strategies and their shared part, the T3.3 result and the owner's reason for Structured output, and the user prompt;
+    - the three roles;
+    - the model settings: the effort comparison table from `PROMPT_EVALUATION.md`, why temperature is not offered, and why the Max tokens field starts at the effort's budget;
+    - the output types;
+    - a guard table (what each does, its known limits);
+    - known problems and improvement ideas;
+    - development commands and links to the docs.
+  - The old "Model settings live in `src/config.py`" line is replaced: the constants are there, but users pick the settings in the sidebar.
+  - `docs/PLAN.md`: the product-decision line is final (no "change if you prefer") and describes all four interview types; a T6.12 entry is added.
+- **Why:**
+  - The owner confirmed the product description. For the "why", the owner chose Claude's facts-only draft (option a): the brief leaves the kind of practice open, and we combined four of its own examples into one chat coach for any role and level. No other reason is recorded in the repo.
+  - Claude drafted the README from the code and docs. Every number comes from `src/config.py`, `docs/PROMPT_EVALUATION.md` or a live check in this log. The Structured output reason summarises the owner's own text in `PROMPT_EVALUATION.md`, including that the tie does not show better quality.
+  - "Output types" was not checked against the full brief. The owner chose the default reading:
+    - the Markdown reply shapes per strategy and mode;
+    - the token usage line, the ✂️ warning and the no-answer error;
+    - a note that JSON output (Medium #2) is not done.
+- **Decisions & gotchas:**
+  - The known-problems list was checked against the current code, not only copied from old follow-ups.
+    - Already done, so left out: the guard copy box (T5.4), the locked input after 50 requests, the "not sent" / "no answer" captions and the max-tokens control (T7.5).
+    - Still open, so listed: the untrimmed history, the per-session rate limit, the regex-only injection guard, the leak visible while streaming, rendered Markdown images and links, the 46.6 s reply that did not time out (why is unknown), no price display, no "Continue" for cut-off replies, generic 402/403 messages, no deploy.
+  - The improvement ideas under "Answer quality" are Claude's suggestions, not tickets: placeholders instead of invented numbers, expectations per seniority level, and a bound on section length.
+  - README numbers will drift if `src/config.py` changes. The README names the constant where it matters (`MAX_TOKENS_CAP`).
+  - The README quotes no brief text (the repo is public). It names the course project and links `docs/BRIEF.md`.
+  - Review before the PR (code-reviewer, local; no factual errors, every number traced to its source). Fixed:
+    - a quoted brief phrase for the JSON task became "Medium #2 (two or more JSON output formats)";
+    - "the environment, both gitignored" now names the `OPENROUTER_API_KEY` variable (only the file is gitignored);
+    - Chain-of-thought's format replaces the rubric with one score (it read as if it added to Structured output's);
+    - the "Brief idea" column names each idea instead of mixing names and starter numbers;
+    - nits: `high` costs 2.6–3 times `medium`, not "about three"; the low-effort echo is of the prompt's instruction (a paraphrase); job-description analysis has one starter; changing (not picking) the effort resets Max tokens; the questions mode is "told not to" quiz you, not guaranteed.
+  - A T7.5 session shared the main checkout, so this branch was first created from T7.5's commit, and T7.5's PR-number commit (b830954) landed on it.
+    - The owner moved that commit back by hand, and T7.5 (#80) merged.
+    - This work then moved to its own worktree (`.claude/worktrees/t6.12-readme`) from `main` after the merge.
+    - The README describes T7.5's Max tokens field (500–16,000, step 500, reset when the effort changes).
+- **Follow-ups:** none ticketed. The deploy URL goes into the README with T6.3 (#26).
+
 ## 2026-10-05 · T7.5 Max tokens setting in the UI · #80 (closes #64)
 - **Brief:** serves Medium #1 (let the user tune the model settings, max tokens among them, through sliders or fields). In line with the brief. With model (T5.1) and reasoning effort (T2.4) already tunable, `BRIEF.md` now marks Medium #1 done; temperature is not offered because the gpt-5 models ignore it (T2.4).
 - **What:**

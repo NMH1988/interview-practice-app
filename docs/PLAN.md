@@ -25,7 +25,7 @@ tests/                  # all LLM calls mocked
 docs/BRIEF.md  docs/PLAN.md  docs/PROMPT_EVALUATION.md
 ```
 
-**Product decision (default, change if you prefer):** *Mock interview coach* — the user picks a role + interview type (behavioural, technical, questions-to-ask, job-description analysis), the app asks a question, the user answers, and the app gives feedback.
+**Product decision (final, T6.12):** *Mock interview coach* for any role and level. The user types a role, picks a seniority (Junior, Mid-level, Senior, Lead) and one of four interview types: **Behavioural** and **Technical** (the coach asks one question at a time, the user answers, and the coach gives feedback and a follow-up question), **Questions to ask the interviewer** (the coach suggests 5–8 questions and gives feedback on a question the user writes) and **Job-description analysis** (key skills, likely topics and a short study plan). The README explains the choice.
 
 ## Testing strategy
 Every ticket lists its own **Tests**, written in the same PR as the code (not saved up for T6.2).
@@ -390,6 +390,19 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 **Acceptance criteria**
 - [x] `docs/BRIEF.md` summarises the course brief in our own words (the repo is public): mandatory requirements, the "don't put it in a box" freedom, the five starter ideas, the optional tasks with the brief's numbering, the evaluation criteria and the bonus rule.
 - [x] `CLAUDE.md` and the `qrspi` skill's Question phase say to read it before every ticket (and the full brief when the exact wording matters), name the brief item the ticket serves (or label it "beyond the brief (owner's request)"), and ask (not infer) when our docs or prompts contradict the brief or a choice changes what the product does. A contradiction with the brief or work beyond it is always flagged, even when the owner asks for it.
+
+### T6.12 README: product choice, techniques, settings, guards and limits (M)
+**Acceptance criteria**
+- [x] README: what the app does and for whom, i.e. the chosen kind of prep (requirement #1) and why, with the four modes.
+- [x] README: the five system-prompt techniques and how they differ, the strategy chosen by T3.3 (#10) and why, and the user prompt we build.
+- [x] README: the model settings (model, reasoning effort per T2.4, max tokens) and what each changes; the system / user / assistant roles as the app uses them.
+- [x] README: the security guards (input, injection, rate limit, output) and their known limits.
+- [x] README: known problems and improvement ideas, drawn from the PROGRESS follow-ups.
+- [x] The product-decision line above states the final choice. The README's "Model settings live in `src/config.py`" line is corrected.
+- [ ] Owner reviews the wording. `docs/PROGRESS.md` entry added.
+
+**Tests**
+- None (docs only).
 
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (the placeholder chart it was to replace was removed in T5.5) — AC: scores parsed from structured output and charted per session.
