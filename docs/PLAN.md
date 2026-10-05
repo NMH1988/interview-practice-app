@@ -414,6 +414,15 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 **Tests**
 - None (docs only).
 
+### T6.13 README: explain what temperature does (S)
+**Acceptance criteria**
+- [x] README "Model settings": what temperature changes (how random the word choice is, low versus high and their trade-off), with the range and default from OpenRouter's parameter docs (linked).
+- [x] The paragraph keeps why the app does not offer it (T2.4's live check) and says how reasoning effort differs.
+- [x] `docs/PROGRESS.md` entry added.
+
+**Tests**
+- None (docs only).
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (the placeholder chart it was to replace was removed in T5.5) — AC: scores parsed from structured output and charted per session.
   - Tests: unit — scores are parsed from structured output, and malformed or missing scores are skipped without crashing; UI flow — after scored replies, the chart has one point per scored answer.
