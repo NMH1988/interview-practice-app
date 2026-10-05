@@ -43,7 +43,7 @@ Do these **only after the core app works**. Anyone with software experience is i
 5. Concise vs. detailed answers through prompting.
 6. Have the model draft interviewer guidelines: a structured scoring guide for technical and behavioural interviews.
 7. Mock interview with AI personas (strict, neutral, friendly). (*partly done:* the `persona` strategy is a strict senior interviewer, T3.2; no neutral or friendly persona)
-8. Pick a model setting (temperature, max tokens, reasoning effort, ...), try a few values and note how the answers change. (*partly done:* reasoning effort select, T2.4 #68; the comparison is *planned* in T3.3 #10)
+8. Pick a model setting (temperature, max tokens, reasoning effort, ...), try a few values and note how the answers change. (*done:* reasoning effort select, T2.4 #68; the four levels compared in T3.3 #10, `docs/PROMPT_EVALUATION.md`)
 
 **Medium**
 1. Let the user set every model setting (model, temperature, max tokens, ...) through sliders or fields. (*partly done:* model since T5.1, reasoning effort since T2.4 #68, which replaced the temperature slider the gpt-5 models ignore; max tokens *planned:* #64)
@@ -61,7 +61,7 @@ Do these **only after the core app works**. Anyone with software experience is i
 2. LangChain chains or agents.
 3. A vector database to spot interview data seen before and prompt for new data.
 4. Open-source LLMs.
-5. Assess prompt or model performance, e.g. LLM-as-a-judge, or another method. (*planned:* T3.3, #10, compares the five strategies)
+5. Assess prompt or model performance, e.g. LLM-as-a-judge, or another method. (*done:* T3.3, #10: the five strategies scored by hand on a rubric, `docs/PROMPT_EVALUATION.md`; no LLM-as-a-judge)
 
 ## How the project is evaluated
 

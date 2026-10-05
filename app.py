@@ -13,6 +13,7 @@ from src.config import (
     DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
     DEFAULT_SENIORITY,
+    DEFAULT_STRATEGY,
     MAX_ROLE_CHARS,
     MAX_TOKENS_BY_EFFORT,
     REASONING_EFFORTS,
@@ -244,10 +245,12 @@ with st.sidebar:
         model = st.selectbox(
             "Model", ALLOWED_MODELS, index=ALLOWED_MODELS.index(DEFAULT_MODEL), key="model"
         )
-        # Shows each strategy by its technique label; the key picks the system prompt.
+        # Shows each strategy by its technique label; the key picks the system prompt. Starts at
+        # the strategy that won the T3.3 evaluation.
         strategy = st.selectbox(
             "Prompt strategy",
             list(STRATEGIES),
+            index=list(STRATEGIES).index(DEFAULT_STRATEGY),
             format_func=STRATEGY_LABELS.__getitem__,
             key="strategy",
         )

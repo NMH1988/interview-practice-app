@@ -5,7 +5,7 @@ from streamlit import config as st_config
 from streamlit.runtime.secrets import Secrets
 
 from src import config
-from src.prompts import SENIORITY_LEVELS
+from src.prompts import SENIORITY_LEVELS, STRATEGIES
 
 
 def test_allowed_models():
@@ -93,6 +93,12 @@ def test_default_rate_limits():
 def test_default_seniority_is_a_known_level():
     """The default seniority is one of the levels the user prompt accepts."""
     assert config.DEFAULT_SENIORITY in SENIORITY_LEVELS
+
+
+def test_default_strategy_is_the_evaluation_winner_and_registered():
+    """The default strategy exists in the registry and is the T3.3 winner, Structured output."""
+    assert config.DEFAULT_STRATEGY in STRATEGIES
+    assert config.DEFAULT_STRATEGY == "structured_output"
 
 
 class _NoSecretsFile:

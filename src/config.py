@@ -56,6 +56,9 @@ DEFAULT_ROLE = "Software Engineer"
 MAX_ROLE_CHARS = 60
 # Must be one of prompts.SENIORITY_LEVELS (a test checks this).
 DEFAULT_SENIORITY = "Mid-level"
+# The prompt strategy the app starts with: the winner of the T3.3 evaluation
+# (docs/PROMPT_EVALUATION.md). Must be a key of prompts.STRATEGIES (a test checks this).
+DEFAULT_STRATEGY = "structured_output"
 
 API_KEY_NAME = "OPENROUTER_API_KEY"
 

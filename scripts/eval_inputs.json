@@ -1,0 +1,39 @@
+[
+  {
+    "id": "qta-suggest",
+    "role": "SAP Developer",
+    "interview_type": "Questions to ask the interviewer",
+    "seniority": "Senior",
+    "text": "I'm interviewing at Velnora Logistics. They are replacing several legacy warehouse systems with SAP S/4HANA. What would be good questions to ask at the end of the interview?"
+  },
+  {
+    "id": "behavioral",
+    "role": "Marketing Manager",
+    "interview_type": "Behavioural",
+    "seniority": "Senior",
+    "question": "Tell me about a time when you had a disagreement with a teammate. How did you handle the situation, and what was the outcome?",
+    "text": "During a product launch, a teammate and I disagreed about whether to move more budget from email to paid social. We reviewed the previous campaign results and discussed both approaches with the team. In the end, we agreed to test both channels before making a larger budget shift. The launch went ahead on time, but I did not track the final impact of the decision myself."
+  },
+  {
+    "id": "technical",
+    "role": "Software Engineer",
+    "interview_type": "Technical",
+    "seniority": "Junior",
+    "question": "Can you explain the difference between a REST API and a GraphQL API, and when you would choose one over the other?",
+    "text": "REST uses multiple endpoints and fixed responses, while GraphQL uses one endpoint and lets the client request exactly the data it needs. I would choose REST for simpler APIs and GraphQL for more flexible data requirements."
+  },
+  {
+    "id": "qta-own",
+    "role": "Software Engineer",
+    "interview_type": "Questions to ask the interviewer",
+    "seniority": "Lead",
+    "text": "Please help me evaluate whether this is a good question: \"I would like to know more about the upcoming projects that I could be involved in.\""
+  },
+  {
+    "id": "jd-review",
+    "role": "SAP Developer",
+    "interview_type": "Job-description analysis",
+    "seniority": "Mid-level",
+    "text": "Can you help me prepare for an interview based on this job description?\n\nSAP Developer - Orvexa Manufacturing\n\nResponsibilities:\n- Develop and maintain ABAP applications in an SAP S/4HANA environment.\n- Build CDS views and OData services for business applications.\n- Integrate SAP systems with external services and APIs.\n- Analyze and resolve technical issues and performance problems.\n- Participate in code reviews and work with functional consultants and other developers.\n\nRequirements:\n- At least 3 years of experience with ABAP development.\n- Experience with SAP S/4HANA, CDS views, and OData.\n- Good knowledge of SQL and REST APIs.\n- Experience with Git and modern development workflows.\n- Ability to work in an Agile team and communicate with technical and non-technical stakeholders.\n- Good English communication skills."
+  }
+]
