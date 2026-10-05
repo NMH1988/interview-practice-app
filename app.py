@@ -8,7 +8,6 @@ from src import llm, rate_limit
 from src.config import (
     ALLOWED_MODELS,
     API_KEY_NAME,
-    DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
     DEFAULT_REASONING_EFFORT,
     DEFAULT_ROLE,
@@ -16,6 +15,9 @@ from src.config import (
     DEFAULT_STRATEGY,
     MAX_ROLE_CHARS,
     MAX_TOKENS_BY_EFFORT,
+    MAX_TOKENS_CAP,
+    MAX_TOKENS_STEP,
+    MIN_MAX_TOKENS,
     REASONING_EFFORTS,
     MissingAPIKeyError,
     SecretsFileError,
@@ -78,6 +80,13 @@ st.session_state.setdefault("notice", None)
 # When each request went to the LLM (rate_limit.clock() seconds), for the rate limit. Kept by
 # "New session", which only clears the chat, so it cannot be used to skip the limit.
 st.session_state.setdefault("request_times", [])
+# The Max tokens field's value. Set here rather than with the widget's value=, because changing the
+# reasoning effort writes it too (T7.5), and Streamlit warns when a widget has both. It follows the
+# effort already picked, if any (a session kept across a code reload may have one).
+st.session_state.setdefault(
+    "max_tokens",
+    MAX_TOKENS_BY_EFFORT[st.session_state.get("reasoning_effort", DEFAULT_REASONING_EFFORT)],
+)
 
 INTERRUPTED = "The answer was interrupted before it finished."
 CUT_OFF = "The answer was cut off because it reached the token limit."
@@ -119,6 +128,13 @@ def use_example(interview_type: str, index: int) -> None:
     st.session_state.pending = starters[index].text
 
 
+def reset_max_tokens() -> None:
+    """Set the Max tokens field to the newly chosen reasoning effort's own budget."""
+    # Higher effort thinks longer, so it starts with a larger budget (T2.5); a value the user typed
+    # before is replaced, and can be changed again afterwards (T7.5).
+    st.session_state.max_tokens = MAX_TOKENS_BY_EFFORT[st.session_state.reasoning_effort]
+
+
 def new_session() -> None:
     """Forget the chat history and anything still waiting to be sent or shown."""
     st.session_state.history = []
@@ -142,6 +158,7 @@ def reply_pieces(
     system_prompt: str,
     model: str,
     reasoning_effort: str,
+    max_tokens: int,
     clean: str,
     user_prompt: str,
     request_times: list[float],
@@ -159,11 +176,9 @@ def reply_pieces(
     received = []
     try:
         # Checks the model, effort and key now (a failure here sends nothing); the request itself
-        # goes out on the stream's first next().
-        # Higher effort thinks longer, so it gets a larger token budget (T2.5). .get(), so an
-        # unknown effort still reaches llm.stream and fails there as an LLMError, not a KeyError.
-        budget = MAX_TOKENS_BY_EFFORT.get(reasoning_effort, DEFAULT_MAX_TOKENS)
-        stream = llm.stream(messages, model, reasoning_effort, budget)
+        # goes out on the stream's first next(). max_tokens is the sidebar's field, which starts
+        # at the effort's budget (T2.5, T7.5); llm clamps it to MAX_TOKENS_CAP whatever it is.
+        stream = llm.stream(messages, model, reasoning_effort, max_tokens)
         # Counted here, just before the request goes out (a failed or cut-short one may still
         # have spent tokens). A plain list append, and nothing from llm.stream to the request
         # touches st.session_state, so no stop point falls between counting and sending: a
@@ -261,13 +276,31 @@ with st.sidebar:
             index=REASONING_EFFORTS.index(DEFAULT_REASONING_EFFORT),
             format_func=str.capitalize,
             key="reasoning_effort",
+            on_change=reset_max_tokens,
             help=(
                 "How long the model thinks before it answers. Higher effort can give deeper, "
                 "more careful feedback, but it is slower and uses more tokens. The thinking "
-                "counts against the token limit, so High gets a larger limit "
-                f"({MAX_TOKENS_BY_EFFORT['high']:,} tokens instead of "
-                f"{MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}), which can also cost more "
-                "per reply."
+                "counts against the token limit, so picking High also raises Max tokens to "
+                f"{MAX_TOKENS_BY_EFFORT['high']:,} "
+                f"({MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,} for the others), which can "
+                "cost more per reply."
+            ),
+        )
+        # Its value comes from st.session_state.max_tokens (set above). The browser keeps it
+        # within the bounds, and Streamlit replaces a value sent past them with the minimum; llm
+        # clamps every request to the cap as well.
+        max_tokens = st.number_input(
+            "Max tokens",
+            min_value=MIN_MAX_TOKENS,
+            max_value=MAX_TOKENS_CAP,
+            step=MAX_TOKENS_STEP,
+            key="max_tokens",
+            help=(
+                f"The most tokens one reply may use, up to {MAX_TOKENS_CAP:,}. gpt-5 models spend "
+                "their thinking from the same budget, so a low limit can cut the answer off (✂️) "
+                "or leave no answer at all. Changing Reasoning effort resets this to that "
+                f"effort's limit ({MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,}, or "
+                f"{MAX_TOKENS_BY_EFFORT['high']:,} for High)."
             ),
         )
 
@@ -375,7 +408,14 @@ if message is not None:
             system_prompt = STRATEGIES[strategy](clean_role, interview_type)
             messages = build_messages(system_prompt, st.session_state.history, user_prompt)
             pieces = reply_pieces(
-                messages, system_prompt, model, reasoning_effort, clean, user_prompt, request_times
+                messages,
+                system_prompt,
+                model,
+                reasoning_effort,
+                max_tokens,
+                clean,
+                user_prompt,
+                request_times,
             )
             try:
                 with st.chat_message("assistant"):

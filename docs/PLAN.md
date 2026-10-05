@@ -291,7 +291,7 @@ The brief's starter idea is a generator: company name and role in, 5–8 thought
 The brief's Medium #9: keep the developer settings (model, system prompts) apart from the user experience, since the user may not know much about LLMs (quoted in #63).
 **Acceptance criteria**
 - [x] The practice settings (interview type, role, seniority, New session) come first, under a "Practice settings" header.
-- [x] The developer settings (model, prompt strategy, reasoning effort) sit in a "Developer settings" expander, collapsed by default. Max tokens joins it when T7.5 (#64) lands.
+- [x] The developer settings (model, prompt strategy, reasoning effort) sit in a "Developer settings" expander, collapsed by default. Max tokens joined it in T7.5 (#64).
 - [x] Defaults and widget keys are unchanged.
 
 **Tests**
@@ -400,6 +400,18 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
   - Tests: unit (mocked embeddings) — retrieval returns the top-k most similar questions, the seed file has ≥ 20 questions, and retrieved questions appear cited in the built prompt.
 - T7.4 Prompt A/B comparison view — AC: same input run through two strategies side by side.
   - Tests: UI flow — one input is sent to the fake LLM twice with two different system prompts, and both replies are shown side by side.
+
+### T7.5 Max tokens setting in the UI (S)
+The brief's Medium #1: let the user tune the model settings (model, temperature, max tokens, ...) through sliders or fields (quoted in #64).
+**Acceptance criteria**
+- [x] A "Max tokens" number field in the "Developer settings" expander, after Reasoning effort, from `MIN_MAX_TOKENS` (500) to `MAX_TOKENS_CAP` (16,000) in steps of 500.
+- [x] It starts at the chosen effort's budget (`MAX_TOKENS_BY_EFFORT`, so 4,000 at the default `medium`), and changing the effort resets it to the new effort's budget (owner's choice; keeps T2.5's larger budget for `high`). #64 said "default `DEFAULT_MAX_TOKENS`"; T2.5's follow-up asked for the effort's budget instead.
+- [x] The chosen value reaches `llm.stream`; `_send` still clamps it to the cap.
+- [x] Its help says gpt-5 models spend their thinking from the same budget, so a low value can cut the answer off (✂️) or leave no answer.
+
+**Tests**
+- [x] UI flow: the field's bounds and default; a typed value reaches the fake LLM call; a value past the bounds never does; changing the effort resets it; a value typed after the effort, and "New session", keep it.
+- [x] Manual (Claude, no LLM call): in a browser, picking High sets the field to 16,000; typing 20,000 is refused with "Number is outside the allowed range"; desktop and 375 px.
 
 ---
 

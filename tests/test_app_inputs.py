@@ -14,6 +14,8 @@ from src.config import (
     MAX_ROLE_CHARS,
     MAX_TOKENS_BY_EFFORT,
     MAX_TOKENS_CAP,
+    MAX_TOKENS_STEP,
+    MIN_MAX_TOKENS,
     REASONING_EFFORTS,
 )
 from src.guard import INJECTION_REFUSAL
@@ -54,11 +56,26 @@ def test_reasoning_effort_select_levels_and_default(fake_llm):
 
 
 def test_reasoning_effort_help_names_both_token_limits(fake_llm):
-    """The help says thinking uses the token limit and that High gets the larger one (T2.5)."""
+    """The help says thinking uses the token limit and that High raises Max tokens (T2.5, T7.5)."""
     help_text = start().sidebar.selectbox(key="reasoning_effort").help
     assert "thinking counts against the token limit" in help_text
-    assert f"High gets a larger limit ({MAX_TOKENS_BY_EFFORT['high']:,} tokens" in help_text
-    assert f"instead of {MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]:,})" in help_text
+    high, others = MAX_TOKENS_BY_EFFORT["high"], MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]
+    assert f"picking High also raises Max tokens to {high:,} ({others:,} for the others)" in (
+        help_text
+    )
+
+
+def test_max_tokens_help_warns_about_thinking_and_the_reset(fake_llm):
+    """The Max tokens help names the cap, the shared thinking budget and the reset on effort."""
+    help_text = start().sidebar.number_input(key="max_tokens").help
+    assert f"up to {MAX_TOKENS_CAP:,}" in help_text
+    assert "spend their thinking from the same budget" in help_text
+    assert "cut the answer off (✂️)" in help_text
+    high, others = MAX_TOKENS_BY_EFFORT["high"], MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT]
+    assert f"Changing Reasoning effort resets this to that effort's limit ({others:,}, or " in (
+        help_text
+    )
+    assert f"{high:,} for High)" in help_text
 
 
 def test_no_temperature_slider_remains(fake_llm):
@@ -105,6 +122,89 @@ def test_token_budget_follows_the_reasoning_effort(fake_llm, effort):
     assert fake_llm.calls[0]["max_tokens"] <= MAX_TOKENS_CAP
 
 
+def test_max_tokens_field_bounds_and_default(fake_llm):
+    """The Max tokens field sits after the effort select, starts at its budget, stops at the cap."""
+    developer = start().sidebar.expander[0]
+    field = developer.number_input(key="max_tokens")
+    assert field.label == "Max tokens"
+    assert field.value == MAX_TOKENS_BY_EFFORT[DEFAULT_REASONING_EFFORT] == 4000
+    assert (field.min, field.max, field.step) == (MIN_MAX_TOKENS, MAX_TOKENS_CAP, MAX_TOKENS_STEP)
+    widget_keys = [n.key for n in developer.children.values() if getattr(n, "key", None)]
+    assert widget_keys[-2:] == ["reasoning_effort", "max_tokens"]
+    assert fake_llm.calls == []
+
+
+def test_chosen_max_tokens_reaches_the_llm(fake_llm):
+    """A max tokens value typed into the field is the one the LLM call gets."""
+    at = start()
+    at.sidebar.number_input(key="max_tokens").set_value(2500).run(timeout=30)
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    assert not at.exception
+    assert len(fake_llm.calls) == 1
+    assert fake_llm.calls[0]["max_tokens"] == 2500
+    assert fake_llm.calls[0]["reasoning_effort"] == DEFAULT_REASONING_EFFORT
+
+
+@pytest.mark.parametrize("value", [MAX_TOKENS_CAP + MAX_TOKENS_STEP, MIN_MAX_TOKENS - 1])
+def test_max_tokens_outside_the_bounds_never_reaches_the_llm(fake_llm, value):
+    """A value past the field's bounds (the browser blocks it) is not what the LLM call gets."""
+    at = start()
+    # Streamlit drops an out-of-range value sent to the server and uses the field's default.
+    at.sidebar.number_input(key="max_tokens").set_value(value).run(timeout=30)
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    assert not at.exception
+    assert len(fake_llm.calls) == 1
+    assert MIN_MAX_TOKENS <= fake_llm.calls[0]["max_tokens"] <= MAX_TOKENS_CAP
+
+
+@pytest.mark.parametrize("effort", ["high", "minimal"])
+def test_changing_the_effort_resets_max_tokens_to_its_budget(fake_llm, effort):
+    """Picking an effort sets the field to that effort's budget, over a value typed before."""
+    at = start()
+    at.sidebar.number_input(key="max_tokens").set_value(2500).run(timeout=30)
+    at.sidebar.selectbox(key="reasoning_effort").set_value(effort).run(timeout=30)
+    assert not at.exception
+    assert at.sidebar.number_input(key="max_tokens").value == MAX_TOKENS_BY_EFFORT[effort]
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    assert fake_llm.calls[0]["max_tokens"] == MAX_TOKENS_BY_EFFORT[effort]
+
+
+@pytest.mark.parametrize("effort", ["medium", "low"])
+def test_leaving_high_effort_lowers_max_tokens_again(fake_llm, effort):
+    """Going from High back to a lower effort drops the field to that effort's budget."""
+    at = start()
+    at.sidebar.selectbox(key="reasoning_effort").set_value("high").run(timeout=30)
+    assert at.sidebar.number_input(key="max_tokens").value == MAX_TOKENS_BY_EFFORT["high"]
+    at.sidebar.selectbox(key="reasoning_effort").set_value(effort).run(timeout=30)
+    assert not at.exception
+    assert at.sidebar.number_input(key="max_tokens").value == MAX_TOKENS_BY_EFFORT[effort]
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    assert fake_llm.calls[0]["max_tokens"] == MAX_TOKENS_BY_EFFORT[effort] == 4000
+
+
+def test_max_tokens_typed_after_the_effort_is_kept(fake_llm):
+    """A value typed after picking an effort is sent as typed, and stays for the next message."""
+    at = start()
+    at.sidebar.selectbox(key="reasoning_effort").set_value("high").run(timeout=30)
+    at.sidebar.number_input(key="max_tokens").set_value(6000).run(timeout=30)
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    at.chat_input[0].set_value("And your weaknesses?").run(timeout=30)
+    assert not at.exception
+    assert [call["max_tokens"] for call in fake_llm.calls] == [6000, 6000]
+    assert [call["reasoning_effort"] for call in fake_llm.calls] == ["high", "high"]
+
+
+def test_new_session_keeps_the_max_tokens_value(fake_llm):
+    """The New session button clears the chat only, so a chosen max tokens value stays."""
+    at = start()
+    at.sidebar.number_input(key="max_tokens").set_value(2500).run(timeout=30)
+    at.chat_input[0].set_value("Tell me about yourself.").run(timeout=30)
+    at.sidebar.button[0].click().run(timeout=30)
+    assert not at.exception
+    assert at.session_state.history == []
+    assert at.sidebar.number_input(key="max_tokens").value == 2500
+
+
 def test_practice_settings_come_first_outside_the_expander(fake_llm):
     """Practice settings and "New session" come first, under their header, before the expander."""
     at = start()
@@ -129,6 +229,7 @@ def test_developer_settings_sit_in_a_collapsed_expander(fake_llm):
     assert developer.key == "developer_settings"
     assert developer.proto.expanded is False
     assert [s.key for s in developer.selectbox] == ["model", "strategy", "reasoning_effort"]
+    assert [n.key for n in developer.number_input] == ["max_tokens"]
     assert [c.value for c in developer.caption] == [
         "Model and prompt settings for comparing results. The defaults work well for practice."
     ]

@@ -46,7 +46,7 @@ Do these **only after the core app works**. Anyone with software experience is i
 8. Pick a model setting (temperature, max tokens, reasoning effort, ...), try a few values and note how the answers change. (*done:* reasoning effort select, T2.4 #68; the four levels compared in T3.3 #10, `docs/PROMPT_EVALUATION.md`)
 
 **Medium**
-1. Let the user set every model setting (model, temperature, max tokens, ...) through sliders or fields. (*partly done:* model since T5.1, reasoning effort since T2.4 #68, which replaced the temperature slider the gpt-5 models ignore; max tokens *planned:* #64)
+1. Let the user set every model setting (model, temperature, max tokens, ...) through sliders or fields. (*done:* model since T5.1, reasoning effort since T2.4 #68, max tokens since T7.5 #64, all under "Developer settings"; no temperature, because the gpt-5 models ignore it, T2.4)
 2. Two or more structured JSON output formats.
 3. Show the price of the prompt (pricing from OpenRouter's models endpoint).
 4. Read the OpenRouter docs and implement your own improvement.

@@ -23,7 +23,8 @@ DEFAULT_MAX_TOKENS = 4000
 # 16,000 leaves room for twice that thinking plus a long reply. OpenRouter bills the tokens
 # used, not this limit, so the cost only rises when the model really thinks that long.
 HIGH_EFFORT_MAX_TOKENS = 16000
-# The max_tokens the app sends for each reasoning effort (one entry per REASONING_EFFORTS level).
+# The max_tokens budget for each reasoning effort (one entry per REASONING_EFFORTS level). The
+# sidebar's Max tokens field starts here and is reset here when the effort changes (T7.5).
 MAX_TOKENS_BY_EFFORT: Mapping[str, int] = MappingProxyType(
     {
         "minimal": DEFAULT_MAX_TOKENS,
@@ -35,6 +36,11 @@ MAX_TOKENS_BY_EFFORT: Mapping[str, int] = MappingProxyType(
 # Every request is clamped to this, whatever a caller asks for, to bound the cost of one reply.
 # The largest budget above, so "high" fits and nothing can ask for more.
 MAX_TOKENS_CAP = 16000
+# Bounds of the sidebar's Max tokens field (T7.5): it starts at the effort's budget above and goes
+# from this minimum up to MAX_TOKENS_CAP, in steps of MAX_TOKENS_STEP. A low value can still be
+# used up by thinking alone; the app then shows the cut-off warning or "no answer" error.
+MIN_MAX_TOKENS = 500
+MAX_TOKENS_STEP = 500
 
 # Longest user message (after cleaning) the guard lets through to the LLM.
 MAX_INPUT_CHARS = 2000
