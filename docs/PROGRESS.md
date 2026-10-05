@@ -20,7 +20,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 - **Brief:** documents mandatory requirement #1 (the kind of prep and why). Serves two evaluation parts: "core concepts" (prompt techniques, settings, the system/user/assistant roles, output types) and "reflection" (choice of techniques and settings, potential problems, improvements). In line with the brief. Docs only, no code change.
 - **What:**
   - `README.md` grows from setup only to:
-    - what the app is and who it is for, why this kind of practice, and a table of the four interview types (what you send, what you get, the brief idea each serves);
+    - what the app is and who it is for, why this kind of practice, and a table of the four interview types (what you send, what you get, the brief example each covers);
     - the setup steps, unchanged;
     - how a message flows;
     - the five strategies and their shared part, the T3.3 result and the owner's reason for Structured output, and the user prompt;
@@ -60,9 +60,10 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
   - PR review round 1 (code-reviewer, posted on #81, ready to merge, no must or should fix; CI green on b727fb2), four nits fixed:
     - `high` against `medium` is "2.6–3.1 times", as in `PROMPT_EVALUATION.md` (the local review's fix had written "2.6–3");
     - the mode table's last column cites one list, the brief's examples ("Brief example it covers"), with the starter-idea numbers as "also";
-    - the setup note no longer suggests a `.env` file works: only `secrets.toml` is gitignored and read, or the shell variable;
+    - the setup note no longer suggests a `.env` file works: the app reads only `secrets.toml` (gitignored) or the shell variable;
     - the PR body says the guard table has the four guards plus secrets and errors.
     - Its question, whether to name OpenRouter keep-alive messages as the likely reason the 46.6 s reply did not hit the 30 s per-read timeout: the owner keeps it open until measured.
+  - PR review round 2 (code-reviewer, posted on #81, ready to merge, no must or should fix; CI green on 3c852da): all four round-1 nits confirmed fixed. Two nits in this entry fixed: the round-1 note said only `secrets.toml` is gitignored (`.env` is too, and `tests/test_secrets_hygiene.py` checks it; the app just does not read it), and the "What" list used the old column name.
 - **Follow-ups:** none ticketed. The deploy URL goes into the README with T6.3 (#26).
 
 ## 2026-10-05 · T7.5 Max tokens setting in the UI · #80 (closes #64)
