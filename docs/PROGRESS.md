@@ -37,12 +37,17 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - T6.1 gets "(S)" like the other T6 tickets; Claude proposed the heading and the owner approved it.
   - T6.8's "every ticket that changes code has a Tests list" counts CI and process tickets (T6.1, T6.5, T6.7, T6.8, T6.11) as not code, following T6.8's entry (which names T6.1, T6.5 and T6.7; T6.11 came later).
   - Review before the PR (code-reviewer, local): every ticked box and every fact in this entry was checked again on `origin/main` and GitHub. It asked to rename #24 before merging (done with the PR) and to fill in the PR number. One nit was fixed: the PR-template follow-up comes from T6.7, not T6.6.
-  - PR review round 1 (code-reviewer, posted on #84, ready to merge, no must or should fix; CI green on 3e3eb3f). Fixed:
-    - this entry says #24 was renamed to "T6.1 CI pipeline (S)", not only that it lost the ✅;
-    - the not-code ticket list adds T6.8 and no longer says T6.8's entry names T6.11;
-    - PLAN's T6.10 criterion says T6.1 "was" marked ✅.
+  - PR review round 1 (code-reviewer, posted on #84, ready to merge, no must or should fix; CI green on 3e3eb3f):
+    - Three nits fixed:
+      - this entry says #24 was renamed to "T6.1 CI pipeline (S)", not only that it lost the ✅;
+      - the not-code ticket list adds T6.8 and no longer says T6.8's entry names T6.11;
+      - PLAN's T6.10 criterion says T6.1 "was" marked ✅.
     - Its optional point (outside #65), on the owner's request: #24's body now ticks the two boxes met, like PLAN.
     - Its question, the merge order with #83 (T6.13): #83 merged first (`2d28e13`), so this PR conflicted at the top of this log. It was resolved locally by merging `origin/main` (`merge=union`), then checked: T6.10's entry is above T6.13's, the removed "Entries marked" line did not come back, there is one `---`, and the blank line between the two entries, which the union merge dropped, was put back.
+  - PR review round 2 (code-reviewer, posted on #84, needs changes; no CI on 670f281 because the PR conflicted with `main`). All round-1 points confirmed fixed, and #24's body matches PLAN's T6.1 section box for box.
+    - Must fix: the conflict with `main` after #83 merged. Resolved as described in the round-1 bullet above (merge `d74ee37`, blank line restored in `49fd0b5`).
+    - Should fix: the merge-order bullet still described a future merge and had dropped round 1's "the PR merged last goes on top". It now records how the conflict was resolved.
+    - Nits fixed with the owner's OK: the round-1 record had its optional point and question at the same level as the fixed nits, so the nits now sit under their own sub-bullet; the PR description also mentions #24's body edit.
 - **Follow-ups:**
   - Turn on branch protection for `main` (require `lint`, `test`, `security`, and `linked-issue` from T6.6), then tick T6.1's last box and close #24.
   - Check T6.6's Dependabot skip on the next Dependabot push.
