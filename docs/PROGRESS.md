@@ -16,7 +16,7 @@ Entries marked *(open when logged)* were backfilled while their PR was still ope
 
 ---
 
-## 2026-10-05 · T7.5 Max tokens setting in the UI · #TBD (closes #64)
+## 2026-10-05 · T7.5 Max tokens setting in the UI · #80 (closes #64)
 - **Brief:** serves Medium #1 (let the user tune the model settings, max tokens among them, through sliders or fields). In line with the brief. With model (T5.1) and reasoning effort (T2.4) already tunable, `BRIEF.md` now marks Medium #1 done; temperature is not offered because the gpt-5 models ignore it (T2.4).
 - **What:**
   - `src/config.py`: `MIN_MAX_TOKENS = 500` and `MAX_TOKENS_STEP = 500`, the field's lower bound and step; the cap stays `MAX_TOKENS_CAP` (16,000).
