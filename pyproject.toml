@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
     "openai==3.22.1",
-    "streamlit==1.64.0",
+    "streamlit==1.65.0",
 ]
 
 [tool.ruff]
