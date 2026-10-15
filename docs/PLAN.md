@@ -423,6 +423,15 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 **Tests**
 - None (docs only).
 
+### T6.15 README: why spoken-answer practice is not offered (S)
+Beyond the brief (owner's request, from the 2026-10-15 project review); docs only.
+**Acceptance criteria**
+- [x] README "Known problems and improvement ideas" says spoken practice is not offered, why (the allowed models take no audio) and what adding it would need.
+- [x] `docs/PROGRESS.md` entry added.
+
+**Tests**
+- None (docs only).
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (the placeholder chart it was to replace was removed in T5.5) — AC: scores parsed from structured output and charted per session.
   - Tests: unit — scores are parsed from structured output, and malformed or missing scores are skipped without crashing; UI flow — after scored replies, the chart has one point per scored answer.
