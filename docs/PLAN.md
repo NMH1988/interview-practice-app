@@ -410,10 +410,10 @@ Beyond the brief (owner's request, from the 2026-10-15 project review): code qua
 **Acceptance criteria**
 - [x] `CLAUDE.md` has a "Code conventions" section: one-line docstring on every function, method and class (tests and fixtures included), and a plain-language "what I did and why" walkthrough after each task.
 - [x] The `qrspi` skill's Implement phase repeats both rules.
-- [x] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no one-line docstring.
+- [x] A test fails CI when a function or class in `app.py`, `src/` or `tests/` has no one-line docstring. *(T6.14 removed this test: the convention stays, and review checks it.)*
 
 **Tests**
-- [x] Unit: `tests/test_conventions.py` passes on the current tree.
+- [x] Unit: `tests/test_conventions.py` passes on the current tree. *(Removed by T6.14, together with the unit tests of `missing_docstrings` listed below.)*
 - [x] Unit: `missing_docstrings` reports, by `file:line name`, an undocumented function, class, method, nested helper, async function, an empty docstring and a multi-line docstring in a temporary file, and nothing for documented ones.
 - [x] Unit: a UTF-8 BOM file is still checked, and a file that does not parse raises a SyntaxError naming it.
 - [x] Unit: the repo-wide check fails if `src/` or `tests/` is missing, so a renamed folder cannot go unchecked.
@@ -454,6 +454,19 @@ Beyond the brief (owner's request, from the 2026-10-15 project review): code qua
 
 **Tests**
 - None (docs only).
+
+### T6.14 Tests check behaviour, not wording or docstrings (M)
+Beyond the brief (owner's request, from the 2026-10-15 project review): our own test suite and process docs; the only `src/` change is a rename of four prompt constants (no behaviour change).
+**Acceptance criteria**
+- [x] The raw-HTML scan looks for `**kwargs` only on calls that render text (`markdown`, `write`, `caption`, `html`); `unsafe_allow_html`, a second positional argument, a call to `html` and imports of `streamlit.html` / `components` are still flagged. A `**kwargs` call to anything else is not.
+- [x] `tests/test_conventions.py` is removed; `CLAUDE.md`, the `qrspi` skill and the code-reviewer agent say the docstring convention is checked in review, not by a test.
+- [x] Tests that copied whole prompt sentences are replaced: the technique markers come from the prompt constants, and every strategy still includes the shared rules and its own mode block (checked through the constants).
+- [x] Tests for behaviour, escaping, user_input tags and message roles are kept.
+- [x] `docs/PLAN.md` gets a T6.14 entry; `docs/PROGRESS.md` gets this PR's entry.
+
+**Tests**
+- [x] Unit: the HTML scan flags `st.markdown(x, unsafe_allow_html=True)`, `st.markdown(x, **opts)` and `st.html(x)`, and does not flag `client.create(**kwargs)` or `dict(**d)`.
+- [x] The full suite still passes with fewer, behaviour-based prompt tests.
 
 ### T6.15 README: why spoken-answer practice is not offered (S)
 Beyond the brief (owner's request, from the 2026-10-15 project review); docs only.

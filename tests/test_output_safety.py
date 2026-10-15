@@ -18,6 +18,9 @@ COMBINING_JOINER = chr(0x034F)
 NB_HYPHEN = chr(0x2011)
 # Streamlit calls whose second positional argument is `unsafe_allow_html`.
 FLAG_SECOND_ARG = {"markdown", "caption"}
+# Calls that render text on the page: the only place `**kwargs` could hide the raw-HTML flag, and
+# the names whose `from streamlit import ...` is flagged, since a renamed call could hide it too.
+RENDER_CALLS = {"markdown", "write", "caption", "html"}
 
 PROMPTS = {key: strategy("Technical") for key, strategy in STRATEGIES.items()}
 
@@ -170,15 +173,16 @@ def html_render_nodes(path: Path) -> list[ast.AST]:
     nodes = []
     for node in ast.walk(ast.parse(path.read_bytes(), filename=str(path))):
         if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("streamlit"):
-            if any(alias.name in {"html", "components"} for alias in node.names):
+            if any(alias.name in {"components", *RENDER_CALLS} for alias in node.names):
                 nodes.append(node)
         if not isinstance(node, ast.Call):
             continue
         func = node.func
         name = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-        # `**kwargs` can hide the flag, so it counts as unsafe too.
+        # Anything that sets the flag counts, whoever is called. `**kwargs` can hide the flag, but
+        # only where text is rendered; a `**kwargs` call to anything else is fine.
         unsafe = any(
-            kw.arg is None
+            (kw.arg is None and name in RENDER_CALLS)
             or (
                 kw.arg == "unsafe_allow_html"
                 and not (isinstance(kw.value, ast.Constant) and kw.value.value is False)
@@ -226,6 +230,11 @@ def test_html_render_nodes_finds_every_raw_html_route(tmp_path):
         "st.write(reply, other)",
         "st.markdown(*parts)",  # 14
         "st.write(*parts)",
+        "client.create(**kwargs)",
+        "dict(**d)",
+        "st.write(reply, **options)",  # 18
+        "st.caption(reply, **options)",  # 19
+        "from streamlit import markdown as md",  # 20
     ]
     source = tmp_path / "sample.py"
     source.write_text("\n".join(lines), encoding="utf-8")
@@ -240,6 +249,9 @@ def test_html_render_nodes_finds_every_raw_html_route(tmp_path):
         11,
         12,
         14,
+        18,
+        19,
+        20,
     ]
 
 

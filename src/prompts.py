@@ -355,7 +355,7 @@ FEW_SHOT_EXAMPLES: tuple[str, ...] = (
 )
 
 # The technique-specific part of each strategy.
-_ZERO_SHOT_TEXT = (
+ZERO_SHOT_TEXT = (
     "You are an AI job interviewer and interview coach.\n\n"
     "Conduct a realistic interview practice session according to the current interview mode.\n\n"
     "Ask one question at a time when the current mode involves interview questions.\n\n"
@@ -399,7 +399,7 @@ _FEW_SHOT_OUTRO = (
     "Only when necessary.\n\n"
     "## Follow-up Question"
 )
-_CHAIN_OF_THOUGHT_TEXT = (
+CHAIN_OF_THOUGHT_TEXT = (
     "You are an AI job interviewer and interview coach.\n\n"
     "Conduct a realistic interview practice session according to the current interview mode.\n\n"
     "When reviewing a candidate's interview answer, assess the answer before assigning a "
@@ -434,7 +434,7 @@ _CHAIN_OF_THOUGHT_TEXT = (
     "## Follow-up Question\n"
     "Ask one relevant question based on the previous answer."
 )
-_PERSONA_TEXT = (
+PERSONA_TEXT = (
     "You are a strict senior interviewer conducting realistic interview practice.\n\n"
     "Your style is professional, direct, demanding, and fair.\n\n"
     "Do not accept vague answers when the candidate should be able to provide a clearer "
@@ -461,7 +461,7 @@ _PERSONA_TEXT = (
     "## Follow-up Question\n"
     "Ask one probing question directly connected to the answer."
 )
-_STRUCTURED_OUTPUT_TEXT = (
+STRUCTURED_OUTPUT_TEXT = (
     "You are an AI job interviewer and interview coach.\n\n"
     "Conduct a realistic interview practice session according to the current interview mode.\n\n"
     "When reviewing a candidate's interview answer, evaluate it using the following rubric:\n\n"
@@ -556,7 +556,7 @@ def _assemble(technique_text: str, interview_type: str) -> str:
 
 def zero_shot(interview_type: str) -> str:
     """Build a plain instruction-only prompt with no examples."""
-    return _assemble(_ZERO_SHOT_TEXT, interview_type)
+    return _assemble(ZERO_SHOT_TEXT, interview_type)
 
 
 def few_shot(interview_type: str) -> str:
@@ -567,17 +567,17 @@ def few_shot(interview_type: str) -> str:
 
 def chain_of_thought(interview_type: str) -> str:
     """Build a prompt that asks the model to give its assessment rationale before scoring."""
-    return _assemble(_CHAIN_OF_THOUGHT_TEXT, interview_type)
+    return _assemble(CHAIN_OF_THOUGHT_TEXT, interview_type)
 
 
 def persona(interview_type: str) -> str:
     """Build a prompt where the model plays a strict senior interviewer."""
-    return _assemble(_PERSONA_TEXT, interview_type)
+    return _assemble(PERSONA_TEXT, interview_type)
 
 
 def structured_output(interview_type: str) -> str:
     """Build a prompt that requires feedback as a fixed rubric and fixed sections."""
-    return _assemble(_STRUCTURED_OUTPUT_TEXT, interview_type)
+    return _assemble(STRUCTURED_OUTPUT_TEXT, interview_type)
 
 
 # Stable key -> strategy function. The keys are what config and the UI refer to.
