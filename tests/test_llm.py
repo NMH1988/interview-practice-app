@@ -1,21 +1,31 @@
 import gc
 import json
+import time
+import types
 
 import httpx2
+import openai
 import pytest
+from openai import _base_client
 
 from src import config, llm
 from src.config import DEFAULT_MODEL
 
 FAKE_KEY = "sk-test-not-a-real-key"
 MESSAGES = [{"role": "user", "content": "Ask me a behavioural question."}]
+# The SDK's longest backoff before the second retry: 0.5 s doubled once (jitter only shortens it).
+LONGEST_BACKOFF = 1.0
 
 
 @pytest.fixture(autouse=True)
 def sleeps(monkeypatch):
-    """Replace the backoff sleep with a recorder so tests run fast; return the delays."""
+    """Replace the SDK's retry sleep with a recorder so tests run fast; return the delays."""
     delays = []
-    monkeypatch.setattr(llm, "_sleep", delays.append)
+    # Only the SDK's module sees this stand-in for `time`, so the rest of the process keeps the real
+    # `time.sleep`. It copies every other `time` attribute, so a newer SDK that reads another one
+    # (the SDK reads Retry-After dates with `time.time`) still works.
+    stand_in = types.SimpleNamespace(**{**vars(time), "sleep": delays.append})
+    monkeypatch.setattr(_base_client, "time", stand_in)
     return delays
 
 
@@ -185,17 +195,22 @@ def test_error_classes_are_distinct():
 
 
 @pytest.mark.parametrize(
-    "failure",
-    [_error(400), httpx2.ConnectError("no route")],
+    ("make_failure", "attempts"),
+    [
+        (lambda: _error(400), 1),
+        (lambda: httpx2.ConnectError("no route"), 1 + llm.MAX_RETRIES),
+    ],
     ids=["400", "connection"],
 )
-def test_other_failures_raise_generic_llm_error(failure):
-    """Errors without their own class still raise a readable LLMError."""
-    fake = FakeOpenRouter(failure)
+def test_other_failures_raise_generic_llm_error(make_failure, attempts):
+    """Other failures raise a readable LLMError; only a dropped connection is retried."""
+    # The queue holds a failure for every possible attempt, so the request count shows the retries.
+    fake = FakeOpenRouter(*[make_failure() for _ in range(1 + llm.MAX_RETRIES)])
     with pytest.raises(llm.LLMError) as excinfo:
         llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert type(excinfo.value) is llm.LLMError
     assert FAKE_KEY not in str(excinfo.value)
+    assert len(fake.requests) == attempts
 
 
 @pytest.mark.parametrize("text", [None, "", "  \n\t"], ids=["none", "empty", "whitespace"])
@@ -239,21 +254,24 @@ def test_malformed_200_raises_llm_error(response, message):
 
 
 @pytest.mark.parametrize(
-    ("status", "error_class"),
+    ("make_failure", "error_class"),
     [
-        (429, llm.LLMRateLimitError),
-        (500, llm.LLMServerError),
-        (502, llm.LLMServerError),
-        (503, llm.LLMServerError),
+        (lambda: _error(429), llm.LLMRateLimitError),
+        (lambda: _error(500), llm.LLMServerError),
+        (lambda: _error(502), llm.LLMServerError),
+        (lambda: _error(503), llm.LLMServerError),
+        (_timeout, llm.LLMTimeoutError),
     ],
+    ids=["429", "500", "502", "503", "timeout"],
 )
-def test_retryable_errors_are_retried_twice_then_raise(status, error_class, sleeps):
-    """429 and 5xx are retried at most 2 times with growing backoff, then raise."""
-    fake = FakeOpenRouter(*[_error(status) for _ in range(4)])
+def test_retryable_errors_are_retried_twice_then_raise(make_failure, error_class, sleeps):
+    """429, 5xx and timeouts are retried MAX_RETRIES times with a short backoff, then raise."""
+    fake = FakeOpenRouter(*[make_failure() for _ in range(4)])
     with pytest.raises(error_class):
         llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert len(fake.requests) == 1 + llm.MAX_RETRIES == 3
-    assert sleeps == [llm.BACKOFF_SECONDS, 2 * llm.BACKOFF_SECONDS]
+    assert len(sleeps) == llm.MAX_RETRIES
+    assert all(0 < delay <= LONGEST_BACKOFF for delay in sleeps)
 
 
 @pytest.mark.parametrize("status", [429, 500])
@@ -263,26 +281,48 @@ def test_retry_succeeds_after_transient_error(status, sleeps):
     text = llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert text == "Second time lucky."
     assert len(fake.requests) == 2
-    assert sleeps == [llm.BACKOFF_SECONDS]
+    assert len(sleeps) == 1
 
 
-@pytest.mark.parametrize(
-    "make_failure",
-    [lambda: _error(401), _timeout, lambda: _error(400)],
-    ids=["401", "timeout", "400"],
-)
-def test_non_retryable_errors_are_not_retried(make_failure, sleeps):
-    """401, timeouts and other client errors fail after a single request, with no wait."""
-    fake = FakeOpenRouter(*[make_failure() for _ in range(3)])
+def test_retry_after_header_sets_the_wait(sleeps):
+    """A 429 that says how long to wait (Retry-After) is retried after exactly that long."""
+    limited = httpx2.Response(
+        429, json={"error": {"message": "slow down"}}, headers={"retry-after": "3"}
+    )
+    fake = FakeOpenRouter(limited, _reply("ok"))
+    assert llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client()) == "ok"
+    assert sleeps == [3.0]
+
+
+def test_retry_after_over_the_sdk_cap_is_not_retried(sleeps):
+    """A 429 that asks to wait longer than the SDK's 120 s cap fails at once, with no wait."""
+    limited = httpx2.Response(
+        429, json={"error": {"message": "slow down"}}, headers={"retry-after": "121"}
+    )
+    fake = FakeOpenRouter(limited, _reply("not reached"))
+    with pytest.raises(llm.LLMRateLimitError):
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
+    assert len(fake.requests) == 1
+    assert sleeps == []
+
+
+@pytest.mark.parametrize("status", [400, 401, 402, 403, 404])
+def test_client_errors_are_not_retried(status, sleeps):
+    """401 and other client errors fail after a single request, with no wait."""
+    fake = FakeOpenRouter(*[_error(status) for _ in range(3)])
     with pytest.raises(llm.LLMError):
         llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert len(fake.requests) == 1
     assert sleeps == []
 
 
-def test_sdk_retries_are_disabled():
-    """The SDK's built-in retries are off, so only complete() decides how often to retry."""
-    assert llm.make_client(FAKE_KEY).max_retries == 0
+def test_client_uses_the_retry_and_timeout_settings():
+    """The client retries MAX_RETRIES times and waits CONNECT_TIMEOUT / REQUEST_TIMEOUT."""
+    client = llm.make_client(FAKE_KEY)
+    assert client.max_retries == llm.MAX_RETRIES
+    assert isinstance(client.timeout, openai.Timeout)
+    assert client.timeout.connect == llm.CONNECT_TIMEOUT
+    assert client.timeout.read == llm.REQUEST_TIMEOUT
 
 
 # Keys that cannot go in an HTTP header, written as escapes so the bad characters stay visible.
@@ -555,14 +595,14 @@ def test_stream_retries_before_the_first_piece(status, sleeps):
     fake = FakeOpenRouter(_error(status), _sse(_chunk("Second time lucky.")))
     assert _stream(fake) == ["Second time lucky."]
     assert len(fake.requests) == 2
-    assert sleeps == [llm.BACKOFF_SECONDS]
+    assert len(sleeps) == 1
 
 
 @pytest.mark.parametrize(
     ("make_failure", "error_class", "requests"),
     [
         (lambda: _error(401), llm.LLMAuthError, 1),
-        (_timeout, llm.LLMTimeoutError, 1),
+        (_timeout, llm.LLMTimeoutError, 1 + llm.MAX_RETRIES),
         (lambda: _error(503), llm.LLMServerError, 1 + llm.MAX_RETRIES),
     ],
     ids=["401", "timeout", "503"],

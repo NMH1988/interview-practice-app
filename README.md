@@ -228,11 +228,23 @@ point at the shared prompt text or the model):
 - A leaked prompt shows while it streams, and Markdown images and links are rendered. Idea:
   buffer the stream, and strip images and links from replies.
 - At `high`, the model may think longer than the 30-second read timeout with no text arriving.
-  One 46.6-second reply did not time out, and it is not known why.
+  One 46.6-second reply did not time out, and it is not known why. The SDK retries a timeout
+  twice (T2.6) only while OpenRouter has not started answering; then the error can take about
+  90 seconds, and each try may be paid for. Once OpenRouter has started a streamed reply (as in
+  the chat), a timeout is not retried, even before any text, and shows after about 30 seconds.
+  Repeated 429s with a `Retry-After` of up to 120 seconds can hold the user for about 4 minutes.
 - Token usage is shown, but not the price; a reply cut off at the token limit cannot be
   continued; out-of-credit (402) and moderation (403) errors get a generic message.
 - The app is not deployed yet (T6.3,
   [#26](https://github.com/NMH1988/interview-practice-app/issues/26)).
+
+**Spoken answers are not offered.** Answers are typed, although they are usually spoken in a
+real interview. Streamlit can record audio (`st.chat_input(accept_audio=True)`), but it only
+supplies the recording: the text still has to come from a transcription step. The three
+models the brief allows take text, image and file input only (OpenRouter's model list,
+checked 2026-10-15), so transcribing would need a model outside the brief. If it is added:
+transcribe in its own step, let the candidate correct the transcript before it is
+evaluated, and offer playback of the recording.
 
 **Possible extras** (Epic 7): a session score tracker, exporting a session to Markdown, a
 question bank with retrieval (RAG), and a side-by-side strategy comparison.

@@ -37,6 +37,52 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - Issue #101's text still describes the first rule (`gh pr list --head <branch>`, "if there is none"); update it with the PR, or leave it as the record of the first version.
   - #99 (T2.6) and #100 (T6.15) also add an entry at the top of this log, and #100 adds a PLAN entry after T6.13 as this PR does, which conflicts. Whichever PR merges later has to rebase and keep every entry, with one blank line between them and no `---` except line 15 (the union merge does not warn about this). In PLAN, T6.15 goes before T6.16.
 
+## 2026-10-15 · T6.15 README: why spoken-answer practice is not offered · #100 (closes #98)
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review), and the owner chose not to build the feature. It would also touch mandatory requirement #4: transcription needs a model outside the three the brief allows. Docs only, no code change.
+- **What:** `README.md` "Known problems and improvement ideas" gets a paragraph on spoken answers; `docs/PLAN.md` gets a T6.15 entry.
+- **Why:** the review suggested `st.chat_input(accept_audio=True)` plus a transcription step. The three allowed models list only text, image and file input on OpenRouter (checked 2026-10-15), so the owner chose to record the idea rather than add a model outside the brief.
+- **Decisions & gotchas:**
+  - Not tested live: the claim about the models comes from OpenRouter's model list, not from sending audio.
+  - The README says what it would take (separate transcription step, editable transcript, playback), taken from the review.
+  - PR review round 2 (code-reviewer, posted on #100, needs changes; CI green on a801a84, PR mergeable): the content holds (README, PLAN and the Streamlit `accept_audio` claim were checked against the pinned 1.64.0). Round 1 ran from the chat and was not posted.
+    - Should fix: this entry ended with a second `---`. The log has only the one under the format block, and entries are separated by a blank line. Removed.
+    - Nits: PLAN's second criterion now reads like #98's ("`docs/PLAN.md` gets a T6.15 entry; `docs/PROGRESS.md` gets this PR's entry"); the follow-up below is no longer "none".
+    - Still open, not in this PR: T6.14 (#88) goes between T6.13 and T6.15 in PLAN when it lands.
+- **Follow-ups:** PR #102 (T6.16) also adds an entry at the top of this log and inserts after T6.13 in `docs/PLAN.md`, which conflicts with this PR's T6.15 entry. Whichever merges later rebases and keeps every entry, with one blank line between them and no `---` except line 15 (the union merge does not warn about this).
+- **Merge with main (#99 merged first):** the merge had no conflict markers, but the union merge left this entry and T2.6's with no blank line between them; fixed.
+
+## 2026-10-15 · T2.6 Use the SDK's retry policy and deliberate timeouts · #99 (closes #87)
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Code quality, with small behaviour changes for the user (see Decisions & gotchas).
+- **What:**
+  - `src/llm.py`: `make_client()` now passes `max_retries=MAX_RETRIES` (2) and `openai.Timeout(REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT)` (read 30 s, connect 5 s). `_send()` makes a single SDK call; the retry loop, `_sleep`, `BACKOFF_SECONDS` and `_RETRYABLE` are removed.
+  - `tests/test_llm.py`: the retry tests now run against the SDK's own loop (its `time.sleep` is patched); added a `Retry-After` test, a client-errors-not-retried test and a test that the client carries the constants.
+  - `README.md`: the `high`-effort timeout note says when a timeout is now retried (not once a stream has started), that each try may be paid for, and how long repeated 429s can hold the user.
+  - `.claude/agents/code-reviewer.md`: its LLM-errors rule described the old loop ("only 429/5xx, 2 times"); it now describes the SDK's policy.
+  - `docs/PLAN.md`: T2.6 entry, and a note on T2.1's two retry criteria (the loop and its patched sleep are gone).
+- **Why:** the SDK already retries 408, 409, 429, 5xx, timeouts and dropped connections, waits 0.5 s then 1 s with jitter, and obeys `Retry-After` (read in `openai/_base_client.py`, SDK 3.22.1). Keeping a second loop meant maintaining code the SDK already tests.
+- **Decisions & gotchas:**
+  - Behaviour changes, not only structure: the SDK also retries **timeouts and dropped connections** (the old loop retried only 429 and 5xx), and it uses 0.5 s / 1 s backoff instead of 1 s / 2 s. A request that times out every time before OpenRouter starts answering now takes about 3 × 30 s before the error shows (see round 2 below for streams). Documented in the constants' comments and the README.
+  - A stream is still not retried once text has started: the SDK retries only the request that opens it. The `closing()` and `response.close()` cleanup is unchanged.
+  - The 30 s read timeout is kept from before. T3.3 saw a 46.6 s reply finish without hitting it and did not find out why, so the value is not proven; the comment says so.
+  - The stale comment "no **kwargs, as T4.4's source scan requires" was dropped from `_send()`; the scan itself is T6.14 (#88).
+  - Longest waits, read in SDK 3.22.1 (`openai/_base_client.py`, `_constants.py`): a `Retry-After` of 120 s or less is obeyed on each retry, so repeated 429s can hold the user about 4 minutes (the old loop gave up after 1 s + 2 s). A `Retry-After` over 120 s makes the SDK stop without retrying. Documented in `MAX_RETRIES`'s comment and the README. Not changed: capping the wait for a 429 (for example `with_options(max_retries=0)` on a call) would change what the user sees, so it is the owner's call.
+  - A timed-out try may still be billed (the model may still be writing), so up to three tries can pay for one reply. Not measured.
+  - Not checked: whether OpenRouter sends `x-should-retry` or `Retry-After`. The SDK obeys `x-should-retry: true` even on a 4xx, which `test_client_errors_are_not_retried` would not catch. The repo cannot show OpenRouter's headers.
+  - PR review round 1 (code-reviewer, run from the chat and not posted on the PR; ready to merge, no must fix; CI green on 395dc13):
+    - Should fix, done: the 120 s wait is documented (comment, README, this entry); `code-reviewer.md`'s retry rule is updated; the "behaves the same" line in **Brief** is reworded; the cost of retried timeouts is noted.
+    - Nits fixed: the `sleeps` fixture replaces only the SDK module's `time` (it patched `time.sleep` for the whole process); the connection case checks `1 + MAX_RETRIES` requests and the 400 case checks 1; the `REQUEST_TIMEOUT` and `MAX_RETRIES` comments say where the values come from (T2.1); `LLMTimeoutError`'s docstring no longer names only the read timeout.
+    - Its question, OpenRouter's headers, is the "Not checked" bullet above.
+  - Self-review before the push (`/code-review`, local; 7 findings). Fixed: the `sleeps` fixture copies every `time` attribute and overrides only `sleep`, so a newer SDK that reads another one does not break the retry tests; the `MAX_RETRIES` comment says its numbers are from SDK 3.22.1 and to re-read them when `openai` is bumped (PR #85 is open); its "at most 2 retries" quote now matches `docs/PLAN.md`; T2.1's two retry criteria in `docs/PLAN.md` say T2.6 changed them.
+  - Owner's decision (2026-10-15), on the two findings that need a behaviour change: keep the SDK's retries on timeouts and on 429, and only document the cost and the `Retry-After` wait (comment, README, this entry). Open, so a later ticket can pick it up: retried timeouts are paid for but the rate limit (`app.py`) counts one request per message, and a 429 can hold the user about 4 minutes.
+  - PR review round 2 (code-reviewer, posted on #99, needs changes; CI green on 59c87d4): every round-1 point and nit is confirmed fixed, and every SDK claim matches 3.22.1.
+    - Must fix: this entry ended with a second `---`. The log has only the one under the format block, and entries are separated by a blank line. Removed.
+    - Should fix: the comment and README said a timeout is retried (about 90 s) in every case. For a stream, which the chat uses, the SDK returns as soon as OpenRouter's headers arrive (`_send_request(stream=True)` in `openai/_base_client.py`), so a later timeout is raised while reading the stream and is not retried, even before any text. `complete()` reads the whole reply inside the retries. The `MAX_RETRIES` comment and the README now say so.
+    - Nits fixed: the comment no longer says the SDK retries only "before any reply came" (408, 409, 429 and 5xx are replies), and it says `Retry-After` applies to every retried answer. A new test, `test_retry_after_over_the_sdk_cap_is_not_retried`, pins that a `Retry-After` over 120 s is not retried, so the SDK bump in PR #85 would show a change.
+    - Still to do with the push: the PR description's "Behaviour changes worth a look" section should mention the `Retry-After` wait.
+    - Its questions cannot be answered from the repo: whether OpenRouter sends the headers (and keep-alives) before the model writes, which may explain the 46.6 s reply; and whether GitHub's merge button applies `merge=union` (this log's intro says its web conflict editor does not).
+    - It is one comment, but the agent's heredoc failed on the full text, so it posted half and added the rest with `gh api -X PATCH`, which its rules do not allow. T6.16 (#102) handles this.
+- **Follow-ups:** T6.14 (#88) narrows the raw-HTML scan so `**kwargs` calls elsewhere are fine.
+
 ## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #84 (closes #65)
 - **Brief:** beyond the brief (owner's request), confirmed by the owner. The brief asks for no plan or progress log; this keeps `docs/` accurate for the review, which reads the repo as submitted. Docs only, no code change.
 - **What:**
