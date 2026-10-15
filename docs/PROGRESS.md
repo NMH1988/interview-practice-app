@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-15 · T4.5 Keep the free-text role out of the system prompt · #<PR> (closes #89)
+## 2026-10-15 · T4.5 Keep the free-text role out of the system prompt · #105 (closes #89)
 - **Brief:** serves mandatory requirement #6 (security guard) and Easy #3 (more security constraints), from the 2026-10-15 project review. In line with the brief; the product does the same for the user.
 - **What:**
   - `src/prompts.py`: a strategy is now `(interview_type) -> system prompt` (`Strategy = Callable[[str], str]`). `_session_context` and `_assemble` lost the `role` argument. The shared part now has `Session type: "..."` and the line "The candidate's role and seniority are given with each message. Seniority is one of: Junior, Mid-level, Senior, Lead." The `Role:` line is gone. `build_user_prompt` is unchanged: the role is still there, escaped and on one line.
