@@ -423,6 +423,18 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 **Tests**
 - None (docs only).
 
+### T6.16 Code-reviewer posts its review on the PR (S)
+Beyond the brief (owner's request): our own process tooling, no app code.
+**Acceptance criteria**
+- [x] `.claude/agents/code-reviewer.md` says the agent changes no file and no git state, and that its only write is one comment on the PR it reviewed (description and ground rules updated; `gh pr comment` is added to the allowed commands).
+- [ ] After every PR review the agent posts its report with `gh pr comment <n> --body-file -` (new comment each round, never an edit), with the reviewed head SHA on the first line. If the caller gives no PR number it finds the PR with `gh pr list --head <branch>`; if there is none it says so and posts nothing. *(Written in the agent file; open until the first real review after the merge posts its own comment.)*
+- [x] The comment is public (the repo is public): repo-relative paths only, no local paths, secrets redacted.
+- [ ] If posting fails, the agent says so and still returns the full report; when it works, its reply ends with the comment's link. *(Same live check as the box above.)*
+- [x] `docs/PLAN.md` gets a T6.16 entry; `docs/PROGRESS.md` gets this PR's entry.
+
+**Tests**
+- None (agent instructions and docs only). Not testable in CI; the first real PR review after the merge is the check.
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (the placeholder chart it was to replace was removed in T5.5) — AC: scores parsed from structured output and charted per session.
   - Tests: unit — scores are parsed from structured output, and malformed or missing scores are skipped without crashing; UI flow — after scored replies, the chart has one point per scored answer.

@@ -14,6 +14,23 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T6.16 Code-reviewer posts its review on the PR · #<PR> (closes #101)
+- **Brief:** beyond the brief (owner's request, 2026-10-15). The brief asks for no reviewer agent; this changes our own process tooling only. No app code changed.
+- **What:**
+  - `.claude/agents/code-reviewer.md`: the description and the "Read-only" ground rule now say the agent changes no file and no git state, and that its only write is one PR comment. `gh pr list --head <branch>` and `gh pr comment <n> --body-file -` join the allowed commands. A new "Post the review on the PR" section says which PR, how, what goes in the comment and what to do afterwards.
+  - `docs/PLAN.md`: a T6.16 entry. Epic #28's checklist got the #101 line (a GitHub edit, so not in the diff).
+- **Why:** reviews were copied to the PR by hand ("posted on #84" and the like in this log); the owner wants the agent to do it every time, without being asked.
+- **Decisions & gotchas:**
+  - `gh pr comment`, not `gh pr review`: the reviewer and the PR's author are the same GitHub account, and GitHub does not let an author approve or request changes on their own PR. One new comment per round and never an edit, so each round keeps its own record, like the "round N" bullets in this log.
+  - The body goes in through stdin with a quoted heredoc: the agent may not create files, and the quotes stop the shell from expanding backticks and `$`.
+  - The repo is public, so the comment uses repo-relative paths only. The reports the agent returned so far list local `C:\Users\...` paths, which would have shown the local user name.
+  - The SHA on the comment's first line comes from the PR head (`headRefOid`), not from the local HEAD, because the reviewers run in the main checkout.
+  - Not verified live. The repo has no `.claude/settings.json`, so `gh pr comment` may need approval when the agent runs in the background; the agent is told to report a failed post and return the report anyway. Agent definitions are usually loaded when a session starts, so the first real review after the merge is the check. T6.16's two boxes about posting stay open until then.
+- **Follow-ups:**
+  - Tick T6.16's two open boxes after the first review that posts its own comment. If `gh pr comment` is refused, the owner can allow `Bash(gh pr comment:*)`; Claude did not change any settings.
+  - #99 (T2.6) and #100 (T6.15) also add an entry at the top of this log, and #100 adds a PLAN entry after T6.13 as this PR does. Whichever PR merges later has to rebase and keep every entry, with a blank line between them.
+  - Fill in `#<PR>` above once the PR is open.
+
 ## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #84 (closes #65)
 - **Brief:** beyond the brief (owner's request), confirmed by the owner. The brief asks for no plan or progress log; this keeps `docs/` accurate for the review, which reads the repo as submitted. Docs only, no code change.
 - **What:**
