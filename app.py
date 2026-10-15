@@ -405,7 +405,7 @@ if message is not None:
         else:
             st.chat_message("user").markdown(clean)
             user_prompt = build_user_prompt(clean_role, interview_type, seniority, clean)
-            system_prompt = STRATEGIES[strategy](clean_role, interview_type)
+            system_prompt = STRATEGIES[strategy](interview_type)
             messages = build_messages(system_prompt, st.session_state.history, user_prompt)
             pieces = reply_pieces(
                 messages,

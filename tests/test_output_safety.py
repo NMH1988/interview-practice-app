@@ -22,7 +22,7 @@ FLAG_SECOND_ARG = {"markdown", "caption"}
 # the names whose `from streamlit import ...` is flagged, since a renamed call could hide it too.
 RENDER_CALLS = {"markdown", "write", "caption", "html"}
 
-PROMPTS = {key: strategy("Software Engineer", "Technical") for key, strategy in STRATEGIES.items()}
+PROMPTS = {key: strategy("Technical") for key, strategy in STRATEGIES.items()}
 
 # Replies a coach would normally give, one per review format; none may be refused.
 NORMAL_REPLIES = [
@@ -130,12 +130,12 @@ def test_disguised_leak_is_still_refused(disguise, needs):
     assert check_output(disguise(paragraph), prompt) == REFUSAL_MESSAGE
 
 
-def test_leak_of_escaped_role_line_is_refused():
-    """A role escaped in the prompt (`&lt;`) still matches when the reply shows it as `<`."""
-    prompt = STRATEGIES["persona"]("C++ <Embedded> Engineer for the payments platform", "Technical")
-    role_paragraph = next(p for p in prompt.split("\n\n") if "&lt;Embedded&gt;" in p)
-    assert len(_normalise(role_paragraph)) >= MIN_LEAK_CHARS
-    assert check_output(html.unescape(role_paragraph), prompt) == REFUSAL_MESSAGE
+def test_leak_of_escaped_type_line_is_refused():
+    """A type escaped in the prompt (`&lt;`) still matches when the reply shows it as `<`."""
+    prompt = STRATEGIES["persona"]("C++ <Embedded> interview for the payments platform team")
+    type_paragraph = next(p for p in prompt.split("\n\n") if "&lt;Embedded&gt;" in p)
+    assert len(_normalise(type_paragraph)) >= MIN_LEAK_CHARS
+    assert check_output(html.unescape(type_paragraph), prompt) == REFUSAL_MESSAGE
 
 
 @pytest.mark.parametrize("interview_type", INTERVIEW_TYPES)
@@ -143,7 +143,7 @@ def test_leak_of_escaped_role_line_is_refused():
 @pytest.mark.parametrize("reply", NORMAL_REPLIES)
 def test_normal_reply_is_unchanged(reply, key, interview_type):
     """A normal coaching reply is returned as is, for every strategy and interview type."""
-    prompt = STRATEGIES[key]("Software Engineer", interview_type)
+    prompt = STRATEGIES[key](interview_type)
     assert check_output(reply, prompt) is reply
 
 
