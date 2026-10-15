@@ -38,7 +38,7 @@ Do these **only after the core app works**. Anyone with software experience is i
 **Easy**
 1. Have ChatGPT review the app: how easy it is to use, how safe it is, and how good the prompts are.
 2. Improve prompts for your own domain (IT, finance, HR, communication, ...).
-3. More security constraints: input validation and system-prompt validation (possibly checked by an LLM). (*partly done:* input validation T4.1, injection checks T4.2, rate limiting T4.3, prompt-leak check T4.4; no LLM-based check yet)
+3. More security constraints: input validation and system-prompt validation (possibly checked by an LLM). (*partly done:* input validation T4.1, injection checks T4.2, rate limiting T4.3, prompt-leak check T4.4, the free-text role kept out of the system prompt T4.5; no LLM-based check yet)
 4. Difficulty levels for the questions (easy, medium, hard). Two strategies scale depth and difficulty to the chosen seniority (T3.2), but that is not a difficulty setting, so this is untagged.
 5. Concise vs. detailed answers through prompting.
 6. Have the model draft interviewer guidelines: a structured scoring guide for technical and behavioural interviews.

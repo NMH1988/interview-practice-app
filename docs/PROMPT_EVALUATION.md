@@ -158,14 +158,15 @@ What changed:
 - **One model.** Only `gpt-5-mini` was evaluated; `gpt-5-nano` and `gpt-5` may rank the strategies differently.
 - **One scorer, not blind.** The owner scored all replies with the strategy names visible, and revised the scores during review (see [Method](#method)).
 - **Editor formatting.** Saving the first report in the editor reformatted its Markdown (blank lines inside blockquotes, `1)` lists as `1.`, `*` emphasis as `_`, aligned tables). The checked passages read the same as before; the file is not byte-for-byte what the script wrote.
+- **The prompts have changed since these runs.** T4.5 (#89, PR #105) moved the role out of every strategy's system prompt into the user message, and T3.6 (#90, PR #106) made Few-shot send only the active mode's example. Neither change is re-measured: every score here is for the prompts as they were before both. T3.7 (#95) re-runs the comparison with `--runs 3 --blind`.
 - **The effort run's header** says `293ad94 (with uncommitted code changes)`. The uncommitted change was `DEFAULT_STRATEGY` in `src/config.py` and the select's default in `app.py`, which the script does not read; `src/prompts.py` was unchanged, so the prompts sent were the committed ones.
 
 ## Follow-ups
 
 - **T3.5 (#76)** measures, over several runs, how often feedback on the candidate's own question uses the answer-review format, ends with a question or gives more than one rewording. Data point from `qta-own`: Few-shot and Role / persona used the review headings; every strategy gave two or three rewordings, where the mode allows "a better wording".
+- **T3.7 (#95)** adds prompt rules against invented facts (problem 1) and for seniority-fit questions (problem 2), and re-scores the strategies blind over several runs.
+- **T3.8 (#107)** adds a Few-shot example for Job-description analysis. Since T3.6 that mode has none, so there Few-shot is instructions only, like Zero-shot.
 - **Not ticketed, from the shared problems above:**
-  - sample answers invent facts (problem 1);
-  - feedback ignores the Junior level (problem 2);
   - long, repetitive job-description analyses that do not end with the study plan (problem 3);
   - ~~the Few-shot JavaScript example leaking into other modes (problem 4)~~ fixed in T3.6 (#90);
   - the `minimal` / `low` prompt echo.

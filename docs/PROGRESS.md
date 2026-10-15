@@ -32,7 +32,11 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
     - Should fix: the README row and this entry did not name the requirement #5 trade-off above; both do now, and the follow-up links to it.
     - Nit: the unknown-type test's docstring promised the intro and outro but only checked for no example; it now asserts both too.
     - Its question, whether the JavaScript example sent to every role in Technical mode (the same kind of leak as problem 4, inside one mode) needs a ticket, is the owner's call; no ticket was opened.
-- **Follow-ups:** the owner may want to reword the intro and the "Example N" labels now that one example is sent, or write a Job-description example (this would also make Few-shot a separate technique again in that mode, requirement #5); both are the owner's text.
+  - Brief check of the day's work (2026-10-15, after review round 1): nothing contradicts the brief, but three points were raised; the owner decided each:
+    - The requirement #5 trade-off above, and the intro's "following examples" with none after it in Job-description analysis: the owner chose to write a Job-description example later, in T3.8 (#107). Until then both stay as they are.
+    - `docs/PROMPT_EVALUATION.md` (the evidence for requirement #5) did not say that T4.5 had changed every strategy's system prompt since the runs. A Limitations bullet now says the scores predate T4.5 and T3.6, and that T3.7 (#95) re-runs the comparison. Its Follow-ups list T3.7 and T3.8; problems 1 and 2 moved out of "Not ticketed", since #95 covers them.
+    - `docs/BRIEF.md`'s Easy #3 line now names T4.5 among the security constraints done.
+- **Follow-ups:** T3.8 (#107): the owner writes a Job-description example, which makes Few-shot a separate technique again in that mode (requirement #5) and makes the intro true there. The owner may also reword the intro and the "Example N" labels now that one example is sent; both are the owner's text.
 - **Merge with main (#105, T4.5, merged first):** conflicts in `src/prompts.py` and `tests/test_prompts.py`, because T4.5 dropped `role` from every strategy. Resolved by keeping this PR's per-mode lookup with the new one-argument `few_shot(interview_type)`, and by calling `few_shot(...)` with one argument in the new tests. The union merge had also left this entry and T4.5's with no blank line between them; fixed. On the merged tree ruff is clean and 1052 tests pass (the 1027 above is before the merge).
 
 ## 2026-10-15 · T4.5 Keep the free-text role out of the system prompt · #105 (closes #89)
