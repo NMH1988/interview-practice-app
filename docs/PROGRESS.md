@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-15 · T6.15 README: why spoken-answer practice is not offered · #<PR> (closes #98)
+## 2026-10-15 · T6.15 README: why spoken-answer practice is not offered · #100 (closes #98)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review), and the owner chose not to build the feature. It would also touch mandatory requirement #4: transcription needs a model outside the three the brief allows. Docs only, no code change.
 - **What:** `README.md` "Known problems and improvement ideas" gets a paragraph on spoken answers; `docs/PLAN.md` gets a T6.15 entry.
 - **Why:** the review suggested `st.chat_input(accept_audio=True)` plus a transcription step. The three allowed models list only text, image and file input on OpenRouter (checked 2026-10-15), so the owner chose to record the idea rather than add a model outside the brief.
