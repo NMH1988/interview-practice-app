@@ -143,7 +143,7 @@ The project review (2026-10-15) found that `make_client()` switched the SDK's re
 
 **Tests**
 - [x] Unit: the client is built with the retry and timeout constants.
-- [x] Unit (mocked HTTP): 429, 5xx and timeouts are retried twice then raise their own error; a 429 then 200 succeeds; `Retry-After` sets the wait; 400/401/402/403/404 are not retried.
+- [x] Unit (mocked HTTP): 429, 5xx and timeouts are retried twice then raise their own error; a 429 then 200 succeeds; `Retry-After` sets the wait, and one over the SDK's 120 s cap is not retried; 400/401/402/403/404 are not retried.
 
 ## Epic 3 — Prompt Engineering (≥ 5 strategies)
 Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evidence.

@@ -294,6 +294,18 @@ def test_retry_after_header_sets_the_wait(sleeps):
     assert sleeps == [3.0]
 
 
+def test_retry_after_over_the_sdk_cap_is_not_retried(sleeps):
+    """A 429 that asks to wait longer than the SDK's 120 s cap fails at once, with no wait."""
+    limited = httpx2.Response(
+        429, json={"error": {"message": "slow down"}}, headers={"retry-after": "121"}
+    )
+    fake = FakeOpenRouter(limited, _reply("not reached"))
+    with pytest.raises(llm.LLMRateLimitError):
+        llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
+    assert len(fake.requests) == 1
+    assert sleeps == []
+
+
 @pytest.mark.parametrize("status", [400, 401, 402, 403, 404])
 def test_client_errors_are_not_retried(status, sleeps):
     """401 and other client errors fail after a single request, with no wait."""

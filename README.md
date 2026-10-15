@@ -228,10 +228,11 @@ point at the shared prompt text or the model):
 - A leaked prompt shows while it streams, and Markdown images and links are rendered. Idea:
   buffer the stream, and strip images and links from replies.
 - At `high`, the model may think longer than the 30-second read timeout with no text arriving.
-  One 46.6-second reply did not time out, and it is not known why. A request that does time out
-  is retried twice by the SDK (T2.6), so the error can take about 90 seconds to appear, and
-  each try may be paid for. Repeated 429s with a `Retry-After` of up to 120 seconds can hold the
-  user for about 4 minutes.
+  One 46.6-second reply did not time out, and it is not known why. The SDK retries a timeout
+  twice (T2.6) only while OpenRouter has not started answering; then the error can take about
+  90 seconds, and each try may be paid for. Once OpenRouter has started a streamed reply (as in
+  the chat), a timeout is not retried, even before any text, and shows after about 30 seconds.
+  Repeated 429s with a `Retry-After` of up to 120 seconds can hold the user for about 4 minutes.
 - Token usage is shown, but not the price; a reply cut off at the token limit cannot be
   continued; out-of-credit (402) and moderation (403) errors get a generic message.
 - The app is not deployed yet (T6.3,

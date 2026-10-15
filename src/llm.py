@@ -32,14 +32,15 @@ REQUEST_TIMEOUT = 30.0
 # Longest wait to open the connection. Short, so a network problem fails fast instead of
 # holding the user for the whole read timeout; 5 s is also the SDK's own default.
 CONNECT_TIMEOUT = 5.0
-# How often the SDK retries a request that failed before any reply came: 408, 409, 429, 5xx,
-# timeouts and dropped connections. Two is T2.1's limit (docs/PLAN.md: "retried ≤ 2×").
-# It waits 0.5 s, then 1 s (less up to 25% jitter), or what the server's Retry-After asks for
-# when that is 120 s or less; for more it does not retry at all. So repeated 429s can hold the
-# user for about 4 minutes, and a request that times out every time takes about
-# 3 x REQUEST_TIMEOUT before the error shows, with each attempt possibly paid for. A stream is
-# never retried once text came. These numbers are from SDK 3.22.1: re-read them when `openai`
-# is bumped.
+# How often the SDK retries a failed request: 408, 409, 429 and 5xx answers, timeouts and dropped
+# connections. Two is T2.1's limit (docs/PLAN.md: "retried ≤ 2×"). It waits 0.5 s, then 1 s
+# (less up to 25% jitter), or what the answer's Retry-After asks for when that is 120 s or less;
+# for more it does not retry at all. complete() reads the whole reply inside these retries; a
+# stream is retried only until OpenRouter starts it (the headers came), even if no text came yet.
+# So repeated 429s can hold the user for about 4 minutes, and a request that times out every
+# time takes about 3 x REQUEST_TIMEOUT before the error shows, with each attempt possibly paid
+# for; a stream that times out after it started shows the error after one REQUEST_TIMEOUT.
+# These numbers are from SDK 3.22.1: re-read them when `openai` is bumped.
 MAX_RETRIES = 2
 _UNREADABLE = "The AI service sent an unreadable answer. Please try again."
 _EMPTY = "The AI service returned an empty answer. Please try again."
