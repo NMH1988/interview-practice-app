@@ -31,6 +31,8 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
     - Should fix, done: with whole technique texts as markers, removing `## Rubric` or `## Assessment Rationale` from a prompt would no longer fail any test (the marker is in the prompt by construction). A new `test_techniques_keep_the_feature_that_defines_them` pins the rationale-before-score order in chain-of-thought, `## Rubric` in structured output and "strict senior interviewer" in persona. These are the old markers, so nothing the owner wrote is copied beyond them.
     - Nits, done: the scan also flags `from streamlit import markdown/write/caption` (a renamed call such as `md(x, **opts)` was caught before this PR); `getattr(st, "markdown")(x, **opts)` stays a gap, now named in `code-reviewer.md` section 2 for a hand check. The sample test swaps `st.html(x, **opts)` (flagged by name anyway) for `st.caption(x, **opts)` and adds the `from streamlit import markdown as md` line. The four technique constants in `src/prompts.py` lose their leading underscore (a rename only, no behaviour change), since the tests import them.
 - **Follow-ups:** none.
+- **Merge with main (#103 merged first):** no conflict markers, but the union merge left this entry and T6.4's with no blank line between them; fixed. On the merged tree ruff is clean and 1022 tests pass (T6.4 added three; the 1019 above is before the merge).
+
 ## 2026-10-15 · T6.4 pyproject.toml as the only dependency list · #103 (closes #27)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review): code quality, not a brief task. Changes no product behaviour.
 - **What:**
