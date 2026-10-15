@@ -14,6 +14,31 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T6.4 pyproject.toml as the only dependency list · #103 (closes #27)
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review): code quality, not a brief task. Changes no product behaviour.
+- **What:**
+  - `pyproject.toml`: adds `[build-system]` (setuptools >= 77), `[project.optional-dependencies] dev` (`packaging`, `pytest`, `pytest-cov`, `ruff`) and `[tool.setuptools.packages.find] include = ["src*"]`. The runtime pins (`openai==3.22.1`, `streamlit==1.64.0`) stay.
+  - `requirements.txt` and `requirements-dev.txt` are deleted.
+  - `.github/workflows/ci.yml`: `lint` and `test` run `pip install -e ".[dev]"` and cache on `pyproject.toml`; `security` runs `pip-audit .`.
+  - `tests/test_dependencies.py`: the drift test and its helper are replaced by five tests: one for the `is_exact_pin` helper (it accepts only one `==` specifier, read with `packaging.requirements.Requirement`), one that every runtime dependency passes it, the dev tools are in the `dev` extra, discovery is limited to `src`, and no `requirements*.txt` file exists.
+  - `README.md` and `CLAUDE.md` show `pip install -e ".[dev]"`. `.claude/agents/code-reviewer.md` has no install command (it is read-only), so its Dependencies rule now names `pyproject.toml` as the only list; `docs/PLAN.md` gets a ticked T6.4 section and notes on T1.1's two old boxes.
+- **Why:** the runtime dependencies were declared twice, with a test whose only job was to stop the lists drifting. One source removes the problem, and Dependabot reads `pyproject.toml` for pip.
+- **Decisions & gotchas:**
+  - Dependabot #85 (openai 3.24.0) and #86 (streamlit 1.65.0) were closed with a comment before this work, as the owner chose: both edited the two files and would have conflicted. Closing told Dependabot to skip those two releases (it answered "I won't notify you again about this release" on both), so it will not reopen them: it only proposes later releases. Their CI runs showed `linked-issue` SKIPPED, which is the T6.6 Dependabot check that was never seen before (T6.6's last box is still open).
+  - The `dev` tools are not pinned (the ticket asks for pins on runtime only), as before. A clean venv got ruff 0.17.0 while the global install had 0.16.9; both pass.
+  - `pip-audit .` reads the project from `pyproject.toml`, resolves it and audits the result. Checked locally in a clean venv: "No known vulnerabilities found". The old `-r requirements.txt` command also resolved and audited the dependencies the pins pull in, so both cover the same set.
+  - Checked in a clean venv: `pip install -e ".[dev]"` installs `interview-practice-app`, openai 3.22.1, streamlit 1.64.0, pytest, pytest-cov and ruff (run on e20d6a0, before `packaging` joined the extra); ruff check, ruff format --check and 1,045 tests pass. After round 1 there are 1,046 tests, all passing.
+  - `pythonpath = ["."]` in pytest's settings stays; it still lets tests import `app`.
+  - `packaging` is in the `dev` extra because the pin test imports it (pytest already pulls it in, but the test should not rely on that).
+  - PR review round 1 (code-reviewer, posted on #103, needs changes; CI green on 42669a4): the code, CI and tests were correct. Fixed: the false "Dependabot should reopen them" sentence and the follow-up for the two skipped bumps; the `pip-audit` comparison (both commands audit the same set); the pin test now checks the whole specifier with `packaging` (so `openai<4,==3.22.1` fails; mutation-checked) and reads dev names with `Requirement(...).name`; PLAN's "CI: all three jobs pass" box ticked. Its question about T6.3 is already the follow-up above.
+  - PR review round 2 (code-reviewer, posted on #103, ready to merge; CI green on 7e0766a): every round-1 point is fixed, the merge of `origin/main` (T6.16) kept both sides (one `---`, entries in order, blank lines between them) and the acceptance criteria are met except the Dependabot box, which only a post-merge Dependabot PR can show. Four doc nits fixed: the code-reviewer agent has no install command (see What); the test count and the install list were from before round 1 (see the clean-venv bullet); "five tests" counts the helper's own test, not the helper; the Dependabot follow-up and the PR body now say the same (reopen #85 and #86, then comment `@dependabot recreate`).
+    - Its question, whether `@dependabot recreate` lifts the ignore Dependabot recorded when the PRs were closed: cannot be checked before the merge. The hand-bump in the follow-up covers it.
+- **Follow-ups:**
+  - T6.3 (#26): Streamlit Community Cloud has no `requirements.txt` to read now. Check it installs from `pyproject.toml` when deploying.
+  - After the merge, bring openai and streamlit up to date: either reopen #85 and #86 and comment `@dependabot recreate`, or bump the two pins by hand in a small PR. Until then the pins stay at 3.22.1 and 1.64.0.
+  - Tick the PLAN box for Dependabot's first `pyproject.toml` PR once it appears.
+  - T6.6's "a Dependabot PR skips the check" was seen on #85 and #86 (`linked-issue` SKIPPED); the box can be ticked.
+
 ## 2026-10-15 · T6.16 Code-reviewer posts its review on the PR · #102 (closes #101)
 - **Brief:** beyond the brief (owner's request, 2026-10-15). The brief asks for no reviewer agent; this changes our own process tooling only. No app code changed.
 - **What:**
