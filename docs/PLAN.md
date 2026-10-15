@@ -427,9 +427,9 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 Beyond the brief (owner's request): our own process tooling, no app code.
 **Acceptance criteria**
 - [x] `.claude/agents/code-reviewer.md` says the agent changes no file and no git state, and that its only write is one comment on the PR it reviewed (description and ground rules updated; `gh pr comment` is added to the allowed commands).
-- [ ] After every PR review the agent posts its report with `gh pr comment <n> --body-file -` (new comment each round, never an edit), with the reviewed head SHA on the first line. If the caller gives no PR number it finds the PR with `gh pr list --head <branch>`; if there is none it says so and posts nothing. *(Written in the agent file; open until the first real review after the merge posts its own comment.)*
-- [x] The comment is public (the repo is public): repo-relative paths only, no local paths, secrets redacted.
-- [ ] If posting fails, the agent says so and still returns the full report; when it works, its reply ends with the comment's link. *(Same live check as the box above.)*
+- [ ] After every PR review the agent posts its report with `gh pr comment <n> --body-file -` (new comment each round, never an edit), with the round number and the reviewed head SHA on the first line. If the caller gives no PR number, it posts only when the checkout is exactly the head of the branch's one open PR (non-empty branch name, clean tree, same commit); otherwise it posts nothing and says why. *(Written in the agent file; open until the first real review after the merge posts its own comment.)*
+- [ ] The comment is public (the repo is public): repo-relative paths only, no local paths, secrets redacted. *(Written; same live check as the box above.)*
+- [ ] If posting fails, the agent says so and still returns the full report, without working around the failure; when it works, its reply ends with the comment's link. *(Same live check as the box above.)*
 - [x] `docs/PLAN.md` gets a T6.16 entry; `docs/PROGRESS.md` gets this PR's entry.
 
 **Tests**
