@@ -143,7 +143,7 @@ EXAMPLE_CAPTIONS: Mapping[str, str] = MappingProxyType(
 USER_INPUT_OPEN = "<user_input>"
 USER_INPUT_CLOSE = "</user_input>"
 
-Strategy = Callable[[str, str], str]
+Strategy = Callable[[str], str]
 
 # ---------------------------------------------------------------------------------------------
 # Prompt content (T3.2), written by the project owner. The code below only assembles it.
@@ -517,13 +517,16 @@ def _context_field(text: str) -> str:
     return _escape(" ".join(text.split()))
 
 
-def _session_context(role: str, interview_type: str) -> str:
-    """Return the escaped role and session type, and say where the seniority comes from."""
-    # Seniority is only in the user message (build_user_prompt), so name the allowed levels here.
+def _session_context(interview_type: str) -> str:
+    """Return the escaped session type, and say that role and seniority come with each message."""
+    # The role is free text (T5.1), so it is only in the user message (build_user_prompt, T4.5),
+    # never here: text a user typed must not get system-prompt authority. The seniority levels
+    # are a fixed list, so naming them is safe.
     levels = ", ".join(SENIORITY_LEVELS)
     return (
-        f'Role: {_context_field(role)}\nSession type: "{_context_field(interview_type)}"\n'
-        f"The candidate's seniority is given with each message and is one of: {levels}."
+        f'Session type: "{_context_field(interview_type)}"\n'
+        "The candidate's role and seniority are given with each message. "
+        f"Seniority is one of: {levels}."
     )
 
 
@@ -544,37 +547,37 @@ def _shared_rules(interview_type: str) -> str:
     return "\n\n".join(part for part in parts if part)
 
 
-def _assemble(technique_text: str, role: str, interview_type: str) -> str:
+def _assemble(technique_text: str, interview_type: str) -> str:
     """Join a strategy's own text with the session context and the shared rules."""
     return "\n\n".join(
-        [technique_text, _session_context(role, interview_type), _shared_rules(interview_type)]
+        [technique_text, _session_context(interview_type), _shared_rules(interview_type)]
     )
 
 
-def zero_shot(role: str, interview_type: str) -> str:
+def zero_shot(interview_type: str) -> str:
     """Build a plain instruction-only prompt with no examples."""
-    return _assemble(ZERO_SHOT_TEXT, role, interview_type)
+    return _assemble(ZERO_SHOT_TEXT, interview_type)
 
 
-def few_shot(role: str, interview_type: str) -> str:
+def few_shot(interview_type: str) -> str:
     """Build a prompt that shows worked examples: answer reviews and suggested questions."""
     text = _EXAMPLE_SEPARATOR.join([_FEW_SHOT_INTRO, *FEW_SHOT_EXAMPLES, _FEW_SHOT_OUTRO])
-    return _assemble(text, role, interview_type)
+    return _assemble(text, interview_type)
 
 
-def chain_of_thought(role: str, interview_type: str) -> str:
+def chain_of_thought(interview_type: str) -> str:
     """Build a prompt that asks the model to give its assessment rationale before scoring."""
-    return _assemble(CHAIN_OF_THOUGHT_TEXT, role, interview_type)
+    return _assemble(CHAIN_OF_THOUGHT_TEXT, interview_type)
 
 
-def persona(role: str, interview_type: str) -> str:
+def persona(interview_type: str) -> str:
     """Build a prompt where the model plays a strict senior interviewer."""
-    return _assemble(PERSONA_TEXT, role, interview_type)
+    return _assemble(PERSONA_TEXT, interview_type)
 
 
-def structured_output(role: str, interview_type: str) -> str:
+def structured_output(interview_type: str) -> str:
     """Build a prompt that requires feedback as a fixed rubric and fixed sections."""
-    return _assemble(STRUCTURED_OUTPUT_TEXT, role, interview_type)
+    return _assemble(STRUCTURED_OUTPUT_TEXT, interview_type)
 
 
 # Stable key -> strategy function. The keys are what config and the UI refer to.

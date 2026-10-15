@@ -57,7 +57,8 @@ RATE_LIMIT_PER_MINUTE = 10
 RATE_LIMIT_WINDOW_SECONDS = 60
 RATE_LIMIT_PER_SESSION = 50
 
-# The role goes into the system prompt, so it is free text but kept short (see T3.1 follow-ups).
+# The role is free text but kept short; it goes only into the user message, never the system
+# prompt (T4.5).
 DEFAULT_ROLE = "Software Engineer"
 MAX_ROLE_CHARS = 60
 # Must be one of prompts.SENIORITY_LEVELS (a test checks this).

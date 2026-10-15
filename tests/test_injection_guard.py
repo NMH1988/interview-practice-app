@@ -165,7 +165,7 @@ def test_every_phrasing_has_a_sample():
 
 @pytest.mark.parametrize("variant", ["as-written", "upper-case", "extra-spaces"])
 def test_role_attack_is_blocked(variant):
-    """An instruction in the Role field is blocked, since the role goes into the system prompt."""
+    """An instruction in the Role field is blocked, though the role is only in the user message."""
     # Zero-width spaces would push the role past its length limit, which blocks it anyway.
     assert len(ROLE_ATTACK) <= MAX_ROLE_CHARS
     with pytest.raises(PromptInjectionError, match=INJECTION_REFUSAL):

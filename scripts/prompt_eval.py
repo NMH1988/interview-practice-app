@@ -253,7 +253,7 @@ def run_job(
         role = validate_role(item.role)
     except GuardError as exc:
         return Result(job, blocked=str(exc))
-    system_prompt = STRATEGIES[job.strategy](role, item.interview_type)
+    system_prompt = STRATEGIES[job.strategy](item.interview_type)
     user_prompt = build_user_prompt(role, item.interview_type, item.seniority, text)
     messages = build_messages(system_prompt, _history(item), user_prompt)
     start = time.perf_counter()
