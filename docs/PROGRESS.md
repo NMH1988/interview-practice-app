@@ -14,6 +14,20 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T6.15 README: why spoken-answer practice is not offered · #100 (closes #98)
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review), and the owner chose not to build the feature. It would also touch mandatory requirement #4: transcription needs a model outside the three the brief allows. Docs only, no code change.
+- **What:** `README.md` "Known problems and improvement ideas" gets a paragraph on spoken answers; `docs/PLAN.md` gets a T6.15 entry.
+- **Why:** the review suggested `st.chat_input(accept_audio=True)` plus a transcription step. The three allowed models list only text, image and file input on OpenRouter (checked 2026-10-15), so the owner chose to record the idea rather than add a model outside the brief.
+- **Decisions & gotchas:**
+  - Not tested live: the claim about the models comes from OpenRouter's model list, not from sending audio.
+  - The README says what it would take (separate transcription step, editable transcript, playback), taken from the review.
+  - PR review round 2 (code-reviewer, posted on #100, needs changes; CI green on a801a84, PR mergeable): the content holds (README, PLAN and the Streamlit `accept_audio` claim were checked against the pinned 1.64.0). Round 1 ran from the chat and was not posted.
+    - Should fix: this entry ended with a second `---`. The log has only the one under the format block, and entries are separated by a blank line. Removed.
+    - Nits: PLAN's second criterion now reads like #98's ("`docs/PLAN.md` gets a T6.15 entry; `docs/PROGRESS.md` gets this PR's entry"); the follow-up below is no longer "none".
+    - Still open, not in this PR: T6.14 (#88) goes between T6.13 and T6.15 in PLAN when it lands.
+- **Follow-ups:** PR #102 (T6.16) also adds an entry at the top of this log and inserts after T6.13 in `docs/PLAN.md`, which conflicts with this PR's T6.15 entry. Whichever merges later rebases and keeps every entry, with one blank line between them and no `---` except line 15 (the union merge does not warn about this).
+- **Merge with main (#99 merged first):** the merge had no conflict markers, but the union merge left this entry and T2.6's with no blank line between them; fixed.
+
 ## 2026-10-15 · T2.6 Use the SDK's retry policy and deliberate timeouts · #99 (closes #87)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Code quality, with small behaviour changes for the user (see Decisions & gotchas).
 - **What:**

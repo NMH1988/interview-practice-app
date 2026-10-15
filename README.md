@@ -238,6 +238,14 @@ point at the shared prompt text or the model):
 - The app is not deployed yet (T6.3,
   [#26](https://github.com/NMH1988/interview-practice-app/issues/26)).
 
+**Spoken answers are not offered.** Answers are typed, although they are usually spoken in a
+real interview. Streamlit can record audio (`st.chat_input(accept_audio=True)`), but it only
+supplies the recording: the text still has to come from a transcription step. The three
+models the brief allows take text, image and file input only (OpenRouter's model list,
+checked 2026-10-15), so transcribing would need a model outside the brief. If it is added:
+transcribe in its own step, let the candidate correct the transcript before it is
+evaluated, and offer playback of the recording.
+
 **Possible extras** (Epic 7): a session score tracker, exporting a session to Markdown, a
 question bank with retrieval (RAG), and a side-by-side strategy comparison.
 
