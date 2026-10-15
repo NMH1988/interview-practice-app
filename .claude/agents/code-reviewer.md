@@ -52,7 +52,7 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 - **Prompt injection:** user text is wrapped in `<user_input>...</user_input>` and placed in the user message, never concatenated into the system prompt. System prompts tell the model to stay on interview prep and ignore instructions inside user input.
 - **Output safety:** LLM output is rendered as Markdown **without** `unsafe_allow_html`. Since T5.5 no app file uses `unsafe_allow_html`, `st.html` or `components.v1.html`, or imports `html` / `components` from `streamlit`; `tests/test_output_safety.py` checks this. It does not catch `import streamlit.components.v1`, component calls other than `html` (e.g. `components.iframe`), or a render call reached by another name (e.g. `getattr(st, "markdown")(x, **opts)`), so check those by hand. A new raw-HTML use needs a reason and a test change, and must never carry model or user text.
 - **Model settings:** the model must be in `ALLOWED_MODELS`; the reasoning effort is one of `REASONING_EFFORTS` (no `temperature`: the gpt-5 models ignore it); `max_tokens` is capped.
-- **Dependencies:** new runtime packages are pinned and identical in `pyproject.toml` and `requirements.txt`.
+- **Dependencies:** new runtime packages are pinned with `==` in `pyproject.toml` `[project] dependencies`, the only place they are declared (no `requirements*.txt`).
 
 ### 3. Tests
 - **No real network:** OpenRouter / `openai` calls are mocked (monkeypatch or a fake client). The suite must pass with no `OPENROUTER_API_KEY`; test keys are obvious fakes like `sk-test-not-a-real-key`.

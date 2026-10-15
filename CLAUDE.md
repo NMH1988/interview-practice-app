@@ -15,7 +15,7 @@ For **every coding task** in this repository (features, bug fixes, refactors, is
 
 ## Commands
 
-- Install: `pip install -r requirements-dev.txt`
+- Install: `pip install -e ".[dev]"`
 - Run: `streamlit run app.py`
 - Lint/format: `ruff check .` / `ruff format .`
 - Test: `python -m pytest -q` (LLM calls must be mocked)
