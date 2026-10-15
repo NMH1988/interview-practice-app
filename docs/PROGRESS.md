@@ -19,14 +19,17 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 - **What:**
   - `tests/test_output_safety.py`: `html_render_nodes` flags `**kwargs` only on calls named in the new `RENDER_CALLS` (`markdown`, `write`, `caption`, `html`). The sample test adds `client.create(**kwargs)` and `dict(**d)` (not flagged) and `st.write(x, **opts)` and `st.html(x, **opts)` (flagged).
   - `tests/test_conventions.py` is removed (the repo-wide docstring test and the unit tests of its helper). `CLAUDE.md`, `.claude/skills/qrspi/SKILL.md` and `.claude/agents/code-reviewer.md` say the one-line-docstring convention is kept and checked in review.
-  - `tests/test_prompts.py`: six copies of owner-written prompt sentences and the nine tests that used them are removed (seven rule tests and the two "preface" tests that looked for phrases in the message kinds). The technique markers now come from the prompt constants (`_ZERO_SHOT_TEXT` and the like), so zero-shot has a marker too. The few-shot example test no longer needs the words "It shows".
+  - `tests/test_prompts.py`: six copies of owner-written prompt sentences and the nine tests that used them are removed (seven rule tests and the two "preface" tests that looked for phrases in the message kinds). The technique markers now come from the prompt constants (`ZERO_SHOT_TEXT` and the like), so zero-shot has a marker too. The few-shot example test no longer needs the words "It shows".
   - `docs/PLAN.md`: a T6.14 entry, and a note on T6.9's two docstring boxes.
 - **Why:** these tests made small changes expensive: a reworded prompt sentence broke tests, and `**kwargs` anywhere in the app counted as raw HTML.
 - **Decisions & gotchas:**
   - Owner's decision (2026-10-15): keep the docstring convention, stop enforcing it with a test. The code-reviewer agent is now the only check, so a missing docstring can reach `main` if a review misses it.
   - Dropped, not replaced: the checks that a rule comes after the list it refers to (study plan after the JD list, suggestions after the criteria) and the "kept verbatim" assertions for the owner's sentences. Prompt quality is judged in `docs/PROMPT_EVALUATION.md`, not by these tests.
   - Kept on purpose (owner's default): the tests for starters, captions and chat hints. They check UI text, not prompts, so they are outside this ticket.
-  - The suite goes from 1043 to 1018 tests.
+  - The suite goes from 1043 to 1019 tests.
+  - PR review round 1 (code-reviewer, posted on #104, ready to merge; CI green on c210810):
+    - Should fix, done: with whole technique texts as markers, removing `## Rubric` or `## Assessment Rationale` from a prompt would no longer fail any test (the marker is in the prompt by construction). A new `test_techniques_keep_the_feature_that_defines_them` pins the rationale-before-score order in chain-of-thought, `## Rubric` in structured output and "strict senior interviewer" in persona. These are the old markers, so nothing the owner wrote is copied beyond them.
+    - Nits, done: the scan also flags `from streamlit import markdown/write/caption` (a renamed call such as `md(x, **opts)` was caught before this PR); `getattr(st, "markdown")(x, **opts)` stays a gap, now named in `code-reviewer.md` section 2 for a hand check. The sample test swaps `st.html(x, **opts)` (flagged by name anyway) for `st.caption(x, **opts)` and adds the `from streamlit import markdown as md` line. The four technique constants in `src/prompts.py` lose their leading underscore (a rename only, no behaviour change), since the tests import them.
 - **Follow-ups:** none.
 
 ## 2026-10-15 · T6.16 Code-reviewer posts its review on the PR · #102 (closes #101)

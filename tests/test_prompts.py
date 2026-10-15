@@ -6,10 +6,7 @@ import pytest
 from src.config import DEFAULT_ROLE, DEFAULT_SENIORITY
 from src.guard import matching_patterns, validate_input
 from src.prompts import (
-    _CHAIN_OF_THOUGHT_TEXT,
-    _PERSONA_TEXT,
-    _STRUCTURED_OUTPUT_TEXT,
-    _ZERO_SHOT_TEXT,
+    CHAIN_OF_THOUGHT_TEXT,
     CHAT_PLACEHOLDERS,
     DEFAULT_MESSAGE_KIND,
     EXAMPLE_CAPTIONS,
@@ -20,12 +17,15 @@ from src.prompts import (
     JD_ANALYSIS,
     MESSAGE_KINDS,
     MODE_INSTRUCTIONS,
+    PERSONA_TEXT,
     SENIORITY_LEVELS,
     STAY_ON_TOPIC_RULE,
     STRATEGIES,
     STRATEGY_LABELS,
+    STRUCTURED_OUTPUT_TEXT,
     USER_INPUT_CLOSE,
     USER_INPUT_OPEN,
+    ZERO_SHOT_TEXT,
     build_messages,
     build_user_prompt,
     example_prompts,
@@ -112,11 +112,11 @@ def test_each_key_has_its_own_technique_label():
 
 # Each technique's own text, taken from the constants so a rewording does not touch the tests.
 TECHNIQUE_MARKERS = {
-    "zero_shot": _ZERO_SHOT_TEXT,
+    "zero_shot": ZERO_SHOT_TEXT,
     "few_shot": FEW_SHOT_EXAMPLES[0],
-    "chain_of_thought": _CHAIN_OF_THOUGHT_TEXT,
-    "persona": _PERSONA_TEXT,
-    "structured_output": _STRUCTURED_OUTPUT_TEXT,
+    "chain_of_thought": CHAIN_OF_THOUGHT_TEXT,
+    "persona": PERSONA_TEXT,
+    "structured_output": STRUCTURED_OUTPUT_TEXT,
 }
 
 
@@ -131,6 +131,15 @@ def test_key_builds_its_own_technique(name):
     prompt = STRATEGIES[name]("Data Analyst", "Technical")
     for marker_key, marker in TECHNIQUE_MARKERS.items():
         assert (marker in prompt) == (marker_key == name), marker_key
+
+
+def test_techniques_keep_the_feature_that_defines_them():
+    """Each technique still asks for its own output format, which the marker test cannot see."""
+    chain = STRATEGIES["chain_of_thought"]("Data Analyst", "Technical")
+    # The rationale comes before the score, which is what makes it chain-of-thought.
+    assert chain.index("## Assessment Rationale") < chain.index("## Score")
+    assert "## Rubric" in STRATEGIES["structured_output"]("Data Analyst", "Technical")
+    assert "strict senior interviewer" in STRATEGIES["persona"]("Data Analyst", "Technical")
 
 
 def test_labels_are_read_only():

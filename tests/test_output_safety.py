@@ -172,7 +172,7 @@ def html_render_nodes(path: Path) -> list[ast.AST]:
     nodes = []
     for node in ast.walk(ast.parse(path.read_bytes(), filename=str(path))):
         if isinstance(node, ast.ImportFrom) and node.module and node.module.startswith("streamlit"):
-            if any(alias.name in {"html", "components"} for alias in node.names):
+            if any(alias.name in {"components", *RENDER_CALLS} for alias in node.names):
                 nodes.append(node)
         if not isinstance(node, ast.Call):
             continue
@@ -232,7 +232,8 @@ def test_html_render_nodes_finds_every_raw_html_route(tmp_path):
         "client.create(**kwargs)",
         "dict(**d)",
         "st.write(reply, **options)",  # 18
-        "st.html(reply, **options)",  # 19
+        "st.caption(reply, **options)",  # 19
+        "from streamlit import markdown as md",  # 20
     ]
     source = tmp_path / "sample.py"
     source.write_text("\n".join(lines), encoding="utf-8")
@@ -249,6 +250,7 @@ def test_html_render_nodes_finds_every_raw_html_route(tmp_path):
         14,
         18,
         19,
+        20,
     ]
 
 
