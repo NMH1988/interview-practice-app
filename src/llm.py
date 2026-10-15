@@ -1,7 +1,6 @@
 """OpenRouter client wrapper: `complete()` and `stream()` with model checks, errors and retries."""
 
 import logging
-import time
 from collections.abc import Generator, Iterator
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -25,20 +24,30 @@ if TYPE_CHECKING:
     import httpx2
 
 OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
+# Longest wait for the next bytes of a reply. The value comes from T2.1; the repo records no
+# measurement behind it. T3.3 saw a 46.6-second reply at high effort finish without hitting it;
+# why the connection stayed alive while the model thought is not known
+# (docs/PROMPT_EVALUATION.md), so this value is not proven for every case.
 REQUEST_TIMEOUT = 30.0
-# 429 and 5xx are retried this many times, waiting BACKOFF_SECONDS, then twice as long, etc.
+# Longest wait to open the connection. Short, so a network problem fails fast instead of
+# holding the user for the whole read timeout; 5 s is also the SDK's own default.
+CONNECT_TIMEOUT = 5.0
+# How often the SDK retries a failed request: 408, 409, 429 and 5xx answers, timeouts and dropped
+# connections. Two is T2.1's limit (docs/PLAN.md: "retried ≤ 2×"). It waits 0.5 s, then 1 s
+# (less up to 25% jitter), or what the answer's Retry-After asks for when that is 120 s or less;
+# for more it does not retry at all. complete() reads the whole reply inside these retries; a
+# stream is retried only until OpenRouter starts it (the headers came), even if no text came yet.
+# So repeated 429s can hold the user for about 4 minutes, and a request that times out every
+# time takes about 3 x REQUEST_TIMEOUT before the error shows, with each attempt possibly paid
+# for; a stream that times out after it started shows the error after one REQUEST_TIMEOUT.
+# These numbers are from SDK 3.22.1: re-read them when `openai` is bumped.
 MAX_RETRIES = 2
-BACKOFF_SECONDS = 1.0
-_RETRYABLE = (openai.RateLimitError, openai.InternalServerError)
 _UNREADABLE = "The AI service sent an unreadable answer. Please try again."
 _EMPTY = "The AI service returned an empty answer. Please try again."
 # gpt-5 models think before they write, and that thinking is paid from the same max_tokens.
 _CUT_OFF_EMPTY = "The model used up its token limit before writing an answer. Please try again."
 
 logger = logging.getLogger(__name__)
-
-# Indirection so tests can patch out the backoff wait.
-_sleep = time.sleep
 
 
 class LLMError(RuntimeError):
@@ -54,7 +63,7 @@ class InvalidEffortError(LLMError, ValueError):
 
 
 class LLMTimeoutError(LLMError):
-    """Raised when OpenRouter does not answer within `REQUEST_TIMEOUT` seconds."""
+    """Raised when every try ends in a timeout (`CONNECT_TIMEOUT` or `REQUEST_TIMEOUT`)."""
 
 
 class LLMAuthError(LLMError):
@@ -178,7 +187,7 @@ def _chunk_text(chunk: object) -> str:
 
 
 def make_client(api_key: str | None = None, http_client: httpx2.Client | None = None) -> OpenAI:
-    """Return an OpenAI SDK client pointed at OpenRouter, with the SDK's own retries off."""
+    """Return an OpenAI SDK client pointed at OpenRouter, with our timeouts and retry count."""
     if not api_key:
         try:
             api_key = get_api_key()
@@ -201,9 +210,8 @@ def make_client(api_key: str | None = None, http_client: httpx2.Client | None = 
     return OpenAI(
         api_key=api_key,
         base_url=OPENROUTER_BASE_URL,
-        timeout=REQUEST_TIMEOUT,
-        # _send() runs its own retry loop, so the SDK must not retry as well.
-        max_retries=0,
+        timeout=openai.Timeout(REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT),
+        max_retries=MAX_RETRIES,
         http_client=http_client,
     )
 
@@ -231,37 +239,30 @@ def _send(
     *,
     stream: bool = False,
 ) -> object:
-    """Send one chat request, retrying 429/5xx with backoff, and return the SDK's response."""
+    """Send one chat request (the SDK retries it, see MAX_RETRIES) and return its response."""
     # Whatever the caller asks for, one reply never costs more than the cap. The cap is the
     # "high" effort budget (config.MAX_TOKENS_BY_EFFORT), sized for its long thinking (T2.5).
     max_tokens = min(max_tokens, MAX_TOKENS_CAP)
-    for attempt in range(MAX_RETRIES + 1):
-        try:
-            # Arguments spelled out (no **kwargs), as T4.4's source scan requires.
-            return client.chat.completions.create(
-                model=model,
-                messages=messages,
-                # OpenRouter's documented shape; the SDK has no `reasoning` argument of its own.
-                # gpt-5 models ignore temperature, so it is not sent (T2.4).
-                extra_body={"reasoning": {"effort": reasoning_effort}},
-                max_tokens=max_tokens,
-                # Left out unless streaming, so complete() sends the same body as before.
-                stream=True if stream else openai.omit,
-                # Without this a stream reports no token usage (it comes in a last, textless chunk).
-                stream_options={"include_usage": True} if stream else openai.omit,
-            )
-        except _RETRYABLE as exc:
-            if attempt == MAX_RETRIES:
-                raise _translate(exc) from exc
-            _sleep(BACKOFF_SECONDS * 2**attempt)
-        except openai.APIError as exc:
-            raise _translate(exc) from exc
-        except ValueError as exc:
-            # Mostly a 200 body that does not parse (json.JSONDecodeError is not an APIError).
-            # Request-side ValueErrors would land here too; a non-ASCII key never does,
-            # because make_client() rejects it first.
-            raise LLMError(_UNREADABLE) from exc
-    raise AssertionError("unreachable: the last attempt returns or raises")
+    try:
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            # OpenRouter's documented shape; the SDK has no `reasoning` argument of its own.
+            # gpt-5 models ignore temperature, so it is not sent (T2.4).
+            extra_body={"reasoning": {"effort": reasoning_effort}},
+            max_tokens=max_tokens,
+            # Left out unless streaming, so complete() sends the same body as before.
+            stream=True if stream else openai.omit,
+            # Without this a stream reports no token usage (it comes in a last, textless chunk).
+            stream_options={"include_usage": True} if stream else openai.omit,
+        )
+    except openai.APIError as exc:
+        raise _translate(exc) from exc
+    except ValueError as exc:
+        # Mostly a 200 body that does not parse (json.JSONDecodeError is not an APIError).
+        # Request-side ValueErrors would land here too; a non-ASCII key never does,
+        # because make_client() rejects it first.
+        raise LLMError(_UNREADABLE) from exc
 
 
 def complete(
