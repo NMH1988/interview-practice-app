@@ -5,7 +5,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 **Adding an entry:** every PR (Dependabot exempt) adds one entry at the top of the log below, in the same PR, so the log reaches `main` together with the work. Keep it short and record what the code does not say. Parallel PRs all add at the top, so they conflict here: keep both entries. `.gitattributes` sets `merge=union` for this file, which handles local merges; GitHub's web conflict editor ignores it.
 
 ```
-## YYYY-MM-DD · T<x.y> <title> · #106 (closes #<issue>)
+## YYYY-MM-DD · T<x.y> <title> · #<PR> (closes #<issue>)
 - **What:** files/behaviour changed.
 - **Why:** reason for the approach chosen.
 - **Decisions & gotchas:** anything a future session must know.
