@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-15 · T2.6 Use the SDK's retry policy and deliberate timeouts · #<PR> (closes #87)
+## 2026-10-15 · T2.6 Use the SDK's retry policy and deliberate timeouts · #99 (closes #87)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Code quality; the app behaves the same for the user.
 - **What:**
   - `src/llm.py`: `make_client()` now passes `max_retries=MAX_RETRIES` (2) and `openai.Timeout(REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT)` (read 30 s, connect 5 s). `_send()` makes a single SDK call; the retry loop, `_sleep`, `BACKOFF_SECONDS` and `_RETRYABLE` are removed.
