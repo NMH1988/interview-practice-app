@@ -5,7 +5,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 **Adding an entry:** every PR (Dependabot exempt) adds one entry at the top of the log below, in the same PR, so the log reaches `main` together with the work. Keep it short and record what the code does not say. Parallel PRs all add at the top, so they conflict here: keep both entries. `.gitattributes` sets `merge=union` for this file, which handles local merges; GitHub's web conflict editor ignores it.
 
 ```
-## YYYY-MM-DD · T<x.y> <title> · #<PR> (closes #<issue>)
+## YYYY-MM-DD · T<x.y> <title> · #106 (closes #<issue>)
 - **What:** files/behaviour changed.
 - **Why:** reason for the approach chosen.
 - **Decisions & gotchas:** anything a future session must know.
@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-15 · T3.6 Few-shot sends only the active mode's examples · #<PR> (closes #90)
+## 2026-10-15 · T3.6 Few-shot sends only the active mode's examples · #106 (closes #90)
 - **Brief:** serves mandatory requirement #5 (the few-shot technique), in line with the brief. The example text is the owner's and is unchanged.
 - **What:**
   - `src/prompts.py`: `FEW_SHOT_EXAMPLES` is now a read-only mapping from interview type to its example (`Technical`, `Behavioural`, `Questions to ask the interviewer`), the strings word for word as before. `few_shot()` looks the active type up with `_for_type` (so case and extra spaces do not matter) and joins the intro, that one example and the outro.
@@ -27,7 +27,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - The outro still describes the answer-review format in every mode, including "Questions to ask the interviewer". That is existing text, not touched here.
   - Not re-measured: the evaluation script was not run (live API calls), so the effect on reply quality is unknown. `docs/PROMPT_EVALUATION.md` says so.
   - The suite goes from 1022 to 1027 tests (checked on the branch: ruff clean, all pass).
-- **Follow-ups:** the owner may want to reword the intro and the "Example N" labels now that one example is sent, or write a Job-description example; both are the owner's text. Fill in the PR number above when the PR is opened.
+- **Follow-ups:** the owner may want to reword the intro and the "Example N" labels now that one example is sent, or write a Job-description example; both are the owner's text.
 
 ## 2026-10-15 · T6.14 Tests check behaviour, not wording or docstrings · #104 (closes #88)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Test suite and process docs only; the one change under `src/` is a rename (round 1, below), with no behaviour change.
