@@ -25,7 +25,9 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
     - Should fix: this entry ended with a second `---`. The log has only the one under the format block, and entries are separated by a blank line. Removed.
     - Nits: PLAN's second criterion now reads like #98's ("`docs/PLAN.md` gets a T6.15 entry; `docs/PROGRESS.md` gets this PR's entry"); the follow-up below is no longer "none".
     - Still open, not in this PR: T6.14 (#88) goes between T6.13 and T6.15 in PLAN when it lands.
-- **Follow-ups:** PR #99 (T2.6) and #102 (T6.16) also add an entry at the top of this log, and #102 also inserts after T6.13 in `docs/PLAN.md`, which conflicts with this PR's T6.15 entry. Whichever merges later rebases and keeps every entry, with one blank line between them and no `---` except line 15 (the union merge does not warn about this).
+- **Follow-ups:** PR #102 (T6.16) also adds an entry at the top of this log and inserts after T6.13 in `docs/PLAN.md`, which conflicts with this PR's T6.15 entry. Whichever merges later rebases and keeps every entry, with one blank line between them and no `---` except line 15 (the union merge does not warn about this).
+- **Merge with main (#99 merged first):** the merge had no conflict markers, but the union merge left this entry and T2.6's with no blank line between them; fixed.
+
 ## 2026-10-15 · T2.6 Use the SDK's retry policy and deliberate timeouts · #99 (closes #87)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Code quality, with small behaviour changes for the user (see Decisions & gotchas).
 - **What:**
