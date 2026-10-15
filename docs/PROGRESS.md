@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-15 · T6.14 Tests check behaviour, not wording or docstrings · #<PR> (closes #88)
+## 2026-10-15 · T6.14 Tests check behaviour, not wording or docstrings · #104 (closes #88)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Test suite and process docs only, no app code changed.
 - **What:**
   - `tests/test_output_safety.py`: `html_render_nodes` flags `**kwargs` only on calls named in the new `RENDER_CALLS` (`markdown`, `write`, `caption`, `html`). The sample test adds `client.create(**kwargs)` and `dict(**d)` (not flagged) and `st.write(x, **opts)` and `st.html(x, **opts)` (flagged).
