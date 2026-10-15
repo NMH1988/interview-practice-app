@@ -358,7 +358,7 @@ Beyond the brief (owner's request, from the 2026-10-15 project review): code qua
 - [x] `pyproject.toml` has a `[build-system]` and package discovery limited to `src`, so the editable install works with the flat layout.
 - [x] `requirements.txt` and `requirements-dev.txt` are removed; CI (`lint`, `test`, `security`) installs from `pyproject.toml`, and `pip-audit .` audits the runtime dependencies.
 - [ ] Dependabot keeps updating pip dependencies (it reads `pyproject.toml`). Only the first Dependabot PR after the merge shows it.
-- [x] README, `CLAUDE.md` and the code-reviewer agent show the new install command.
+- [x] README and `CLAUDE.md` show the new install command. The code-reviewer agent has no install command, so its Dependencies rule now names `pyproject.toml` as the only list.
 
 **Tests**
 - [x] Unit: `tests/test_dependencies.py` checks that every runtime dependency is pinned with `==`, that the dev tools are in the `dev` extra, that discovery is limited to `src`, and that no `requirements*.txt` file is back. The drift test is gone.
