@@ -444,6 +444,18 @@ Beyond the brief (owner's request, from the 2026-10-15 project review); docs onl
 **Tests**
 - None (docs only).
 
+### T6.16 Code-reviewer posts its review on the PR (S)
+Beyond the brief (owner's request): our own process tooling, no app code.
+**Acceptance criteria**
+- [x] `.claude/agents/code-reviewer.md` says the agent changes no file, working tree, branch or commit, and that its only write is one comment on the PR it reviewed (description and ground rules updated; `gh pr comment` is added to the allowed commands, and `gh api` and comment editing are forbidden).
+- [ ] After every PR review the agent posts its report with `gh pr comment <n> --body-file -` (new comment each round, never an edit), with the round number and the head SHA it reviewed on the first line. The SHA is noted once at the start, and a second line says so if the head moved before posting. The round is one more than the highest round in earlier `**code-reviewer**` comments. If the caller gives no PR number, it posts only when the checkout is exactly the head of the branch's one open PR (non-empty branch name, clean tree, same commit at the start and when posting, no ticket or files named); otherwise it posts nothing and says why. *(Written in the agent file; open until the first real review after the merge posts its own comment.)*
+- [ ] The comment is public (the repo is public): repo-relative paths only, no local paths, secrets redacted. *(Written; same live check as the box above.)*
+- [ ] If posting fails, the agent says so and still returns the full report, without working around the failure; when it works, its reply ends with the comment's link. *(Same live check as the box above.)*
+- [x] `docs/PLAN.md` gets a T6.16 entry; `docs/PROGRESS.md` gets this PR's entry.
+
+**Tests**
+- None (agent instructions and docs only). Not testable in CI; the first real PR review after the merge is the check.
+
 ## Epic 7 — Optional / Portfolio Extras
 - T7.1 Session score tracker (the placeholder chart it was to replace was removed in T5.5) — AC: scores parsed from structured output and charted per session.
   - Tests: unit — scores are parsed from structured output, and malformed or missing scores are skipped without crashing; UI flow — after scored replies, the chart has one point per scored answer.
