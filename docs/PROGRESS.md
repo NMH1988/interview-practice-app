@@ -33,6 +33,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - T6.3 (#26): Streamlit Community Cloud has no `requirements.txt` to read now. Check it installs from `pyproject.toml` when deploying.
   - Tick the PLAN boxes for "CI: all three jobs pass" once the PR's checks are green, and for Dependabot's first `pyproject.toml` PR after the merge.
   - T6.6's "a Dependabot PR skips the check" was seen on #85 and #86 (`linked-issue` SKIPPED); the box can be ticked.
+
 ## 2026-10-15 · T6.16 Code-reviewer posts its review on the PR · #102 (closes #101)
 - **Brief:** beyond the brief (owner's request, 2026-10-15). The brief asks for no reviewer agent; this changes our own process tooling only. No app code changed.
 - **What:**
