@@ -61,7 +61,7 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 - **UI:** visible UI changes are covered by an `AppTest` test like `tests/test_app_smoke.py`.
 
 ### 4. Project conventions
-- Every function, method and class - tests, fixtures and small helper classes included - has a one-line docstring saying what it does in plain words.
+- Every function, method and class - tests, fixtures and small helper classes included - has a one-line docstring saying what it does in plain words. No test enforces this (T6.14), so this review is where it is checked: list each missing or multi-line docstring in the changed files.
 - Business logic lives in `src/`, not `app.py`.
 - Defaults and limits (models, reasoning effort, max length, rate limits) live in `src/config.py`, not as magic numbers.
 - ruff: line length 100, rules `E, F, I, B, UP`. Python 3.14.

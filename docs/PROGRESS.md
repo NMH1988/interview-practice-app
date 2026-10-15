@@ -14,6 +14,21 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T6.14 Tests check behaviour, not wording or docstrings · #<PR> (closes #88)
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Test suite and process docs only, no app code changed.
+- **What:**
+  - `tests/test_output_safety.py`: `html_render_nodes` flags `**kwargs` only on calls named in the new `RENDER_CALLS` (`markdown`, `write`, `caption`, `html`). The sample test adds `client.create(**kwargs)` and `dict(**d)` (not flagged) and `st.write(x, **opts)` and `st.html(x, **opts)` (flagged).
+  - `tests/test_conventions.py` is removed (the repo-wide docstring test and the unit tests of its helper). `CLAUDE.md`, `.claude/skills/qrspi/SKILL.md` and `.claude/agents/code-reviewer.md` say the one-line-docstring convention is kept and checked in review.
+  - `tests/test_prompts.py`: six copies of owner-written prompt sentences and the nine tests that used them are removed (seven rule tests and the two "preface" tests that looked for phrases in the message kinds). The technique markers now come from the prompt constants (`_ZERO_SHOT_TEXT` and the like), so zero-shot has a marker too. The few-shot example test no longer needs the words "It shows".
+  - `docs/PLAN.md`: a T6.14 entry, and a note on T6.9's two docstring boxes.
+- **Why:** these tests made small changes expensive: a reworded prompt sentence broke tests, and `**kwargs` anywhere in the app counted as raw HTML.
+- **Decisions & gotchas:**
+  - Owner's decision (2026-10-15): keep the docstring convention, stop enforcing it with a test. The code-reviewer agent is now the only check, so a missing docstring can reach `main` if a review misses it.
+  - Dropped, not replaced: the checks that a rule comes after the list it refers to (study plan after the JD list, suggestions after the criteria) and the "kept verbatim" assertions for the owner's sentences. Prompt quality is judged in `docs/PROMPT_EVALUATION.md`, not by these tests.
+  - Kept on purpose (owner's default): the tests for starters, captions and chat hints. They check UI text, not prompts, so they are outside this ticket.
+  - The suite goes from 1043 to 1018 tests.
+- **Follow-ups:** none.
+
 ## 2026-10-15 · T6.16 Code-reviewer posts its review on the PR · #102 (closes #101)
 - **Brief:** beyond the brief (owner's request, 2026-10-15). The brief asks for no reviewer agent; this changes our own process tooling only. No app code changed.
 - **What:**
