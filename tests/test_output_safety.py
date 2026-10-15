@@ -46,7 +46,7 @@ NORMAL_REPLIES = [
 ]
 
 
-EXAMPLE_PARAGRAPHS = [p for example in FEW_SHOT_EXAMPLES for p in example.split("\n\n")]
+EXAMPLE_PARAGRAPHS = [p for example in FEW_SHOT_EXAMPLES.values() for p in example.split("\n\n")]
 
 
 def is_example_text(paragraph: str) -> bool:

@@ -14,6 +14,21 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T3.6 Few-shot sends only the active mode's examples · #<PR> (closes #90)
+- **Brief:** serves mandatory requirement #5 (the few-shot technique), in line with the brief. The example text is the owner's and is unchanged.
+- **What:**
+  - `src/prompts.py`: `FEW_SHOT_EXAMPLES` is now a read-only mapping from interview type to its example (`Technical`, `Behavioural`, `Questions to ask the interviewer`), the strings word for word as before. `few_shot()` looks the active type up with `_for_type` (so case and extra spaces do not matter) and joins the intro, that one example and the outro.
+  - `src/guard.py`: `_PUBLIC_PARAGRAPHS` reads `FEW_SHOT_EXAMPLES.values()`, so the output check still exempts every example, including those a given prompt does not carry.
+  - `tests/test_prompts.py`: the two few-shot tests now follow the mapping; new tests check that each mode's prompt holds its own example and none other, that Job-description analysis and an unknown type get the intro and outro only, and that a near-miss type name still finds its example. `tests/test_output_safety.py` reads `.values()`.
+  - `README.md`, `docs/PROMPT_EVALUATION.md`, `docs/PLAN.md`: the change is noted (problem 4 and its follow-up are marked fixed; a T3.6 entry).
+- **Why:** with all three examples in every prompt, the JavaScript example leaked "temporal dead zone" into a job-description analysis (T3.3, problem 4), and each prompt carried examples about other modes.
+- **Decisions & gotchas:**
+  - Owner approved these defaults: the "Example 1/2/3 —" labels stay (so a mode now sees, for example, "Example 3" alone); the intro and outro stay word for word, so in Job-description analysis the intro's "Use the following examples…" has no example after it; an unknown type gets no example.
+  - The outro still describes the answer-review format in every mode, including "Questions to ask the interviewer". That is existing text, not touched here.
+  - Not re-measured: the evaluation script was not run (live API calls), so the effect on reply quality is unknown. `docs/PROMPT_EVALUATION.md` says so.
+  - The suite goes from 1022 to 1027 tests (checked on the branch: ruff clean, all pass).
+- **Follow-ups:** the owner may want to reword the intro and the "Example N" labels now that one example is sent, or write a Job-description example; both are the owner's text. Fill in the PR number above when the PR is opened.
+
 ## 2026-10-15 · T6.14 Tests check behaviour, not wording or docstrings · #104 (closes #88)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Test suite and process docs only; the one change under `src/` is a rename (round 1, below), with no behaviour change.
 - **What:**

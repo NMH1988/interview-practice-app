@@ -103,7 +103,7 @@ These do not depend on the technique, so they point to the shared parts of the p
 1. **Invented facts in sample answers** (`behavioral`). Every strategy except Role / persona wrote a model answer with made-up campaign numbers and results (for example "increasing monthly revenue by 12%"), and some made the candidate the owner of a measurement they said they did not track. A candidate could repeat those numbers as if they were real. Relevance 3 for four strategies, 4 for Role / persona.
 2. **Seniority not respected** (`technical`). For a Junior candidate, all five strategies asked for production-level topics such as N+1 queries, persisted queries, rate limiting and query-cost limits. Chain-of-thought and Structured output mentioned the Junior level but still asked for that depth. Relevance 3 for all five.
 3. **Long job-description analyses that do not end with the study plan** (`jd-review`). Every reply was 7,861–9,135 characters, repeating material across the skills, topics, keywords, gaps and study-plan sections. Every reply included a study plan of exactly five items, each with one review topic and one practice task, but none ended with it, as the mode requires: all five added general tips and an offer to continue after it. Each strategy lost one Structure point for the repetition and one for the mode rule (Structure 3 for all five).
-4. **A few-shot example leaked into another mode.** Few-shot's job-description reply listed "temporal dead zone (not relevant here — ignore)" among the keywords. The term comes from its JavaScript example (Example 1 in `FEW_SHOT_EXAMPLES`).
+4. **A few-shot example leaked into another mode.** Few-shot's job-description reply listed "temporal dead zone (not relevant here — ignore)" among the keywords. The term comes from its JavaScript example (Example 1 in `FEW_SHOT_EXAMPLES`). Fixed in T3.6 (#90): `few_shot()` now sends only the example of the active mode, and Job-description analysis gets none. The change is not re-measured; the scores above are from before it.
 
 Things that worked in every reply: `qta-suggest` got 7 or 8 questions (the mode asks for 5–8) with one reason line each, tailored to the S/4HANA fact, with no invented facts about the company; Role / persona and Chain-of-thought were checked on this path too, which T5.6's live check had not covered. No strategy asked the candidate an interview question in "Questions to ask the interviewer".
 
@@ -167,5 +167,5 @@ What changed:
   - sample answers invent facts (problem 1);
   - feedback ignores the Junior level (problem 2);
   - long, repetitive job-description analyses that do not end with the study plan (problem 3);
-  - the Few-shot JavaScript example leaking into other modes (problem 4);
+  - ~~the Few-shot JavaScript example leaking into other modes (problem 4)~~ fixed in T3.6 (#90);
   - the `minimal` / `low` prompt echo.

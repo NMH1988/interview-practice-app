@@ -72,7 +72,7 @@ technique part:
 | Strategy | Technique | What its text does |
 |---|---|---|
 | Zero-shot | Instructions only | Says how to review an answer and which headings to use, with no examples |
-| Few-shot | Worked examples | Shows three fictional examples: a technical review, a behavioural review, and a list of suggested questions to ask the interviewer |
+| Few-shot | Worked examples | Shows the fictional example for the active mode: a technical review, a behavioural review, or a list of suggested questions to ask the interviewer. Job-description analysis has no example, so it gets only the introduction and closing instructions |
 | Chain-of-thought | Reasoning before the verdict | Asks for a short assessment rationale (the evidence) before a 1–5 score. It asks for a summary of the evidence, not the model's hidden thinking |
 | Role / persona | Persona | The coach plays a strict but fair senior interviewer who challenges vague answers, with at most two follow-ups on the same gap |
 | Structured output | Fixed output format | Scores five rubric criteria (Relevance, Correctness, Clarity, Depth, Practicality) from 1 to 5 under fixed headings |
@@ -211,7 +211,8 @@ point at the shared prompt text or the model):
   what each seniority level should know.
 - Job-description analyses are long, repeat themselves and do not end with the study plan as
   required. Idea: bound the length of each section.
-- A Few-shot example (JavaScript) leaked a term into a job-description analysis.
+- A Few-shot example (JavaScript) leaked a term into a job-description analysis. Fixed in T3.6:
+  Few-shot now sends only the active mode's example. Not re-measured with the evaluation script.
 - Feedback on your own question to the interviewer sometimes uses the answer-review format
   ([#76](https://github.com/NMH1988/interview-practice-app/issues/76)).
 - The evaluation itself is small: one run per combination, one model, one scorer who could see
