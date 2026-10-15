@@ -15,9 +15,9 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 ---
 
 ## 2026-10-15 · T6.14 Tests check behaviour, not wording or docstrings · #104 (closes #88)
-- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Test suite and process docs only, no app code changed.
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Test suite and process docs only; the one change under `src/` is a rename (round 1, below), with no behaviour change.
 - **What:**
-  - `tests/test_output_safety.py`: `html_render_nodes` flags `**kwargs` only on calls named in the new `RENDER_CALLS` (`markdown`, `write`, `caption`, `html`). The sample test adds `client.create(**kwargs)` and `dict(**d)` (not flagged) and `st.write(x, **opts)` and `st.html(x, **opts)` (flagged).
+  - `tests/test_output_safety.py`: `html_render_nodes` flags `**kwargs` only on calls named in the new `RENDER_CALLS` (`markdown`, `write`, `caption`, `html`). The import check flags `from streamlit import markdown/write/caption/html/components` too (round 1). The sample test adds `client.create(**kwargs)` and `dict(**d)` (not flagged) and `st.write(x, **opts)`, `st.caption(x, **opts)` and `from streamlit import markdown as md` (flagged).
   - `tests/test_conventions.py` is removed (the repo-wide docstring test and the unit tests of its helper). `CLAUDE.md`, `.claude/skills/qrspi/SKILL.md` and `.claude/agents/code-reviewer.md` say the one-line-docstring convention is kept and checked in review.
   - `tests/test_prompts.py`: six copies of owner-written prompt sentences and the nine tests that used them are removed (seven rule tests and the two "preface" tests that looked for phrases in the message kinds). The technique markers now come from the prompt constants (`ZERO_SHOT_TEXT` and the like), so zero-shot has a marker too. The few-shot example test no longer needs the words "It shows".
   - `docs/PLAN.md`: a T6.14 entry, and a note on T6.9's two docstring boxes.
@@ -30,6 +30,10 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - PR review round 1 (code-reviewer, posted on #104, ready to merge; CI green on c210810):
     - Should fix, done: with whole technique texts as markers, removing `## Rubric` or `## Assessment Rationale` from a prompt would no longer fail any test (the marker is in the prompt by construction). A new `test_techniques_keep_the_feature_that_defines_them` pins the rationale-before-score order in chain-of-thought, `## Rubric` in structured output and "strict senior interviewer" in persona. These are the old markers, so nothing the owner wrote is copied beyond them.
     - Nits, done: the scan also flags `from streamlit import markdown/write/caption` (a renamed call such as `md(x, **opts)` was caught before this PR); `getattr(st, "markdown")(x, **opts)` stays a gap, now named in `code-reviewer.md` section 2 for a hand check. The sample test swaps `st.html(x, **opts)` (flagged by name anyway) for `st.caption(x, **opts)` and adds the `from streamlit import markdown as md` line. The four technique constants in `src/prompts.py` lose their leading underscore (a rename only, no behaviour change), since the tests import them.
+  - PR review round 2 (code-reviewer, posted on #104, ready to merge; CI green on 81be9d6): all four round-1 points are confirmed fixed, the merge with `main` kept every change, and the round-1 record matches its comment. Three doc nits, fixed:
+    - "no app code changed" was no longer true after the constants' rename; this entry, PLAN's T6.14 line and the PR description now say so. The PR description also said "1018 tests"; it now says 1019 (1022 after the merge).
+    - This entry's What bullet lists the `st.caption` and `from streamlit import markdown as md` samples and the import check.
+    - The comment above `RENDER_CALLS` and `code-reviewer.md`'s Output safety line say the import check uses the same names, so a plain `from streamlit import write` being flagged is no surprise.
 - **Follow-ups:** none.
 - **Merge with main (#103 merged first):** no conflict markers, but the union merge left this entry and T6.4's with no blank line between them; fixed. On the merged tree ruff is clean and 1022 tests pass (T6.4 added three; the 1019 above is before the merge).
 

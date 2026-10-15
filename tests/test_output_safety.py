@@ -18,7 +18,8 @@ COMBINING_JOINER = chr(0x034F)
 NB_HYPHEN = chr(0x2011)
 # Streamlit calls whose second positional argument is `unsafe_allow_html`.
 FLAG_SECOND_ARG = {"markdown", "caption"}
-# Calls that render text on the page, the only place `**kwargs` could hide the raw-HTML flag.
+# Calls that render text on the page: the only place `**kwargs` could hide the raw-HTML flag, and
+# the names whose `from streamlit import ...` is flagged, since a renamed call could hide it too.
 RENDER_CALLS = {"markdown", "write", "caption", "html"}
 
 PROMPTS = {key: strategy("Software Engineer", "Technical") for key, strategy in STRATEGIES.items()}

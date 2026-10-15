@@ -443,7 +443,7 @@ Beyond the brief (owner's request, from the 2026-10-15 project review): code qua
 - None (docs only).
 
 ### T6.14 Tests check behaviour, not wording or docstrings (M)
-Beyond the brief (owner's request, from the 2026-10-15 project review): our own test suite, no app code.
+Beyond the brief (owner's request, from the 2026-10-15 project review): our own test suite and process docs; the only `src/` change is a rename of four prompt constants (no behaviour change).
 **Acceptance criteria**
 - [x] The raw-HTML scan looks for `**kwargs` only on calls that render text (`markdown`, `write`, `caption`, `html`); `unsafe_allow_html`, a second positional argument, a call to `html` and imports of `streamlit.html` / `components` are still flagged. A `**kwargs` call to anything else is not.
 - [x] `tests/test_conventions.py` is removed; `CLAUDE.md`, the `qrspi` skill and the code-reviewer agent say the docstring convention is checked in review, not by a test.
