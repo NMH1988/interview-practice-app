@@ -204,7 +204,7 @@ def test_budget_is_the_apps_unless_set(effort):
 def test_run_job_sends_the_same_messages_as_the_app(fake_llm, strategy):
     """A job sends the strategy's system prompt and the app's user prompt, with its settings."""
     result = run_job(Job(ITEM, strategy, "high", 1), "openai/gpt-5-nano", 500, client="c")
-    system = STRATEGIES[strategy](ITEM.role, ITEM.interview_type)
+    system = STRATEGIES[strategy](ITEM.interview_type)
     user = build_user_prompt(ITEM.role, ITEM.interview_type, ITEM.seniority, ITEM.text)
     assert fake_llm.calls == [
         {
@@ -265,7 +265,7 @@ def test_run_job_sends_the_question_as_the_previous_turn(fake_llm):
     """With a question, the coach's question goes between the system prompt and the answer."""
     item = EvalInput(**SAMPLE[0], question="Tell me about a time you fixed a problem.")
     run_job(Job(item, "few_shot", "medium", 1), DEFAULT_MODEL)
-    system = STRATEGIES["few_shot"](item.role, item.interview_type)
+    system = STRATEGIES["few_shot"](item.interview_type)
     user = build_user_prompt(item.role, item.interview_type, item.seniority, item.text)
     assert fake_llm.calls[0]["messages"] == [
         {"role": "system", "content": system},
@@ -316,7 +316,7 @@ def test_run_job_does_not_mark_a_finished_or_refused_reply_cut_off(fake_llm):
     """Only "length" means cut off, and a reply the output check replaces is not cut off."""
     assert not run_job(Job(ITEM, "persona", "medium", 1), DEFAULT_MODEL).cut_off
     fake_llm.finish_reason = "length"
-    fake_llm.reply = STRATEGIES["persona"](ITEM.role, ITEM.interview_type)
+    fake_llm.reply = STRATEGIES["persona"](ITEM.interview_type)
     result = run_job(Job(ITEM, "persona", "medium", 1), DEFAULT_MODEL)
     assert result.refused
     assert not result.cut_off
@@ -389,7 +389,7 @@ def test_run_job_reraises_a_missing_or_rejected_key():
 
 def test_run_job_flags_a_reply_the_output_check_would_refuse(fake_llm):
     """A reply that repeats the system prompt is flagged, and the original text is kept."""
-    fake_llm.reply = STRATEGIES["persona"](ITEM.role, ITEM.interview_type)
+    fake_llm.reply = STRATEGIES["persona"](ITEM.interview_type)
     result = run_job(Job(ITEM, "persona", "medium", 1), DEFAULT_MODEL, 100)
     assert result.refused
     assert result.reply == fake_llm.reply

@@ -97,7 +97,8 @@ def validate_role(role: str | None, max_chars: int = MAX_ROLE_CHARS, *, log: boo
     cleaned = _validated(
         one_line, max_chars, "Please enter the role you are practising for.", "The role"
     )
-    # The role goes into the system prompt, outside the user_input tags, so it is checked too.
+    # The role is outside the user_input tags in the user message (never in the system prompt,
+    # T4.5), so it is checked too: defence in depth.
     check_injection(cleaned, "role", log=log)
     return cleaned
 

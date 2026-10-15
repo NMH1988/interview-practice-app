@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
-from src.config import API_KEY_NAME, DEFAULT_ROLE, DEFAULT_STRATEGY
+from src.config import API_KEY_NAME, DEFAULT_STRATEGY
 from src.prompts import INTERVIEW_TYPES, STRATEGIES, STRATEGY_LABELS
 
 APP = Path(__file__).resolve().parent.parent / "app.py"
@@ -36,7 +36,7 @@ def test_default_strategy_builds_the_system_prompt(fake_llm):
     system = fake_llm.calls[0]["messages"][0]
     assert system == {
         "role": "system",
-        "content": STRATEGIES[DEFAULT_STRATEGY](DEFAULT_ROLE, INTERVIEW_TYPES[0]),
+        "content": STRATEGIES[DEFAULT_STRATEGY](INTERVIEW_TYPES[0]),
     }
 
 

@@ -265,7 +265,7 @@ def test_developer_settings_set_in_the_expander_reach_the_llm(fake_llm):
     assert call["max_tokens"] == MAX_TOKENS_BY_EFFORT["high"]
     assert call["messages"][0] == {
         "role": "system",
-        "content": STRATEGIES["persona"](DEFAULT_ROLE, INTERVIEW_TYPES[0]),
+        "content": STRATEGIES["persona"](INTERVIEW_TYPES[0]),
     }
 
 
