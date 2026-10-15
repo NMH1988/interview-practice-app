@@ -427,7 +427,7 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 Beyond the brief (owner's request, from the 2026-10-15 project review); docs only.
 **Acceptance criteria**
 - [x] README "Known problems and improvement ideas" says spoken practice is not offered, why (the allowed models take no audio) and what adding it would need.
-- [x] `docs/PROGRESS.md` entry added.
+- [x] `docs/PLAN.md` gets a T6.15 entry; `docs/PROGRESS.md` gets this PR's entry.
 
 **Tests**
 - None (docs only).

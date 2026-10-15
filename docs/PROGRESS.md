@@ -21,9 +21,11 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 - **Decisions & gotchas:**
   - Not tested live: the claim about the models comes from OpenRouter's model list, not from sending audio.
   - The README says what it would take (separate transcription step, editable transcript, playback), taken from the review.
-- **Follow-ups:** none.
-
----
+  - PR review round 2 (code-reviewer, posted on #100, needs changes; CI green on a801a84, PR mergeable): the content holds (README, PLAN and the Streamlit `accept_audio` claim were checked against the pinned 1.64.0). Round 1 ran from the chat and was not posted.
+    - Should fix: this entry ended with a second `---`. The log has only the one under the format block, and entries are separated by a blank line. Removed.
+    - Nits: PLAN's second criterion now reads like #98's ("`docs/PLAN.md` gets a T6.15 entry; `docs/PROGRESS.md` gets this PR's entry"); the follow-up below is no longer "none".
+    - Still open, not in this PR: T6.14 (#88) goes between T6.13 and T6.15 in PLAN when it lands.
+- **Follow-ups:** PR #99 (T2.6) and #102 (T6.16) also add an entry at the top of this log, and #102 also inserts after T6.13 in `docs/PLAN.md`, which conflicts with this PR's T6.15 entry. Whichever merges later rebases and keeps every entry, with one blank line between them and no `---` except line 15 (the union merge does not warn about this).
 
 ## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #84 (closes #65)
 - **Brief:** beyond the brief (owner's request), confirmed by the owner. The brief asks for no plan or progress log; this keeps `docs/` accurate for the review, which reads the repo as submitted. Docs only, no code change.
