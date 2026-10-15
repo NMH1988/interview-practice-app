@@ -27,7 +27,12 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
   - The outro still describes the answer-review format in every mode, including "Questions to ask the interviewer". That is existing text, not touched here.
   - Not re-measured: the evaluation script was not run (live API calls), so the effect on reply quality is unknown. `docs/PROMPT_EVALUATION.md` says so.
   - The suite goes from 1022 to 1027 tests (checked on the branch: ruff clean, all pass).
-- **Follow-ups:** the owner may want to reword the intro and the "Example N" labels now that one example is sent, or write a Job-description example; both are the owner's text.
+  - Trade-off for brief requirement #5 (five prompts, each a different technique, then compared): in Job-description analysis Few-shot now sends no example, so its prompt is instructions only, like Zero-shot. A `jd-review` comparison would set two instruction-only prompts against each other under different names. Ticket #90's second criterion accepts this; a Job-description example is the owner's to write and would restore the difference.
+  - PR review round 1 (code-reviewer, posted on #106, ready to merge; CI green on b3c8a85): no bugs, the example text is identical to `main`'s, every acceptance criterion is met. The reviewer used round 1, not 2: the PR had no earlier review comment. Fixed:
+    - Should fix: the README row and this entry did not name the requirement #5 trade-off above; both do now, and the follow-up links to it.
+    - Nit: the unknown-type test's docstring promised the intro and outro but only checked for no example; it now asserts both too.
+    - Its question, whether the JavaScript example sent to every role in Technical mode (the same kind of leak as problem 4, inside one mode) needs a ticket, is the owner's call; no ticket was opened.
+- **Follow-ups:** the owner may want to reword the intro and the "Example N" labels now that one example is sent, or write a Job-description example (this would also make Few-shot a separate technique again in that mode, requirement #5); both are the owner's text.
 
 ## 2026-10-15 · T6.14 Tests check behaviour, not wording or docstrings · #104 (closes #88)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Test suite and process docs only; the one change under `src/` is a rename (round 1, below), with no behaviour change.

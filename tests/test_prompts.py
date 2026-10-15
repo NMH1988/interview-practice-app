@@ -261,6 +261,8 @@ def test_mode_without_an_example_still_gets_the_intro_and_outro():
 def test_unknown_type_gets_no_few_shot_example():
     """A type name that is not a mode gets the intro and outro but no example."""
     prompt = few_shot("Data Analyst", "Something else")
+    assert prompt.startswith(_FEW_SHOT_INTRO)
+    assert _FEW_SHOT_OUTRO in prompt
     assert not any(example in prompt for example in FEW_SHOT_EXAMPLES.values())
 
 
