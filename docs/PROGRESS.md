@@ -14,6 +14,26 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T6.4 pyproject.toml as the only dependency list · #<PR> (closes #27)
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review): code quality, not a brief task. Changes no product behaviour.
+- **What:**
+  - `pyproject.toml`: adds `[build-system]` (setuptools >= 77), `[project.optional-dependencies] dev` (`pytest`, `pytest-cov`, `ruff`) and `[tool.setuptools.packages.find] include = ["src*"]`. The runtime pins (`openai==3.22.1`, `streamlit==1.64.0`) stay.
+  - `requirements.txt` and `requirements-dev.txt` are deleted.
+  - `.github/workflows/ci.yml`: `lint` and `test` run `pip install -e ".[dev]"` and cache on `pyproject.toml`; `security` runs `pip-audit .`.
+  - `tests/test_dependencies.py`: the drift test and its helper are replaced by four tests: every runtime dependency is pinned with `==`, the dev tools are in the `dev` extra, discovery is limited to `src`, and no `requirements*.txt` file exists.
+  - `README.md`, `CLAUDE.md` and `.claude/agents/code-reviewer.md` show `pip install -e ".[dev]"`; `docs/PLAN.md` gets a ticked T6.4 section and notes on T1.1's two old boxes.
+- **Why:** the runtime dependencies were declared twice, with a test whose only job was to stop the lists drifting. One source removes the problem, and Dependabot reads `pyproject.toml` for pip.
+- **Decisions & gotchas:**
+  - Dependabot #85 (openai 3.24.0) and #86 (streamlit 1.65.0) were closed with a comment before this work, as the owner chose: both edited the two files and would have conflicted. Dependabot should reopen them against `pyproject.toml`. Their CI runs showed `linked-issue` SKIPPED, which is the T6.6 Dependabot check that was never seen before (T6.6's last box is still open).
+  - The `dev` tools are not pinned (the ticket asks for pins on runtime only), as before. A clean venv got ruff 0.17.0 while the global install had 0.16.9; both pass.
+  - `pip-audit .` reads the project from `pyproject.toml`, resolves it and audits the result. Checked locally in a clean venv: "No known vulnerabilities found". The old command audited the pinned file only.
+  - Checked in a clean venv: `pip install -e ".[dev]"` installs `interview-practice-app`, openai 3.22.1, streamlit 1.64.0, pytest, pytest-cov and ruff; ruff check, ruff format --check and 1,045 tests pass.
+  - `pythonpath = ["."]` in pytest's settings stays; it still lets tests import `app`.
+- **Follow-ups:**
+  - T6.3 (#26): Streamlit Community Cloud has no `requirements.txt` to read now. Check it installs from `pyproject.toml` when deploying.
+  - Tick the PLAN boxes for "CI: all three jobs pass" once the PR's checks are green, and for Dependabot's first `pyproject.toml` PR after the merge.
+  - T6.6's "a Dependabot PR skips the check" was seen on #85 and #86 (`linked-issue` SKIPPED); the box can be ticked.
+
 ## 2026-10-15 · T6.15 README: why spoken-answer practice is not offered · #100 (closes #98)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review), and the owner chose not to build the feature. It would also touch mandatory requirement #4: transcription needs a model outside the three the brief allows. Docs only, no code change.
 - **What:** `README.md` "Known problems and improvement ideas" gets a paragraph on spoken answers; `docs/PLAN.md` gets a T6.15 entry.

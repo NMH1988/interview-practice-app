@@ -34,7 +34,7 @@ clears the chat.
 ## Local setup
 
 1. Clone the repo and `cd` into it (requires Python 3.14+).
-2. Install dependencies: `pip install -r requirements-dev.txt`
+2. Install dependencies: `pip install -e ".[dev]"`
 3. Copy the secrets template: `cp .streamlit/secrets.toml.example .streamlit/secrets.toml`
    (Windows: `copy .streamlit\secrets.toml.example .streamlit\secrets.toml`)
 4. Paste your [OpenRouter key](https://openrouter.ai/keys) into `.streamlit/secrets.toml`, or

@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "interview-practice-app"
 version = "0.1.0"
@@ -8,6 +12,16 @@ dependencies = [
     "openai==3.22.1",
     "streamlit==1.64.0",
 ]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+]
+
+[tool.setuptools.packages.find]
+include = ["src*"]
 
 [tool.ruff]
 line-length = 100

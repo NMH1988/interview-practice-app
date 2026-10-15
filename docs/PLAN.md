@@ -53,11 +53,11 @@ Goal: a clean, runnable repo skeleton that other epics build on.
 **Acceptance criteria**
 - [x] `streamlit run app.py` starts with no errors.
 - [x] Allowed models are exactly the three from the brief; default is `gpt-5-mini`.
-- [x] `pyproject.toml` and `requirements.txt` list the same runtime dependencies.
+- [x] `pyproject.toml` and `requirements.txt` list the same runtime dependencies. *(T6.4 later removed `requirements.txt`; `pyproject.toml` is the only list.)*
 
 **Tests**
 - [x] Unit: allowed models are exactly the three from the brief; default is `openai/gpt-5-mini` (`tests/test_config.py`).
-- [x] Unit: `pyproject.toml` and `requirements.txt` list the same runtime dependencies (`tests/test_dependencies.py`).
+- [x] Unit: `pyproject.toml` and `requirements.txt` list the same runtime dependencies (`tests/test_dependencies.py`). *(Replaced by T6.4's pin test.)*
 - [x] UI flow: the app loads with no exception (`tests/test_app_smoke.py`).
 
 ### T1.2 Secrets management (S)
@@ -350,12 +350,19 @@ Goal: every PR is linted, tested, scanned; `main` auto-deploys.
 - [ ] Manual (the only real end-to-end check): after the first deploy, and after changes to `llm.py`, do one real chat turn on the live URL.
 
 ### T6.4 Dependency hygiene (S)
+Beyond the brief (owner's request, from the 2026-10-15 project review): code quality, not a brief task. Replaces T1.1's two-file arrangement.
 **Acceptance criteria**
-- [ ] Dependabot enabled for pip and GitHub Actions *(config added)*.
-- [ ] `pyproject.toml` / `requirements.txt` versions pinned and consistent.
+- [x] Dependabot enabled for pip and GitHub Actions *(config added earlier)*.
+- [x] Runtime dependencies are declared only in `pyproject.toml` `[project] dependencies`, pinned with `==`.
+- [x] `pytest`, `pytest-cov` and `ruff` are in `[project.optional-dependencies] dev`; `pip install -e ".[dev]"` installs everything needed to lint and test.
+- [x] `pyproject.toml` has a `[build-system]` and package discovery limited to `src`, so the editable install works with the flat layout.
+- [x] `requirements.txt` and `requirements-dev.txt` are removed; CI (`lint`, `test`, `security`) installs from `pyproject.toml`, and `pip-audit .` audits the runtime dependencies.
+- [ ] Dependabot keeps updating pip dependencies (it reads `pyproject.toml`). Only the first Dependabot PR after the merge shows it.
+- [x] README, `CLAUDE.md` and the code-reviewer agent show the new install command.
 
 **Tests**
-- [ ] Unit: extend `tests/test_dependencies.py` to check that every runtime dependency is pinned with `==`.
+- [x] Unit: `tests/test_dependencies.py` checks that every runtime dependency is pinned with `==`, that the dev tools are in the `dev` extra, that discovery is limited to `src`, and that no `requirements*.txt` file is back. The drift test is gone.
+- [ ] CI: all three jobs pass on the PR.
 
 ### T6.5 Code-reviewer subagent (S)
 - `.claude/agents/code-reviewer.md`: read-only reviewer for branches/PRs, tailored to this repo's stack and rules.
