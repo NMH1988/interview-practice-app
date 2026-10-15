@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-15 · T6.16 Code-reviewer posts its review on the PR · #<PR> (closes #101)
+## 2026-10-15 · T6.16 Code-reviewer posts its review on the PR · #102 (closes #101)
 - **Brief:** beyond the brief (owner's request, 2026-10-15). The brief asks for no reviewer agent; this changes our own process tooling only. No app code changed.
 - **What:**
   - `.claude/agents/code-reviewer.md`: the description and the "Read-only" ground rule now say the agent changes no file and no git state, and that its only write is one PR comment. `gh pr list --head <branch>` and `gh pr comment <n> --body-file -` join the allowed commands. A new "Post the review on the PR" section says which PR, how, what goes in the comment and what to do afterwards.
@@ -29,7 +29,6 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 - **Follow-ups:**
   - Tick T6.16's two open boxes after the first review that posts its own comment. If `gh pr comment` is refused, the owner can allow `Bash(gh pr comment:*)`; Claude did not change any settings.
   - #99 (T2.6) and #100 (T6.15) also add an entry at the top of this log, and #100 adds a PLAN entry after T6.13 as this PR does. Whichever PR merges later has to rebase and keep every entry, with a blank line between them.
-  - Fill in `#<PR>` above once the PR is open.
 
 ## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #84 (closes #65)
 - **Brief:** beyond the brief (owner's request), confirmed by the owner. The brief asks for no plan or progress log; this keeps `docs/` accurate for the review, which reads the repo as submitted. Docs only, no code change.
