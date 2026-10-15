@@ -354,7 +354,7 @@ Beyond the brief (owner's request, from the 2026-10-15 project review): code qua
 **Acceptance criteria**
 - [x] Dependabot enabled for pip and GitHub Actions *(config added earlier)*.
 - [x] Runtime dependencies are declared only in `pyproject.toml` `[project] dependencies`, pinned with `==`.
-- [x] `pytest`, `pytest-cov` and `ruff` are in `[project.optional-dependencies] dev`; `pip install -e ".[dev]"` installs everything needed to lint and test.
+- [x] `pytest`, `pytest-cov`, `ruff` and `packaging` are in `[project.optional-dependencies] dev`; `pip install -e ".[dev]"` installs everything needed to lint and test.
 - [x] `pyproject.toml` has a `[build-system]` and package discovery limited to `src`, so the editable install works with the flat layout.
 - [x] `requirements.txt` and `requirements-dev.txt` are removed; CI (`lint`, `test`, `security`) installs from `pyproject.toml`, and `pip-audit .` audits the runtime dependencies.
 - [ ] Dependabot keeps updating pip dependencies (it reads `pyproject.toml`). Only the first Dependabot PR after the merge shows it.
@@ -362,7 +362,7 @@ Beyond the brief (owner's request, from the 2026-10-15 project review): code qua
 
 **Tests**
 - [x] Unit: `tests/test_dependencies.py` checks that every runtime dependency is pinned with `==`, that the dev tools are in the `dev` extra, that discovery is limited to `src`, and that no `requirements*.txt` file is back. The drift test is gone.
-- [ ] CI: all three jobs pass on the PR.
+- [x] CI: all three jobs pass on the PR.
 
 ### T6.5 Code-reviewer subagent (S)
 - `.claude/agents/code-reviewer.md`: read-only reviewer for branches/PRs, tailored to this repo's stack and rules.

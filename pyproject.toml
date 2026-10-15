@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "packaging",
     "pytest",
     "pytest-cov",
     "ruff",
