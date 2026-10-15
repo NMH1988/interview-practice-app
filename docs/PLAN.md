@@ -79,13 +79,13 @@ Goal: reliable LLM calls behind one small interface.
 - `llm.complete(messages, model, temperature, max_tokens)` using OpenRouter's OpenAI-compatible endpoint. (T2.4 replaced `temperature` with `reasoning_effort`.)
 **Acceptance criteria**
 - [x] Returns the assistant text for a valid request (verified with a mocked HTTP layer in tests).
-- [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff.
+- [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff. (T2.6: the SDK now does the retrying, and also retries timeouts and dropped connections.)
 - [x] Rejects models outside the allowed list.
 
 **Tests**
 - [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given. (T2.4: reasoning effort instead of temperature.)
 - [x] Unit: timeout, 401, 429 and 5xx each raise their own exception with a readable message.
-- [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast.
+- [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast. (T2.6: the sleep patched is the SDK's, not our own.)
 - [x] Unit: a model outside the allowed list raises before any HTTP call is made.
 
 ### T2.2 Streaming responses (S)
@@ -132,6 +132,18 @@ At `high`, the sample-JD starter spent 3,648 of the 4,000 tokens thinking and wa
 **Tests**
 - [x] Unit: the budget sent for each effort equals the configured value and never exceeds the cap.
 - [x] Existing T2.3 tests (cap clamp, cut-off warning) still pass.
+
+### T2.6 Use the SDK's retry policy and deliberate timeouts (S)
+The project review (2026-10-15) found that `make_client()` switched the SDK's retries off and `_send()` rebuilt them by hand. Beyond the brief (owner's request, from the review): code quality.
+**Acceptance criteria**
+- [x] `make_client()` sets `max_retries=MAX_RETRIES` and a timeout with its own connect value (`CONNECT_TIMEOUT`) and read value (`REQUEST_TIMEOUT`), each commented.
+- [x] `_send()` makes one SDK call; the retry loop, `_sleep`, `BACKOFF_SECONDS` and `_RETRYABLE` are gone.
+- [x] Streams are not retried once text has started; the stream-cleanup rules stay.
+- [x] Error translation and the fixed messages are unchanged.
+
+**Tests**
+- [x] Unit: the client is built with the retry and timeout constants.
+- [x] Unit (mocked HTTP): 429, 5xx and timeouts are retried twice then raise their own error; a 429 then 200 succeeds; `Retry-After` sets the wait, and one over the SDK's 120 s cap is not retried; 400/401/402/403/404 are not retried.
 
 ## Epic 3 — Prompt Engineering (≥ 5 strategies)
 Goal: satisfy the brief's "5 system prompts, pick the best" requirement with evidence.

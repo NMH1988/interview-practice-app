@@ -42,7 +42,7 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 - **Reruns:** Streamlit reruns the whole script on every interaction. Anything that must survive (chat history, rate-limit counters) lives in `st.session_state` and is initialised once (`if "x" not in st.session_state:`).
 - **Widgets:** keys are unique; widgets that can return partial or empty values are handled (e.g. a range or multi-select widget mid-selection); `st.stop()` is reached on every error path that must halt.
 - **Caching:** `st.cache_data` for data, `st.cache_resource` for clients; cached functions are not caching per-user LLM answers by accident.
-- **LLM errors:** timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; only 429/5xx are retried, at most 2 times with backoff; no bare `except:` or swallowed errors.
+- **LLM errors:** timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; the SDK retries 408, 409, 429, 5xx, timeouts and dropped connections, at most `MAX_RETRIES` times, and other 4xx (401, 402, 403, 404) are not retried; a stream is never retried once text has started; no bare `except:` or swallowed errors.
 - **Edge cases:** empty/whitespace strings, `None`, empty lists or chat history, very long input, mid-stream failures (chat history must stay intact).
 
 ### 2. Security
