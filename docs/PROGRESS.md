@@ -14,7 +14,7 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
-## 2026-10-15 · T6.4 pyproject.toml as the only dependency list · #<PR> (closes #27)
+## 2026-10-15 · T6.4 pyproject.toml as the only dependency list · #103 (closes #27)
 - **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review): code quality, not a brief task. Changes no product behaviour.
 - **What:**
   - `pyproject.toml`: adds `[build-system]` (setuptools >= 77), `[project.optional-dependencies] dev` (`pytest`, `pytest-cov`, `ruff`) and `[tool.setuptools.packages.find] include = ["src*"]`. The runtime pins (`openai==3.22.1`, `streamlit==1.64.0`) stay.
