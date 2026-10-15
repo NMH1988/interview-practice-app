@@ -54,14 +54,14 @@ Do these **only after the core app works**. Anyone with software experience is i
 6. A separate field for the job description you are applying for, with preparation for that position (RAG).
 7. Let the user pick from LLMs of different providers (e.g. Gemini, OpenAI). Our `ALLOWED_MODELS` holds only the three OpenAI models, so this is **not** done.
 8. Use image generation creatively (`google/gemini-2.5-flash-image`).
-9. A security guard, designed for usability: keep developer settings (model, system prompts) separate from the user experience. (*done:* T5.7, #63, for keeping the settings apart: "Practice settings" first, then a collapsed "Developer settings" section; the guards themselves are T4.1–T4.4, under Easy #3)
+9. A security guard, designed for usability: keep developer settings (model, system prompts) separate from the user experience. (*done:* T5.7, #63, for keeping the settings apart: "Practice settings" first, then a collapsed "Developer settings" section; the guards themselves are listed under Easy #3)
 
 **Hard**
 1. A full chatbot instead of a one-time call. (*done:* T5.2, T2.2)
 2. LangChain chains or agents.
 3. A vector database to spot interview data seen before and prompt for new data.
 4. Open-source LLMs.
-5. Assess prompt or model performance, e.g. LLM-as-a-judge, or another method. (*done:* T3.3, #10: the five strategies scored by hand on a rubric, `docs/PROMPT_EVALUATION.md`; no LLM-as-a-judge)
+5. Assess prompt or model performance, e.g. LLM-as-a-judge, or another method. (*done:* T3.3, #10: the five strategies scored by hand on a rubric, `docs/PROMPT_EVALUATION.md`; no LLM-as-a-judge. *planned:* re-scoring blind over several runs, T3.7, #95)
 
 ## How the project is evaluated
 

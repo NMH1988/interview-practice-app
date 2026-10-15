@@ -208,9 +208,11 @@ cut off, or no answer comes at all.
 point at the shared prompt text or the model):
 
 - Sample answers invent facts, such as made-up campaign numbers a candidate might repeat as their
-  own. Idea: tell the coach to mark placeholders instead of inventing results.
+  own. Idea: tell the coach to mark placeholders instead of inventing results (T3.7,
+  [#95](https://github.com/NMH1988/interview-practice-app/issues/95)).
 - For a Junior candidate, the coach still asked about production-level topics. Idea: describe
-  what each seniority level should know.
+  what each seniority level should know (T3.7,
+  [#95](https://github.com/NMH1988/interview-practice-app/issues/95)).
 - Job-description analyses are long, repeat themselves and do not end with the study plan as
   required. Idea: bound the length of each section.
 - A Few-shot example (JavaScript) leaked a term into a job-description analysis. Fixed in T3.6:
