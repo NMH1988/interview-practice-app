@@ -14,6 +14,23 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T2.6 Use the SDK's retry policy and deliberate timeouts · #<PR> (closes #87)
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Code quality; the app behaves the same for the user.
+- **What:**
+  - `src/llm.py`: `make_client()` now passes `max_retries=MAX_RETRIES` (2) and `openai.Timeout(REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT)` (read 30 s, connect 5 s). `_send()` makes a single SDK call; the retry loop, `_sleep`, `BACKOFF_SECONDS` and `_RETRYABLE` are removed.
+  - `tests/test_llm.py`: the retry tests now run against the SDK's own loop (its `time.sleep` is patched); added a `Retry-After` test, a client-errors-not-retried test and a test that the client carries the constants.
+  - `README.md`: the `high`-effort timeout note says a timeout is now retried.
+  - `docs/PLAN.md`: T2.6 entry.
+- **Why:** the SDK already retries 408, 409, 429, 5xx, timeouts and dropped connections, waits 0.5 s then 1 s with jitter, and obeys `Retry-After` (read in `openai/_base_client.py`, SDK 3.22.1). Keeping a second loop meant maintaining code the SDK already tests.
+- **Decisions & gotchas:**
+  - Behaviour changes, not only structure: the SDK also retries **timeouts and dropped connections** (the old loop retried only 429 and 5xx), and it uses 0.5 s / 1 s backoff instead of 1 s / 2 s. A request that times out every time now takes about 3 × 30 s before the error shows. Documented in the constants' comments and the README.
+  - A stream is still not retried once text has started: the SDK retries only the request that opens it. The `closing()` and `response.close()` cleanup is unchanged.
+  - The 30 s read timeout is kept from before. T3.3 saw a 46.6 s reply finish without hitting it and did not find out why, so the value is not proven; the comment says so.
+  - The stale comment "no **kwargs, as T4.4's source scan requires" was dropped from `_send()`; the scan itself is T6.14 (#88).
+- **Follow-ups:** T6.14 (#88) narrows the raw-HTML scan so `**kwargs` calls elsewhere are fine.
+
+---
+
 ## 2026-10-05 · T6.10 Tick PLAN.md boxes for closed tickets · #84 (closes #65)
 - **Brief:** beyond the brief (owner's request), confirmed by the owner. The brief asks for no plan or progress log; this keeps `docs/` accurate for the review, which reads the repo as submitted. Docs only, no code change.
 - **What:**
