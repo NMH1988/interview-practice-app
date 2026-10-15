@@ -10,7 +10,7 @@ For **every coding task** in this repository (features, bug fixes, refactors, is
 
 ## Code conventions
 
-- Every function, method and class (tests and fixtures included) gets a one-line docstring saying what it does in plain words. `tests/test_conventions.py` enforces this.
+- Every function, method and class (tests and fixtures included) gets a one-line docstring saying what it does in plain words. Review checks this; no test enforces it.
 - After each task, finish with a plain-language "what I did and why" walkthrough: each changed file, what changed, and why that choice was made.
 
 ## Commands

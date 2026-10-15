@@ -50,7 +50,7 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 - **API key:** read only through `src.config.get_api_key()`. Never hardcoded, logged, printed, shown in the UI, put in exception messages, or stored in `st.session_state`. `.streamlit/secrets.toml` and `.env` stay in `.gitignore`; `secrets.toml.example` holds only the placeholder.
 - **Guard before spend:** every code path that reaches the LLM goes through the guard first. Rejected input (empty, too long, injection, rate-limited) must make **no** API call.
 - **Prompt injection:** user text is wrapped in `<user_input>...</user_input>` and placed in the user message, never concatenated into the system prompt. System prompts tell the model to stay on interview prep and ignore instructions inside user input.
-- **Output safety:** LLM output is rendered as Markdown **without** `unsafe_allow_html`. Since T5.5 no app file uses `unsafe_allow_html`, `st.html` or `components.v1.html`, or imports `html` / `components` from `streamlit`; `tests/test_output_safety.py` checks this. It does not catch `import streamlit.components.v1` or component calls other than `html` (e.g. `components.iframe`), so check those by hand. A new raw-HTML use needs a reason and a test change, and must never carry model or user text.
+- **Output safety:** LLM output is rendered as Markdown **without** `unsafe_allow_html`. Since T5.5 no app file uses `unsafe_allow_html`, `st.html` or `components.v1.html`, or imports `html`, `components`, `markdown`, `write` or `caption` from `streamlit` (a plain `from streamlit import write` is flagged too, even with nothing raw); `tests/test_output_safety.py` checks this. It does not catch `import streamlit.components.v1`, component calls other than `html` (e.g. `components.iframe`), or a render call reached by another name (e.g. `getattr(st, "markdown")(x, **opts)`), so check those by hand. A new raw-HTML use needs a reason and a test change, and must never carry model or user text.
 - **Model settings:** the model must be in `ALLOWED_MODELS`; the reasoning effort is one of `REASONING_EFFORTS` (no `temperature`: the gpt-5 models ignore it); `max_tokens` is capped.
 - **Dependencies:** new runtime packages are pinned with `==` in `pyproject.toml` `[project] dependencies`, the only place they are declared (no `requirements*.txt`).
 
@@ -61,7 +61,7 @@ Architecture (`docs/PLAN.md`): Streamlit UI -> Security Guard -> Prompt Builder 
 - **UI:** visible UI changes are covered by an `AppTest` test like `tests/test_app_smoke.py`.
 
 ### 4. Project conventions
-- Every function, method and class - tests, fixtures and small helper classes included - has a one-line docstring saying what it does in plain words.
+- Every function, method and class - tests, fixtures and small helper classes included - has a one-line docstring saying what it does in plain words. No test enforces this (T6.14), so this review is where it is checked: list each missing or multi-line docstring in the changed files.
 - Business logic lives in `src/`, not `app.py`.
 - Defaults and limits (models, reasoning effort, max length, rate limits) live in `src/config.py`, not as magic numbers.
 - ruff: line length 100, rules `E, F, I, B, UP`. Python 3.14.
