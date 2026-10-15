@@ -281,77 +281,81 @@ MODE_INSTRUCTIONS: Mapping[str, str] = MappingProxyType(
     }
 )
 
-# Examples for the few-shot strategy: two answer reviews (question, answer, feedback) and, for
-# "Questions to ask the interviewer", suggested questions with reasons. Fictional content only.
-FEW_SHOT_EXAMPLES: tuple[str, ...] = (
-    (
-        "Example 1 — Technical\n\n"
-        "Question:\n"
-        "Can you explain the difference between let, const, and var in JavaScript?\n\n"
-        "Candidate Answer:\n"
-        "let and const are modern. var is old.\n\n"
-        "## Evaluation\n"
-        "Your answer is partly correct but too limited.\n\n"
-        "## Feedback\n"
-        "You correctly recognize that let and const are the more modern choices, but you "
-        "should also explain their differences in scope, reassignment, redeclaration, and "
-        "hoisting behavior.\n\n"
-        "## Expected Answer\n"
-        "var is function-scoped, can be redeclared, and is hoisted with an initial value of "
-        "undefined. let and const are block-scoped and are also hoisted, but remain in the "
-        "temporal dead zone until initialized. let can be reassigned, while const cannot be "
-        "reassigned after initialization.\n\n"
-        "## Follow-up Question\n"
-        "Can you give an example of a bug that could happen because of var's function scope?"
-    ),
-    (
-        "Example 2 — Behavioural\n\n"
-        "Question:\n"
-        "Tell me about a time when you had a disagreement with a teammate.\n\n"
-        "Candidate Answer:\n"
-        "We disagreed about something, and I tried to calm the situation down.\n\n"
-        "## Evaluation\n"
-        "Your answer shows that you wanted to prevent the conflict from becoming worse, but it "
-        "is too general.\n\n"
-        "## Feedback\n"
-        "You should explain the situation, the reason for the disagreement, how you listened "
-        "to the other person, what action you took, and what the final result was.\n\n"
-        "## Follow-up Question\n"
-        "What was the main cause of the disagreement, and how did you help both sides move "
-        "toward a solution?"
-    ),
-    # T5.6: suggests questions for the candidate to ask, so few-shot no longer teaches rating
-    # only. The company is fictional and every fact about it comes from the candidate.
-    (
-        "Example 3 — Questions to ask the interviewer\n\n"
-        "Candidate Message:\n"
-        "I am preparing for a Senior Marketing Manager interview at ExampleCo Retail. The "
-        "company is planning to launch a new sustainable product line in several European "
-        "markets.\n\n"
-        "## Suggested Questions\n\n"
-        "1. What would be the main priorities for someone in this role during the first three "
-        "months?\n"
-        "Why: It shows preparation and interest because you want to understand expectations "
-        "and how you can contribute early.\n\n"
-        "2. What are the team's and company's main goals for the next one or two years?\n"
-        "Why: It shows a long-term perspective because you are interested in the future "
-        "direction of the team and company.\n\n"
-        "3. Could you tell me more about the company culture and how different teams work "
-        "together?\n"
-        "Why: It shows cultural fit because you want to understand how people collaborate and "
-        "how you could integrate into the organization.\n\n"
-        "4. Since ExampleCo Retail is planning to launch a sustainable product line in several "
-        "European markets, what would be the main marketing priorities or challenges for this "
-        "launch?\n"
-        "Why: It shows preparation and interest because you connect your question directly to "
-        "information you shared about the company.\n\n"
-        "5. What opportunities would I have to develop my skills and take on more "
-        "responsibility over time?\n"
-        "Why: It shows a desire for development because you are interested in learning, "
-        "improving, and growing within the role.\n\n"
-        "If you already have a question you would like to ask the interviewer, send it to me "
-        "and I can evaluate it and suggest how it could be improved."
-    ),
+# Examples for the few-shot strategy, one per interview mode, so few_shot() sends only the active
+# mode's example (T3.6): two answer reviews (question, answer, feedback) and, for "Questions to
+# ask the interviewer", suggested questions with reasons. "Job-description analysis" has none.
+# Fictional content only.
+FEW_SHOT_EXAMPLES: Mapping[str, str] = MappingProxyType(
+    {
+        "Technical": (
+            "Example 1 — Technical\n\n"
+            "Question:\n"
+            "Can you explain the difference between let, const, and var in JavaScript?\n\n"
+            "Candidate Answer:\n"
+            "let and const are modern. var is old.\n\n"
+            "## Evaluation\n"
+            "Your answer is partly correct but too limited.\n\n"
+            "## Feedback\n"
+            "You correctly recognize that let and const are the more modern choices, but you "
+            "should also explain their differences in scope, reassignment, redeclaration, and "
+            "hoisting behavior.\n\n"
+            "## Expected Answer\n"
+            "var is function-scoped, can be redeclared, and is hoisted with an initial value of "
+            "undefined. let and const are block-scoped and are also hoisted, but remain in the "
+            "temporal dead zone until initialized. let can be reassigned, while const cannot be "
+            "reassigned after initialization.\n\n"
+            "## Follow-up Question\n"
+            "Can you give an example of a bug that could happen because of var's function scope?"
+        ),
+        "Behavioural": (
+            "Example 2 — Behavioural\n\n"
+            "Question:\n"
+            "Tell me about a time when you had a disagreement with a teammate.\n\n"
+            "Candidate Answer:\n"
+            "We disagreed about something, and I tried to calm the situation down.\n\n"
+            "## Evaluation\n"
+            "Your answer shows that you wanted to prevent the conflict from becoming worse, but it "
+            "is too general.\n\n"
+            "## Feedback\n"
+            "You should explain the situation, the reason for the disagreement, how you listened "
+            "to the other person, what action you took, and what the final result was.\n\n"
+            "## Follow-up Question\n"
+            "What was the main cause of the disagreement, and how did you help both sides move "
+            "toward a solution?"
+        ),
+        # T5.6: suggests questions for the candidate to ask, so few-shot no longer teaches rating
+        # only. The company is fictional and every fact about it comes from the candidate.
+        "Questions to ask the interviewer": (
+            "Example 3 — Questions to ask the interviewer\n\n"
+            "Candidate Message:\n"
+            "I am preparing for a Senior Marketing Manager interview at ExampleCo Retail. The "
+            "company is planning to launch a new sustainable product line in several European "
+            "markets.\n\n"
+            "## Suggested Questions\n\n"
+            "1. What would be the main priorities for someone in this role during the first three "
+            "months?\n"
+            "Why: It shows preparation and interest because you want to understand expectations "
+            "and how you can contribute early.\n\n"
+            "2. What are the team's and company's main goals for the next one or two years?\n"
+            "Why: It shows a long-term perspective because you are interested in the future "
+            "direction of the team and company.\n\n"
+            "3. Could you tell me more about the company culture and how different teams work "
+            "together?\n"
+            "Why: It shows cultural fit because you want to understand how people collaborate and "
+            "how you could integrate into the organization.\n\n"
+            "4. Since ExampleCo Retail is planning to launch a sustainable product line in several "
+            "European markets, what would be the main marketing priorities or challenges for this "
+            "launch?\n"
+            "Why: It shows preparation and interest because you connect your question directly to "
+            "information you shared about the company.\n\n"
+            "5. What opportunities would I have to develop my skills and take on more "
+            "responsibility over time?\n"
+            "Why: It shows a desire for development because you are interested in learning, "
+            "improving, and growing within the role.\n\n"
+            "If you already have a question you would like to ask the interviewer, send it to me "
+            "and I can evaluate it and suggest how it could be improved."
+        ),
+    }
 )
 
 # The technique-specific part of each strategy.
@@ -560,8 +564,12 @@ def zero_shot(interview_type: str) -> str:
 
 
 def few_shot(interview_type: str) -> str:
-    """Build a prompt that shows worked examples: answer reviews and suggested questions."""
-    text = _EXAMPLE_SEPARATOR.join([_FEW_SHOT_INTRO, *FEW_SHOT_EXAMPLES, _FEW_SHOT_OUTRO])
+    """Build a prompt that shows the worked example for the active mode, if it has one."""
+    # A mode without an example (job-description analysis, an unknown type) gets only the intro
+    # and outro, so an example about another mode cannot leak into its reply (T3.6).
+    example = _for_type(FEW_SHOT_EXAMPLES, interview_type)
+    parts = [_FEW_SHOT_INTRO, *([example] if example else []), _FEW_SHOT_OUTRO]
+    text = _EXAMPLE_SEPARATOR.join(parts)
     return _assemble(text, interview_type)
 
 

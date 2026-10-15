@@ -103,7 +103,7 @@ These do not depend on the technique, so they point to the shared parts of the p
 1. **Invented facts in sample answers** (`behavioral`). Every strategy except Role / persona wrote a model answer with made-up campaign numbers and results (for example "increasing monthly revenue by 12%"), and some made the candidate the owner of a measurement they said they did not track. A candidate could repeat those numbers as if they were real. Relevance 3 for four strategies, 4 for Role / persona.
 2. **Seniority not respected** (`technical`). For a Junior candidate, all five strategies asked for production-level topics such as N+1 queries, persisted queries, rate limiting and query-cost limits. Chain-of-thought and Structured output mentioned the Junior level but still asked for that depth. Relevance 3 for all five.
 3. **Long job-description analyses that do not end with the study plan** (`jd-review`). Every reply was 7,861–9,135 characters, repeating material across the skills, topics, keywords, gaps and study-plan sections. Every reply included a study plan of exactly five items, each with one review topic and one practice task, but none ended with it, as the mode requires: all five added general tips and an offer to continue after it. Each strategy lost one Structure point for the repetition and one for the mode rule (Structure 3 for all five).
-4. **A few-shot example leaked into another mode.** Few-shot's job-description reply listed "temporal dead zone (not relevant here — ignore)" among the keywords. The term comes from its JavaScript example (Example 1 in `FEW_SHOT_EXAMPLES`).
+4. **A few-shot example leaked into another mode.** Few-shot's job-description reply listed "temporal dead zone (not relevant here — ignore)" among the keywords. The term comes from its JavaScript example (Example 1 in `FEW_SHOT_EXAMPLES`). Fixed in T3.6 (#90): `few_shot()` now sends only the example of the active mode, and Job-description analysis gets none. The change is not re-measured; the scores above are from before it.
 
 Things that worked in every reply: `qta-suggest` got 7 or 8 questions (the mode asks for 5–8) with one reason line each, tailored to the S/4HANA fact, with no invented facts about the company; Role / persona and Chain-of-thought were checked on this path too, which T5.6's live check had not covered. No strategy asked the candidate an interview question in "Questions to ask the interviewer".
 
@@ -158,14 +158,15 @@ What changed:
 - **One model.** Only `gpt-5-mini` was evaluated; `gpt-5-nano` and `gpt-5` may rank the strategies differently.
 - **One scorer, not blind.** The owner scored all replies with the strategy names visible, and revised the scores during review (see [Method](#method)).
 - **Editor formatting.** Saving the first report in the editor reformatted its Markdown (blank lines inside blockquotes, `1)` lists as `1.`, `*` emphasis as `_`, aligned tables). The checked passages read the same as before; the file is not byte-for-byte what the script wrote.
+- **The prompts have changed since these runs.** T4.5 (#89, PR #105) removed the role from every strategy's system prompt (the user message already had it) and added a line saying the role and seniority come with each message. T3.6 (#90, PR #106) made Few-shot send only the active mode's example. Neither change is re-measured: every score here is for the prompts as they were before both. T3.7 (#95) re-runs `behavioral`, `technical`, `jd-review` and `qta-suggest` with `--runs 3 --blind`, starting from the current prompts; `qta-own` only if T3.5 (#76) is folded in.
 - **The effort run's header** says `293ad94 (with uncommitted code changes)`. The uncommitted change was `DEFAULT_STRATEGY` in `src/config.py` and the select's default in `app.py`, which the script does not read; `src/prompts.py` was unchanged, so the prompts sent were the committed ones.
 
 ## Follow-ups
 
 - **T3.5 (#76)** measures, over several runs, how often feedback on the candidate's own question uses the answer-review format, ends with a question or gives more than one rewording. Data point from `qta-own`: Few-shot and Role / persona used the review headings; every strategy gave two or three rewordings, where the mode allows "a better wording".
+- **T3.7 (#95)** adds prompt rules against invented facts (problem 1) and for seniority-fit questions (problem 2), and re-scores the strategies blind over several runs.
+- **T3.8 (#107)** adds a Few-shot example for Job-description analysis. Since T3.6 that mode has none, so there Few-shot is instructions only, like Zero-shot.
 - **Not ticketed, from the shared problems above:**
-  - sample answers invent facts (problem 1);
-  - feedback ignores the Junior level (problem 2);
   - long, repetitive job-description analyses that do not end with the study plan (problem 3);
-  - the Few-shot JavaScript example leaking into other modes (problem 4);
+  - ~~the Few-shot JavaScript example leaking into other modes (problem 4)~~ fixed in T3.6 (#90);
   - the `minimal` / `low` prompt echo.

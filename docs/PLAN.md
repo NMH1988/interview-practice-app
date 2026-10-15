@@ -187,6 +187,17 @@ Zero-shot · Few-shot (2–3 example Q&A with feedback) · Chain-of-Thought (rea
 - [x] Unit: the message contains role, interview type, seniority and the user's text inside `<user_input>…</user_input>`.
 - [x] Unit: user text that contains `</user_input>` cannot close the block early (it is escaped or removed).
 
+### T3.6 Few-shot sends only the active mode's examples (S)
+Serves brief requirement #5 (the few-shot technique). From T3.3's problem 4 and the 2026-10-15 review. The example **content** is the owner's and is unchanged.
+**Acceptance criteria**
+- [x] Each few-shot example is tied to the interview type it teaches; `few_shot()` sends only the examples for the active mode.
+- [x] A mode with no example of its own (Job-description analysis) gets the intro and outro without unrelated examples.
+- [x] The output check's public paragraphs (`_PUBLIC_PARAGRAPHS`) still cover every example.
+- [x] `docs/PROMPT_EVALUATION.md` follow-ups and the README note the change.
+
+**Tests**
+- [x] Unit: for each mode, the few-shot prompt contains that mode's examples and none of the others.
+
 ## Epic 4 — Security Guard (≥ 1 required)
 Goal: prevent misuse before any tokens are spent.
 

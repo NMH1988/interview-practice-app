@@ -6,6 +6,8 @@ import pytest
 from src.config import DEFAULT_ROLE, DEFAULT_SENIORITY
 from src.guard import matching_patterns, validate_input
 from src.prompts import (
+    _FEW_SHOT_INTRO,  # the few-shot text around its example, to check a mode with no example
+    _FEW_SHOT_OUTRO,
     CHAIN_OF_THOUGHT_TEXT,
     CHAT_PLACEHOLDERS,
     DEFAULT_MESSAGE_KIND,
@@ -112,7 +114,7 @@ def test_each_key_has_its_own_technique_label():
 # Each technique's own text, taken from the constants so a rewording does not touch the tests.
 TECHNIQUE_MARKERS = {
     "zero_shot": ZERO_SHOT_TEXT,
-    "few_shot": FEW_SHOT_EXAMPLES[0],
+    "few_shot": FEW_SHOT_EXAMPLES["Technical"],
     "chain_of_thought": CHAIN_OF_THOUGHT_TEXT,
     "persona": PERSONA_TEXT,
     "structured_output": STRUCTURED_OUTPUT_TEXT,
@@ -230,18 +232,43 @@ def test_near_miss_type_keeps_its_mode_block(variant, interview_type):
 
 
 def test_few_shot_has_two_or_three_distinct_examples():
-    """The few-shot strategy has 2-3 different, non-empty examples."""
-    assert 2 <= len(FEW_SHOT_EXAMPLES) <= 3
-    assert all(example.strip() for example in FEW_SHOT_EXAMPLES)
-    assert len(set(FEW_SHOT_EXAMPLES)) == len(FEW_SHOT_EXAMPLES)
+    """The few-shot strategy has 2-3 different, non-empty examples, each for a known mode."""
+    examples = list(FEW_SHOT_EXAMPLES.values())
+    assert 2 <= len(examples) <= 3
+    assert all(example.strip() for example in examples)
+    assert len(set(examples)) == len(examples)
+    assert set(FEW_SHOT_EXAMPLES) <= set(INTERVIEW_TYPES)
 
 
 @pytest.mark.parametrize("interview_type", INTERVIEW_TYPES)
-def test_few_shot_prompt_contains_its_examples(interview_type):
-    """Every few-shot example appears in the few-shot prompt, for every interview type."""
+def test_few_shot_prompt_has_only_the_active_modes_examples(interview_type):
+    """The few-shot prompt holds the active mode's example, if it has one, and no other."""
     prompt = few_shot(interview_type)
-    for example in FEW_SHOT_EXAMPLES:
-        assert example in prompt
+    for mode, example in FEW_SHOT_EXAMPLES.items():
+        assert (example in prompt) == (mode == interview_type), mode
+
+
+def test_mode_without_an_example_still_gets_the_intro_and_outro():
+    """Job-description analysis has no example, so its few-shot prompt has no example block."""
+    assert JD_ANALYSIS not in FEW_SHOT_EXAMPLES
+    prompt = few_shot(JD_ANALYSIS)
+    assert prompt.startswith(_FEW_SHOT_INTRO)
+    assert _FEW_SHOT_OUTRO in prompt
+    assert not any(example in prompt for example in FEW_SHOT_EXAMPLES.values())
+
+
+def test_unknown_type_gets_no_few_shot_example():
+    """A type name that is not a mode gets the intro and outro but no example."""
+    prompt = few_shot("Something else")
+    assert prompt.startswith(_FEW_SHOT_INTRO)
+    assert _FEW_SHOT_OUTRO in prompt
+    assert not any(example in prompt for example in FEW_SHOT_EXAMPLES.values())
+
+
+@pytest.mark.parametrize("variant", ["technical", "  TECHNICAL ", "Technical "])
+def test_near_miss_type_keeps_its_few_shot_example(variant):
+    """Extra spaces or a different case still find the mode's example."""
+    assert FEW_SHOT_EXAMPLES["Technical"] in few_shot(variant)
 
 
 def _phone_like(text: str) -> list[str]:
@@ -585,9 +612,8 @@ def test_job_description_starter_adds_role_after_a_word_merely_ending_in_role(ro
 
 def test_interviewer_few_shot_example_suggests_questions_instead_of_rating():
     """Example 3 shows 5-8 suggested questions, each with one reason, and no review headings."""
-    (example,) = [
-        e for e in FEW_SHOT_EXAMPLES if e.startswith("Example 3 — " + INTERVIEWER_QUESTIONS)
-    ]
+    example = FEW_SHOT_EXAMPLES[INTERVIEWER_QUESTIONS]
+    assert example.startswith("Example 3 — " + INTERVIEWER_QUESTIONS)
     lines = example.splitlines()
     questions = [i for i, line in enumerate(lines) if re.match(r"\d\. ", line)]
     assert 5 <= len(questions) <= 8

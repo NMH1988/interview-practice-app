@@ -254,7 +254,7 @@ def check_injection(text: str, field: str, *, log: bool = True) -> None:
 
 # Few-shot example paragraphs are made to be imitated, so repeating one is not a leak.
 _PUBLIC_PARAGRAPHS = frozenset(
-    _normalise(p) for example in FEW_SHOT_EXAMPLES for p in example.split("\n\n")
+    _normalise(p) for example in FEW_SHOT_EXAMPLES.values() for p in example.split("\n\n")
 )
 
 

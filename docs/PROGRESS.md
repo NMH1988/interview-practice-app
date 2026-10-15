@@ -14,6 +14,38 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 
 ---
 
+## 2026-10-15 · T3.6 Few-shot sends only the active mode's examples · #106 (closes #90)
+- **Brief:** serves mandatory requirement #5 (the few-shot technique), in line with the brief. The example text is the owner's and is unchanged.
+- **What:**
+  - `src/prompts.py`: `FEW_SHOT_EXAMPLES` is now a read-only mapping from interview type to its example (`Technical`, `Behavioural`, `Questions to ask the interviewer`), the strings word for word as before. `few_shot()` looks the active type up with `_for_type` (so case and extra spaces do not matter) and joins the intro, that one example and the outro.
+  - `src/guard.py`: `_PUBLIC_PARAGRAPHS` reads `FEW_SHOT_EXAMPLES.values()`, so the output check still exempts every example, including those a given prompt does not carry.
+  - `tests/test_prompts.py`: the two few-shot tests now follow the mapping; new tests check that each mode's prompt holds its own example and none other, that Job-description analysis and an unknown type get the intro and outro only, and that a near-miss type name still finds its example. `tests/test_output_safety.py` reads `.values()`.
+  - `README.md`, `docs/PROMPT_EVALUATION.md`, `docs/PLAN.md`: the change is noted (problem 4 and its follow-up are marked fixed; a T3.6 entry).
+- **Why:** with all three examples in every prompt, the JavaScript example leaked "temporal dead zone" into a job-description analysis (T3.3, problem 4), and each prompt carried examples about other modes.
+- **Decisions & gotchas:**
+  - Owner approved these defaults: the "Example 1/2/3 —" labels stay (so a mode now sees, for example, "Example 3" alone); the intro and outro stay word for word, so in Job-description analysis the intro's "Use the following examples…" has no example after it; an unknown type gets no example.
+  - The outro still describes the answer-review format in every mode, including "Questions to ask the interviewer". That is existing text, not touched here.
+  - Not re-measured: the evaluation script was not run (live API calls), so the effect on reply quality is unknown. `docs/PROMPT_EVALUATION.md` says so.
+  - The suite goes from 1022 to 1027 tests (checked on the branch: ruff clean, all pass); 1052 after the merge with `main` below.
+  - Trade-off for brief requirement #5 (five prompts, each a different technique, then compared): in Job-description analysis Few-shot now sends no example, so its prompt is instructions only, like Zero-shot. A `jd-review` comparison would set two instruction-only prompts against each other under different names. Ticket #90's second criterion accepts this; a Job-description example is the owner's to write and would restore the difference.
+  - PR review round 1 (code-reviewer, posted on #106, ready to merge; CI green on b3c8a85): no bugs, the example text is identical to `main`'s, every acceptance criterion is met. Fixed:
+    - Should fix: the README row and this entry did not name the requirement #5 trade-off above; both do now, and the follow-up links to it.
+    - Nit: the unknown-type test's docstring promised the intro and outro but only checked for no example; it now asserts both too.
+    - Its question, whether the JavaScript example sent to every role in Technical mode (the same kind of leak as problem 4, inside one mode) needs a ticket, is the owner's call; no ticket was opened.
+  - Merge with main (#105, T4.5, merged first): conflicts in `src/prompts.py` and `tests/test_prompts.py`, because T4.5 dropped `role` from every strategy. Resolved by keeping this PR's per-mode lookup with the new one-argument `few_shot(interview_type)`, and by calling `few_shot(...)` with one argument in the new tests. The union merge had also left this entry and T4.5's with no blank line between them; fixed. On the merged tree ruff is clean and 1052 tests pass.
+  - PR review round 2 (code-reviewer, posted on #106, ready to merge; CI green on 360105b): the merge kept both sides correctly, every round-1 point is fixed, no bugs. Its two nits are fixed in round 3's commit: the merge note moved from a bullet of its own under **Decisions & gotchas** (as in T4.5's entry), and a sentence about the round number was dropped.
+  - Brief check of the day's work (2026-10-15, after review round 2): nothing contradicts the brief, but three points were raised; the owner decided each:
+    - The requirement #5 trade-off above, and the intro's "following examples" with none after it in Job-description analysis: the owner chose to write a Job-description example later, in T3.8 (#107). Until then both stay as they are.
+    - `docs/PROMPT_EVALUATION.md` (the evidence for requirement #5) did not say that T4.5 had changed every strategy's system prompt since the runs. A Limitations bullet now says the scores predate T4.5 and T3.6, and which inputs T3.7 (#95) re-runs. Its Follow-ups list T3.7 and T3.8; problems 1 and 2 moved out of "Not ticketed", since #95 covers them. A comment on #95 says its "before" run must use the current prompts.
+    - `docs/BRIEF.md`'s Easy #3 line now names T4.5 among the security constraints done.
+  - PR review round 3 (code-reviewer, posted on #106, ready to merge; CI green on b3438a7): no bugs; every ticket and PR number in the brief-check text is correct. Fixed:
+    - Should fix: "T3.7 re-runs the comparison" said more than #95 plans, which re-runs only `behavioral` and `technical`. The owner then added `jd-review` and `qta-suggest`, where T3.6 matters most, to #95's before/after comparison (issue body edited). `docs/PROMPT_EVALUATION.md` and the comment on #95 now name the four inputs T3.7 re-runs.
+    - Should fix: the PR description still said 1027 tests and did not mention the brief check; updated (1052, the trade-off under Brief, #107).
+    - Should fix: round 2 was not recorded and its nits were open; both done above.
+    - Nits: the Limitations bullet now says T4.5 *removed* the role from the system prompt (the user message already had it); `docs/BRIEF.md` Medium #9 says the guards are listed under Easy #3 instead of "T4.1–T4.4"; the README's invented-facts and Junior-depth limits link T3.7 (#95).
+    - Its question: `docs/BRIEF.md` Hard #5 now adds "re-scoring blind over several runs planned in T3.7 (#95)", following the file's *planned* tag.
+- **Follow-ups:** T3.8 (#107): the owner writes a Job-description example, which makes Few-shot a separate technique again in that mode (requirement #5) and makes the intro true there. The owner may also reword the intro and the "Example N" labels now that one example is sent; both are the owner's text.
+
 ## 2026-10-15 · T4.5 Keep the free-text role out of the system prompt · #105 (closes #89)
 - **Brief:** serves mandatory requirement #6 (security guard) and Easy #3 (more security constraints), from the 2026-10-15 project review. In line with the brief; the product does the same for the user.
 - **What:**
