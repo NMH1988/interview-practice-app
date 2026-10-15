@@ -79,13 +79,13 @@ Goal: reliable LLM calls behind one small interface.
 - `llm.complete(messages, model, temperature, max_tokens)` using OpenRouter's OpenAI-compatible endpoint. (T2.4 replaced `temperature` with `reasoning_effort`.)
 **Acceptance criteria**
 - [x] Returns the assistant text for a valid request (verified with a mocked HTTP layer in tests).
-- [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff.
+- [x] Timeout, 401, 429 and 5xx map to distinct, user-readable exceptions; 429/5xx retried ≤ 2× with backoff. (T2.6: the SDK now does the retrying, and also retries timeouts and dropped connections.)
 - [x] Rejects models outside the allowed list.
 
 **Tests**
 - [x] Unit (mocked HTTP, no network): a valid request returns the assistant text; model, temperature and `max_tokens` are sent as given. (T2.4: reasoning effort instead of temperature.)
 - [x] Unit: timeout, 401, 429 and 5xx each raise their own exception with a readable message.
-- [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast.
+- [x] Unit: 429/5xx are retried at most 2 times, then raise; 401 is not retried. The backoff sleep is patched so tests stay fast. (T2.6: the sleep patched is the SDK's, not our own.)
 - [x] Unit: a model outside the allowed list raises before any HTTP call is made.
 
 ### T2.2 Streaming responses (S)

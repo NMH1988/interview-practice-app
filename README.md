@@ -229,7 +229,9 @@ point at the shared prompt text or the model):
   buffer the stream, and strip images and links from replies.
 - At `high`, the model may think longer than the 30-second read timeout with no text arriving.
   One 46.6-second reply did not time out, and it is not known why. A request that does time out
-  is retried twice by the SDK (T2.6), so the error can take about 90 seconds to appear.
+  is retried twice by the SDK (T2.6), so the error can take about 90 seconds to appear, and
+  each try may be paid for. Repeated 429s with a `Retry-After` of up to 120 seconds can hold the
+  user for about 4 minutes.
 - Token usage is shown, but not the price; a reply cut off at the token limit cannot be
   continued; out-of-credit (402) and moderation (403) errors get a generic message.
 - The app is not deployed yet (T6.3,

@@ -15,18 +15,28 @@ What each PR did and why, newest first. **Read this before starting a ticket**, 
 ---
 
 ## 2026-10-15 · T2.6 Use the SDK's retry policy and deliberate timeouts · #99 (closes #87)
-- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Code quality; the app behaves the same for the user.
+- **Brief:** beyond the brief (owner's request, from the 2026-10-15 project review). Code quality, with small behaviour changes for the user (see Decisions & gotchas).
 - **What:**
   - `src/llm.py`: `make_client()` now passes `max_retries=MAX_RETRIES` (2) and `openai.Timeout(REQUEST_TIMEOUT, connect=CONNECT_TIMEOUT)` (read 30 s, connect 5 s). `_send()` makes a single SDK call; the retry loop, `_sleep`, `BACKOFF_SECONDS` and `_RETRYABLE` are removed.
   - `tests/test_llm.py`: the retry tests now run against the SDK's own loop (its `time.sleep` is patched); added a `Retry-After` test, a client-errors-not-retried test and a test that the client carries the constants.
-  - `README.md`: the `high`-effort timeout note says a timeout is now retried.
-  - `docs/PLAN.md`: T2.6 entry.
+  - `README.md`: the `high`-effort timeout note says a timeout is now retried, that each try may be paid for, and how long repeated 429s can hold the user.
+  - `.claude/agents/code-reviewer.md`: its LLM-errors rule described the old loop ("only 429/5xx, 2 times"); it now describes the SDK's policy.
+  - `docs/PLAN.md`: T2.6 entry, and a note on T2.1's two retry criteria (the loop and its patched sleep are gone).
 - **Why:** the SDK already retries 408, 409, 429, 5xx, timeouts and dropped connections, waits 0.5 s then 1 s with jitter, and obeys `Retry-After` (read in `openai/_base_client.py`, SDK 3.22.1). Keeping a second loop meant maintaining code the SDK already tests.
 - **Decisions & gotchas:**
   - Behaviour changes, not only structure: the SDK also retries **timeouts and dropped connections** (the old loop retried only 429 and 5xx), and it uses 0.5 s / 1 s backoff instead of 1 s / 2 s. A request that times out every time now takes about 3 × 30 s before the error shows. Documented in the constants' comments and the README.
   - A stream is still not retried once text has started: the SDK retries only the request that opens it. The `closing()` and `response.close()` cleanup is unchanged.
   - The 30 s read timeout is kept from before. T3.3 saw a 46.6 s reply finish without hitting it and did not find out why, so the value is not proven; the comment says so.
   - The stale comment "no **kwargs, as T4.4's source scan requires" was dropped from `_send()`; the scan itself is T6.14 (#88).
+  - Longest waits, read in SDK 3.22.1 (`openai/_base_client.py`, `_constants.py`): a `Retry-After` of 120 s or less is obeyed on each retry, so repeated 429s can hold the user about 4 minutes (the old loop gave up after 1 s + 2 s). A `Retry-After` over 120 s makes the SDK stop without retrying. Documented in `MAX_RETRIES`'s comment and the README. Not changed: capping the wait for a 429 (for example `with_options(max_retries=0)` on a call) would change what the user sees, so it is the owner's call.
+  - A timed-out try may still be billed (the model may still be writing), so up to three tries can pay for one reply. Not measured.
+  - Not checked: whether OpenRouter sends `x-should-retry` or `Retry-After`. The SDK obeys `x-should-retry: true` even on a 4xx, which `test_client_errors_are_not_retried` would not catch. The repo cannot show OpenRouter's headers.
+  - PR review round 1 (code-reviewer, run from the chat and not posted on the PR; ready to merge, no must fix; CI green on 395dc13):
+    - Should fix, done: the 120 s wait is documented (comment, README, this entry); `code-reviewer.md`'s retry rule is updated; the "behaves the same" line in **Brief** is reworded; the cost of retried timeouts is noted.
+    - Nits fixed: the `sleeps` fixture replaces only the SDK module's `time` (it patched `time.sleep` for the whole process); the connection case checks `1 + MAX_RETRIES` requests and the 400 case checks 1; the `REQUEST_TIMEOUT` and `MAX_RETRIES` comments say where the values come from (T2.1); `LLMTimeoutError`'s docstring no longer names only the read timeout.
+    - Its question, OpenRouter's headers, is the "Not checked" bullet above.
+  - Self-review before the push (`/code-review`, local; 7 findings). Fixed: the `sleeps` fixture copies every `time` attribute and overrides only `sleep`, so a newer SDK that reads another one does not break the retry tests; the `MAX_RETRIES` comment says its numbers are from SDK 3.22.1 and to re-read them when `openai` is bumped (PR #85 is open); its "at most 2 retries" quote now matches `docs/PLAN.md`; T2.1's two retry criteria in `docs/PLAN.md` say T2.6 changed them.
+  - Owner's decision (2026-10-15), on the two findings that need a behaviour change: keep the SDK's retries on timeouts and on 429, and only document the cost and the `Retry-After` wait (comment, README, this entry). Open, so a later ticket can pick it up: retried timeouts are paid for but the rate limit (`app.py`) counts one request per message, and a 429 can hold the user about 4 minutes.
 - **Follow-ups:** T6.14 (#88) narrows the raw-HTML scan so `**kwargs` calls elsewhere are fine.
 
 ---

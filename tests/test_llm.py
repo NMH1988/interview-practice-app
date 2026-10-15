@@ -1,5 +1,7 @@
 import gc
 import json
+import time
+import types
 
 import httpx2
 import openai
@@ -19,8 +21,11 @@ LONGEST_BACKOFF = 1.0
 def sleeps(monkeypatch):
     """Replace the SDK's retry sleep with a recorder so tests run fast; return the delays."""
     delays = []
-    # The SDK calls time.sleep through its own module's `time`; patched only for this test.
-    monkeypatch.setattr(_base_client.time, "sleep", delays.append)
+    # Only the SDK's module sees this stand-in for `time`, so the rest of the process keeps the real
+    # `time.sleep`. It copies every other `time` attribute, so a newer SDK that reads another one
+    # (the SDK reads Retry-After dates with `time.time`) still works.
+    stand_in = types.SimpleNamespace(**{**vars(time), "sleep": delays.append})
+    monkeypatch.setattr(_base_client, "time", stand_in)
     return delays
 
 
@@ -190,18 +195,22 @@ def test_error_classes_are_distinct():
 
 
 @pytest.mark.parametrize(
-    "make_failure",
-    [lambda: _error(400), lambda: httpx2.ConnectError("no route")],
+    ("make_failure", "attempts"),
+    [
+        (lambda: _error(400), 1),
+        (lambda: httpx2.ConnectError("no route"), 1 + llm.MAX_RETRIES),
+    ],
     ids=["400", "connection"],
 )
-def test_other_failures_raise_generic_llm_error(make_failure):
-    """Errors without their own class still raise a readable LLMError."""
-    # A dropped connection is retried, so it is queued once per attempt.
+def test_other_failures_raise_generic_llm_error(make_failure, attempts):
+    """Other failures raise a readable LLMError; only a dropped connection is retried."""
+    # The queue holds a failure for every possible attempt, so the request count shows the retries.
     fake = FakeOpenRouter(*[make_failure() for _ in range(1 + llm.MAX_RETRIES)])
     with pytest.raises(llm.LLMError) as excinfo:
         llm.complete(MESSAGES, DEFAULT_MODEL, "medium", 256, client=fake.client())
     assert type(excinfo.value) is llm.LLMError
     assert FAKE_KEY not in str(excinfo.value)
+    assert len(fake.requests) == attempts
 
 
 @pytest.mark.parametrize("text", [None, "", "  \n\t"], ids=["none", "empty", "whitespace"])
